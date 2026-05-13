@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: src/EthosCn.Api/Dockerfile
     ports:
-      - "5000:8080"
+      - "9501:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__CnmDb=${CNM_DB_CONNECTION_STRING}

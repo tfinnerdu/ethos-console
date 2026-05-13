@@ -16,7 +16,7 @@ Force reinstall of all dependencies (NuGet + npm):
   .\start-local.ps1 -ForceDeps
 
 Direct API run (without start-local.ps1):
-  dotnet run --project src\EthosCn.Api\EthosCn.Api.csproj --urls http://localhost:5000
+  dotnet run --project src\EthosCn.Api\EthosCn.Api.csproj --urls http://localhost:9501
 
 Direct frontend run:
   cd frontend && npm run dev
@@ -79,20 +79,20 @@ Tail API logs:
   kubectl logs -f deployment/cnm-api -n cnm-dev
 
 Port-forward API for local testing against dev cluster:
-  kubectl port-forward svc/cnm-api 5000:8080 -n cnm-dev
+  kubectl port-forward svc/cnm-api 9501:8080 -n cnm-dev
 
 --- API (local) ---
 
 Health check:
-  curl http://localhost:5000/api/v1/health
+  curl http://localhost:9501/api/v1/health
 
 Swagger UI:
-  http://localhost:5000/swagger
+  http://localhost:9501/swagger
 
 Change notifications list:
-  curl http://localhost:5000/api/v1/change-notifications
+  curl http://localhost:9501/api/v1/change-notifications
 
 --- FRONTEND (local) ---
 
-Dev server:  http://localhost:5173
-API proxy:   /api -> http://localhost:5000
+Dev server:  http://localhost:9500
+API proxy:   /api -> http://localhost:9501
