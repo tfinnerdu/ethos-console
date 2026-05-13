@@ -49,7 +49,7 @@ if (-not $FrontendOnly) {
     Write-Host "[CNM] Starting API on http://localhost:9501 ..."
     $ApiProc = Start-Process `
         -FilePath "dotnet" `
-        -ArgumentList "run --project `"$ApiProject`" --no-launch-profile --urls http://localhost:9501" `
+        -ArgumentList "watch run --project `"$ApiProject`" --no-launch-profile --urls http://localhost:9501" `
         -NoNewWindow `
         -PassThru `
         -RedirectStandardOutput $ApiLog `
