@@ -1,0 +1,27 @@
+# Adjust host/tls/annotations to match Doane's ingress controller conventions.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cnm-ingress
+  namespace: cnm
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: cnm-dev.doane.edu
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: cnm-api
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cnm-frontend
+                port:
+                  number: 80

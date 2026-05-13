@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cnm-api
+  namespace: cnm
+  labels:
+    app: cnm-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cnm-api
+  template:
+    metadata:
+      labels:
+        app: cnm-api
+    spec:
+      containers:
+        - name: cnm-api
+          image: cnm-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: cnm-config
+            - secretRef:
+                name: cnm-secrets
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cnm-frontend
+  namespace: cnm
+  labels:
+    app: cnm-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cnm-frontend
+  template:
+    metadata:
+      labels:
+        app: cnm-frontend
+    spec:
+      containers:
+        - name: cnm-frontend
+          image: cnm-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

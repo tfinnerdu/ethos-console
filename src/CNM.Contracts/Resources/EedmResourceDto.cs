@@ -1,0 +1,7 @@
+namespace CNM.Contracts.Resources;
+
+public record EedmResourceDto(
+    string Name,
+    string DisplayName,
+    string? Description
+);
