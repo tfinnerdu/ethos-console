@@ -1,0 +1,98 @@
+CNM - Change Notification Manager
+===================================
+
+--- LOCAL DEV STARTUP ---
+
+Full stack (API + frontend):
+  .\start-local.ps1
+
+API only:
+  .\start-local.ps1 -ApiOnly
+
+Frontend only:
+  .\start-local.ps1 -FrontendOnly
+
+Force reinstall of all dependencies (NuGet + npm):
+  .\start-local.ps1 -ForceDeps
+
+Direct API run (without start-local.ps1):
+  dotnet run --project src\CNM.Api\CNM.Api.csproj --urls http://localhost:5000
+
+Direct frontend run:
+  cd frontend && npm run dev
+
+--- BUILD ---
+
+Restore + build entire solution:
+  dotnet restore CNM.sln
+  dotnet build CNM.sln
+
+Publish API for Docker:
+  dotnet publish src\CNM.Api\CNM.Api.csproj -c Release -o publish\api
+
+Build frontend for production:
+  cd frontend && npm run build
+
+--- TESTS ---
+
+Run all tests:
+  dotnet test CNM.sln
+
+Run specific test project:
+  dotnet test tests\CNM.Application.Tests\CNM.Application.Tests.csproj
+
+Run with coverage:
+  dotnet test CNM.sln --collect:"XPlat Code Coverage"
+
+--- DATABASE / EF CORE ---
+
+Add a new migration (from repo root):
+  dotnet ef migrations add <MigrationName> --project src\CNM.Infrastructure --startup-project src\CNM.Api
+
+Apply migrations to local dev DB:
+  dotnet ef database update --project src\CNM.Infrastructure --startup-project src\CNM.Api
+
+List existing migrations:
+  dotnet ef migrations list --project src\CNM.Infrastructure --startup-project src\CNM.Api
+
+--- DOCKER ---
+
+Build images locally:
+  docker build -f src\CNM.Api\Dockerfile -t doaneu/cnm-api:local .
+  docker build -f frontend\Dockerfile -t doaneu/cnm-frontend:local frontend\
+
+Run full stack with Compose (local SQL Server included):
+  docker-compose up
+
+Tear down and remove volumes:
+  docker-compose down -v
+
+--- KUBERNETES (dev cluster) ---
+
+Apply all manifests:
+  kubectl apply -f k8s\
+
+Check pod status:
+  kubectl get pods -n cnm-dev
+
+Tail API logs:
+  kubectl logs -f deployment/cnm-api -n cnm-dev
+
+Port-forward API for local testing against dev cluster:
+  kubectl port-forward svc/cnm-api 5000:8080 -n cnm-dev
+
+--- API (local) ---
+
+Health check:
+  curl http://localhost:5000/api/v1/health
+
+Swagger UI:
+  http://localhost:5000/swagger
+
+Change notifications list:
+  curl http://localhost:5000/api/v1/change-notifications
+
+--- FRONTEND (local) ---
+
+Dev server:  http://localhost:5173
+API proxy:   /api -> http://localhost:5000

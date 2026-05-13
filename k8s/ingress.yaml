@@ -1,27 +1,31 @@
-# Adjust host/tls/annotations to match Doane's ingress controller conventions.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: cnm-ingress
-  namespace: cnm
+  namespace: cnm-dev
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    traefik.ingress.kubernetes.io/router.middlewares: cnm-dev-cnm-dev-strip-prefix@kubernetescrd
+    cert-manager.io/cluster-issuer: prod-letsencrypt
 spec:
+  tls:
+    - hosts:
+        - du-int.doane.edu
+      secretName: wildcard-doane-tls
   rules:
-    - host: cnm-dev.doane.edu
+    - host: du-int.doane.edu
       http:
         paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: cnm-api
-                port:
-                  number: 8080
-          - path: /
+          - path: /dev/cnm
             pathType: Prefix
             backend:
               service:
                 name: cnm-frontend
                 port:
                   number: 80
+          - path: /dev/cnm/api
+            pathType: Prefix
+            backend:
+              service:
+                name: cnm-api
+                port:
+                  number: 8080

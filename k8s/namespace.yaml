@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: cnm
+  name: cnm-dev
   labels:
     app.kubernetes.io/name: cnm
     environment: dev

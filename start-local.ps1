@@ -1,0 +1,69 @@
+param(
+    [switch]$ForceDeps,
+    [switch]$ApiOnly,
+    [switch]$FrontendOnly
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$Root = $PSScriptRoot
+$ApiProject = Join-Path $Root "src\CNM.Api\CNM.Api.csproj"
+$FrontendDir = Join-Path $Root "frontend"
+$LogDir = Join-Path $Root ".hub-logs"
+$ApiLog = Join-Path $LogDir "api.log"
+$ApiLogErr = Join-Path $LogDir "api.err"
+
+if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory $LogDir | Out-Null }
+
+# Wipe logs on each start
+if (Test-Path $ApiLog) { Remove-Item $ApiLog }
+if (Test-Path $ApiLogErr) { Remove-Item $ApiLogErr }
+
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+
+# Load .env if present (key=value lines only)
+$EnvFile = Join-Path $Root ".env"
+if (Test-Path $EnvFile) {
+    Get-Content $EnvFile | Where-Object { $_ -match "^\s*[^#]" -and $_ -match "=" } | ForEach-Object {
+        $parts = $_ -split "=", 2
+        [System.Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
+    }
+    Write-Host "[CNM] Loaded .env"
+}
+
+if (-not $FrontendOnly) {
+    if ($ForceDeps) {
+        Write-Host "[CNM] Restoring NuGet packages..."
+        dotnet restore (Join-Path $Root "CNM.sln") | Out-Null
+    }
+
+    Write-Host "[CNM] Starting API on http://localhost:5000 ..."
+    $ApiProc = Start-Process `
+        -FilePath "dotnet" `
+        -ArgumentList "run --project `"$ApiProject`" --no-launch-profile --urls http://localhost:5000" `
+        -NoNewWindow `
+        -PassThru `
+        -RedirectStandardOutput $ApiLog `
+        -RedirectStandardError $ApiLogErr
+    Write-Host "[CNM] API PID $($ApiProc.Id)"
+}
+
+if (-not $ApiOnly) {
+    if ($ForceDeps) {
+        Write-Host "[CNM] Installing frontend packages..."
+        Push-Location $FrontendDir
+        npm install
+        Pop-Location
+    }
+
+    Write-Host "[CNM] Starting frontend on http://localhost:5173 ..."
+    Push-Location $FrontendDir
+    npm run dev
+    Pop-Location
+}
+
+if (-not $FrontendOnly -and $ApiOnly) {
+    Write-Host "[CNM] API running. Press Ctrl+C to stop."
+    Wait-Process -Id $ApiProc.Id
+}

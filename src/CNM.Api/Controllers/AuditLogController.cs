@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CNM.Api.Controllers;
 
 [ApiController]
-[Route("api/audit-log")]
+[Route("api/v1/audit-log")]
 [Authorize(Policy = "CNM.Admin")]
 public class AuditLogController(IMediator mediator) : ControllerBase
 {

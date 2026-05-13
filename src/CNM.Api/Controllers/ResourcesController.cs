@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CNM.Api.Controllers;
 
 [ApiController]
-[Route("api/resources")]
+[Route("api/v1/resources")]
 [Authorize(Policy = "CNM.Viewer")]
 public class ResourcesController(IMediator mediator) : ControllerBase
 {

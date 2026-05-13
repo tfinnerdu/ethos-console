@@ -9,6 +9,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { msalConfig } from './features/auth/msalConfig';
+import { doaneTheme } from './shared/theme';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 
@@ -28,7 +29,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MsalProvider instance={msalInstance}>
       <QueryClientProvider client={queryClient}>
-        <MantineProvider>
+        <MantineProvider theme={doaneTheme}>
           <Notifications />
           <BrowserRouter>
             <App />

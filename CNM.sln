@@ -7,6 +7,31 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{11111111-111
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{22222222-2222-2222-2222-222222222222}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{33333333-3333-3333-3333-333333333333}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.env.example = .env.example
+		.gitignore = .gitignore
+		docker-compose.yml = docker-compose.yml
+		global.json = global.json
+		start-local.ps1 = start-local.ps1
+		docs\bashCommands.txt = docs\bashCommands.txt
+		k8s\namespace.yaml = k8s\namespace.yaml
+		k8s\configmap.yaml = k8s\configmap.yaml
+		k8s\secret-template.yaml = k8s\secret-template.yaml
+		k8s\deployment.yaml = k8s\deployment.yaml
+		k8s\service.yaml = k8s\service.yaml
+		k8s\ingress.yaml = k8s\ingress.yaml
+		k8s\middleware.yaml = k8s\middleware.yaml
+		frontend\package.json = frontend\package.json
+		frontend\vite.config.ts = frontend\vite.config.ts
+		frontend\tsconfig.json = frontend\tsconfig.json
+		frontend\index.html = frontend\index.html
+		frontend\.env.example = frontend\.env.example
+		frontend\Dockerfile = frontend\Dockerfile
+		frontend\nginx.conf = frontend\nginx.conf
+	EndProjectSection
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CNM.Api", "src\CNM.Api\CNM.Api.csproj", "{AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CNM.Application", "src\CNM.Application\CNM.Application.csproj", "{BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB}"

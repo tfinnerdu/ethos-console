@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cnm-api
-  namespace: cnm
+  namespace: cnm-dev
   labels:
     app: cnm-api
 spec:
@@ -15,10 +15,12 @@ spec:
       labels:
         app: cnm-api
     spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
         - name: cnm-api
-          image: cnm-api:latest
-          imagePullPolicy: IfNotPresent
+          image: doaneu/cnm-api:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           envFrom:
@@ -28,13 +30,13 @@ spec:
                 name: cnm-secrets
           livenessProbe:
             httpGet:
-              path: /api/health
+              path: /api/v1/health
               port: 8080
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
-              path: /api/health
+              path: /api/v1/health
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -50,7 +52,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cnm-frontend
-  namespace: cnm
+  namespace: cnm-dev
   labels:
     app: cnm-frontend
 spec:
@@ -63,10 +65,12 @@ spec:
       labels:
         app: cnm-frontend
     spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
         - name: cnm-frontend
-          image: cnm-frontend:latest
-          imagePullPolicy: IfNotPresent
+          image: doaneu/cnm-frontend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
           resources:

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CNM.Api.Controllers;
 
 [ApiController]
-[Route("api/change-notifications")]
+[Route("api/v1/change-notifications")]
 [Authorize(Policy = "CNM.Viewer")]
 public class ChangeNotificationsController(IMediator mediator) : ControllerBase
 {
@@ -46,26 +46,25 @@ public class ChangeNotificationsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    // v1.5+ write endpoints — return 501 so the disabled frontend controls
-    // get a consistent, expected response if they somehow fire.
+    // v1.5+ write endpoints — 501 so disabled frontend controls get a consistent response.
 
     [HttpPut("{id}")]
     [Authorize(Policy = "CNM.Admin")]
-    public IActionResult Update(string id) => StatusCode(501, "Not implemented in v1.");
+    public IActionResult Update(string id) => StatusCode(501, new { error = "Not implemented in v1.", code = "NOT_IMPLEMENTED" });
 
     [HttpPost]
     [Authorize(Policy = "CNM.Admin")]
-    public IActionResult Create() => StatusCode(501, "Not implemented in v1.");
+    public IActionResult Create() => StatusCode(501, new { error = "Not implemented in v1.", code = "NOT_IMPLEMENTED" });
 
     [HttpPost("{id}/enable")]
     [Authorize(Policy = "CNM.Admin")]
-    public IActionResult Enable(string id) => StatusCode(501, "Not implemented in v1.");
+    public IActionResult Enable(string id) => StatusCode(501, new { error = "Not implemented in v1.", code = "NOT_IMPLEMENTED" });
 
     [HttpPost("{id}/disable")]
     [Authorize(Policy = "CNM.Admin")]
-    public IActionResult Disable(string id) => StatusCode(501, "Not implemented in v1.");
+    public IActionResult Disable(string id) => StatusCode(501, new { error = "Not implemented in v1.", code = "NOT_IMPLEMENTED" });
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "CNM.Admin")]
-    public IActionResult Delete(string id) => StatusCode(501, "Not implemented in v1.");
+    public IActionResult Delete(string id) => StatusCode(501, new { error = "Not implemented in v1.", code = "NOT_IMPLEMENTED" });
 }

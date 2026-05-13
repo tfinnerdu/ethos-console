@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CNM.Api.Controllers;
 
 [ApiController]
-[Route("api/me")]
+[Route("api/v1/me")]
 [Authorize(Policy = "CNM.Viewer")]
 public class MeController(ICurrentUserService currentUser) : ControllerBase
 {

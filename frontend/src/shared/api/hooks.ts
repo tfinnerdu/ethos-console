@@ -11,6 +11,8 @@ import type {
   EedmResource,
 } from './types';
 
+const V1 = '/api/v1';
+
 function useAuthHeader() {
   const { instance, accounts } = useMsal();
   const account = accounts[0];
@@ -30,7 +32,7 @@ export function useChangeNotifications(resource?: string, status?: string) {
     queryFn: async () => {
       const auth = await getHeader();
       const { data } = await apiClient.get<ChangeNotificationListItem[]>(
-        '/api/change-notifications',
+        `${V1}/change-notifications`,
         { headers: { Authorization: auth }, params: { resource, status } },
       );
       return data;
@@ -46,7 +48,7 @@ export function useChangeNotification(id: string) {
     queryFn: async () => {
       const auth = await getHeader();
       const { data } = await apiClient.get<ChangeNotification>(
-        `/api/change-notifications/${id}`,
+        `${V1}/change-notifications/${id}`,
         { headers: { Authorization: auth } },
       );
       return data;
@@ -63,7 +65,7 @@ export function useParagraph(id: string, enabled: boolean) {
     queryFn: async () => {
       const auth = await getHeader();
       const { data } = await apiClient.get<Paragraph>(
-        `/api/change-notifications/${id}/paragraph`,
+        `${V1}/change-notifications/${id}/paragraph`,
         { headers: { Authorization: auth } },
       );
       return data;
@@ -79,7 +81,7 @@ export function useNotificationHistory(id: string) {
     queryFn: async () => {
       const auth = await getHeader();
       const { data } = await apiClient.get<AuditEntry[]>(
-        `/api/change-notifications/${id}/history`,
+        `${V1}/change-notifications/${id}/history`,
         { headers: { Authorization: auth } },
       );
       return data;
@@ -95,7 +97,7 @@ export function useAuditLog(page = 1, pageSize = 50) {
     queryFn: async () => {
       const auth = await getHeader();
       const { data } = await apiClient.get<PagedAuditLog>(
-        '/api/audit-log',
+        `${V1}/audit-log`,
         { headers: { Authorization: auth }, params: { page, pageSize } },
       );
       return data;
@@ -111,7 +113,7 @@ export function useResources() {
     staleTime: Infinity,
     queryFn: async () => {
       const auth = await getHeader();
-      const { data } = await apiClient.get<EedmResource[]>('/api/resources', {
+      const { data } = await apiClient.get<EedmResource[]>(`${V1}/resources`, {
         headers: { Authorization: auth },
       });
       return data;
