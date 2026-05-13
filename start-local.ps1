@@ -46,10 +46,10 @@ if (-not $FrontendOnly) {
         dotnet restore (Join-Path $Root "ethos-cn-service.sln") | Out-Null
     }
 
-    Write-Host "[CNM] Starting API on http://localhost:9501 ..."
+    Write-Host "[CNM] Starting API on http://0.0.0.0:9501 ..."
     $ApiProc = Start-Process `
         -FilePath "dotnet" `
-        -ArgumentList "watch run --project `"$ApiProject`" --no-launch-profile --urls http://localhost:9501" `
+        -ArgumentList "watch run --project `"$ApiProject`" --no-launch-profile --urls http://0.0.0.0:9501" `
         -NoNewWindow `
         -PassThru `
         -RedirectStandardOutput $ApiLog `
