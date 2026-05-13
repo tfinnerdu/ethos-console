@@ -38,10 +38,10 @@ if (-not $FrontendOnly) {
         dotnet restore (Join-Path $Root "ethos-cn-service.sln") | Out-Null
     }
 
-    Write-Host "[CNM] Starting API on http://localhost:5000 ..."
+    Write-Host "[CNM] Starting API on http://localhost:9501 ..."
     $ApiProc = Start-Process `
         -FilePath "dotnet" `
-        -ArgumentList "run --project `"$ApiProject`" --no-launch-profile --urls http://localhost:5000" `
+        -ArgumentList "run --project `"$ApiProject`" --no-launch-profile --urls http://localhost:9501" `
         -NoNewWindow `
         -PassThru `
         -RedirectStandardOutput $ApiLog `
@@ -57,7 +57,7 @@ if (-not $ApiOnly) {
         Pop-Location
     }
 
-    Write-Host "[CNM] Starting frontend on http://localhost:5173 ..."
+    Write-Host "[CNM] Starting frontend on http://localhost:9500 ..."
     Push-Location $FrontendDir
     npm run dev
     Pop-Location
