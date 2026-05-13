@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     port: 9500,
     host: '0.0.0.0',
+    allowHosts: 'rmw01tfinner.doane.local',
     proxy: {
       '/api': {
         target: 'http://localhost:9501',
