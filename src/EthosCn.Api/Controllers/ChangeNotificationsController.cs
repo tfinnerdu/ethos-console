@@ -64,6 +64,10 @@ public class ChangeNotificationsController(IMediator mediator) : ControllerBase
     [Authorize(Policy = "CNM.Admin")]
     public IActionResult Disable(string id) => StatusCode(501, new { error = "Not implemented in v1.", code = "NOT_IMPLEMENTED" });
 
+    [HttpPost("bulk/status")]
+    [Authorize(Policy = "CNM.Admin")]
+    public IActionResult BulkStatus() => StatusCode(501, new { error = "Not implemented in v1.", code = "NOT_IMPLEMENTED" });
+
     [HttpDelete("{id}")]
     [Authorize(Policy = "CNM.Admin")]
     public IActionResult Delete(string id) => StatusCode(501, new { error = "Not implemented in v1.", code = "NOT_IMPLEMENTED" });

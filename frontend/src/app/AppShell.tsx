@@ -43,6 +43,14 @@ export function AppShell() {
           }
         />
         <NavLink
+          label="Diagnostics"
+          component={RouterNavLink}
+          to="/diagnostics"
+          style={({ isActive }: { isActive: boolean }) =>
+            isActive ? { backgroundColor: '#fff3e6', color: '#FF7900', borderRadius: 4 } : {}
+          }
+        />
+        <NavLink
           label="Audit Log"
           component={RouterNavLink}
           to="/audit"

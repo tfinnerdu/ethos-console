@@ -2,6 +2,7 @@ using EthosCn.Application.Common.Interfaces;
 using EthosCn.Infrastructure.Colleague.Das;
 using EthosCn.Infrastructure.Colleague.Sql;
 using EthosCn.Infrastructure.Colleague.WebApi;
+using EthosCn.Infrastructure.Colleague.WebApi.About;
 using EthosCn.Infrastructure.Persistence;
 using EthosCn.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -56,6 +57,7 @@ public static class ServiceRegistration
 
         services.AddScoped<IChangeNotificationRepository, ChangeNotificationRepository>();
         services.AddScoped<IResourceRepository, ResourceRepository>();
+        services.AddScoped<IColleagueAboutRepository, ColleagueAboutRepository>();
 
         return services;
     }

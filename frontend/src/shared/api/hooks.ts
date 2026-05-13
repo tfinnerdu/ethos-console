@@ -9,6 +9,8 @@ import type {
   PagedAuditLog,
   Paragraph,
   EedmResource,
+  ColleagueAbout,
+  SubscriptionPublishingDiff,
 } from './types';
 
 const V1 = '/api/v1';
@@ -116,6 +118,38 @@ export function useResources() {
       const { data } = await apiClient.get<EedmResource[]>(`${V1}/resources`, {
         headers: { Authorization: auth },
       });
+      return data;
+    },
+  });
+}
+
+export function useAbout() {
+  const getHeader = useAuthHeader();
+
+  return useQuery({
+    queryKey: ['about'],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const auth = await getHeader();
+      const { data } = await apiClient.get<ColleagueAbout>(`${V1}/about`, {
+        headers: { Authorization: auth },
+      });
+      return data;
+    },
+  });
+}
+
+export function useSubscriptionPublishingDiagnostic() {
+  const getHeader = useAuthHeader();
+
+  return useQuery({
+    queryKey: ['diagnostics', 'subscription-publishing'],
+    queryFn: async () => {
+      const auth = await getHeader();
+      const { data } = await apiClient.get<SubscriptionPublishingDiff>(
+        `${V1}/diagnostics/subscription-publishing`,
+        { headers: { Authorization: auth } },
+      );
       return data;
     },
   });

@@ -3,6 +3,7 @@ import { RequireAuth } from '../features/auth/RequireAuth';
 import { AppShell } from './AppShell';
 import { ChangeNotificationList } from '../features/change-notifications/ChangeNotificationList';
 import { ChangeNotificationDetail } from '../features/change-notifications/ChangeNotificationDetail';
+import { SubscriptionPublishingDiagnostic } from '../features/diagnostics/SubscriptionPublishingDiagnostic';
 import { AuditLog } from '../features/audit/AuditLog';
 
 export function AppRoutes() {
@@ -13,6 +14,7 @@ export function AppRoutes() {
           <Route index element={<Navigate to="/change-notifications" replace />} />
           <Route path="change-notifications" element={<ChangeNotificationList />} />
           <Route path="change-notifications/:id" element={<ChangeNotificationDetail />} />
+          <Route path="diagnostics" element={<SubscriptionPublishingDiagnostic />} />
           <Route path="audit" element={<AuditLog />} />
         </Route>
       </Route>

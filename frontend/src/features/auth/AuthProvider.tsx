@@ -1,6 +1,5 @@
 import { useMsal } from '@azure/msal-react';
 import { createContext, useContext, type ReactNode } from 'react';
-import { loginRequest } from './msalConfig';
 import { authEnabled } from '../../main';
 
 interface AuthContextValue {

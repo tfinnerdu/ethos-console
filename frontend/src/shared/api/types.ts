@@ -58,3 +58,15 @@ export interface EedmResource {
   displayName: string;
   description: string | null;
 }
+
+export interface ColleagueAbout {
+  version: string | null;
+}
+
+export interface SubscriptionPublishingDiff {
+  subscribedNotPublished: string[];
+  publishedNotSubscribed: string[];
+  aligned: string[];
+  totalSubscribed: number;
+  totalPublished: number;
+}
