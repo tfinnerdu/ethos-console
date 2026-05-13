@@ -14,4 +14,7 @@
     <ProjectReference Include="..\CNM.Domain\CNM.Domain.csproj" />
     <ProjectReference Include="..\CNM.Contracts\CNM.Contracts.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CNM.Application.Tests" />
+  </ItemGroup>
 </Project>

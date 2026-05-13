@@ -10,6 +10,8 @@ namespace CNM.Infrastructure.Colleague.WebApi;
 /// </summary>
 internal sealed class ChangeNotificationRepository(IColleagueWebApiClient client) : IChangeNotificationRepository
 {
+    private readonly IColleagueWebApiClient _client = client;
+
     public Task<IReadOnlyList<ChangeNotification>> GetAllAsync(
         string? resourceFilter = null,
         string? statusFilter = null,
