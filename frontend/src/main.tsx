@@ -13,9 +13,6 @@ import { doaneTheme } from './shared/theme';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 
-const msalInstance = new PublicClientApplication(msalConfig);
-await msalInstance.initialize();
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -25,9 +22,18 @@ const queryClient = new QueryClient({
   },
 });
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <MsalProvider instance={msalInstance}>
+const clientId = import.meta.env.VITE_MSAL_CLIENT_ID as string | undefined;
+export const authEnabled = !!clientId;
+
+async function mount() {
+  let msalInstance: PublicClientApplication | null = null;
+  if (authEnabled) {
+    msalInstance = new PublicClientApplication(msalConfig);
+    await msalInstance.initialize();
+  }
+
+  const tree = (
+    <StrictMode>
       <QueryClientProvider client={queryClient}>
         <MantineProvider theme={doaneTheme}>
           <Notifications />
@@ -37,6 +43,12 @@ createRoot(document.getElementById('root')!).render(
         </MantineProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
-    </MsalProvider>
-  </StrictMode>,
-);
+    </StrictMode>
+  );
+
+  createRoot(document.getElementById('root')!).render(
+    msalInstance ? <MsalProvider instance={msalInstance}>{tree}</MsalProvider> : tree,
+  );
+}
+
+mount();

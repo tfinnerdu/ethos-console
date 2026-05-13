@@ -2,10 +2,10 @@ import { useMsal, AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/
 import { Button, Center, Stack, Text, Title } from '@mantine/core';
 import { Outlet } from 'react-router-dom';
 import { loginRequest } from './msalConfig';
+import { authEnabled } from '../../main';
 
-export function RequireAuth() {
+function MsalGate() {
   const { instance } = useMsal();
-
   return (
     <>
       <AuthenticatedTemplate>
@@ -24,4 +24,9 @@ export function RequireAuth() {
       </UnauthenticatedTemplate>
     </>
   );
+}
+
+export function RequireAuth() {
+  if (!authEnabled) return <Outlet />;
+  return <MsalGate />;
 }
