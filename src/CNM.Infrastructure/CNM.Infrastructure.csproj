@@ -23,4 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CNM.Application\CNM.Application.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CNM.Infrastructure.Tests" />
+  </ItemGroup>
 </Project>
