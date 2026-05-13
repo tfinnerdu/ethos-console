@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $Root = $PSScriptRoot
-$ApiProject = Join-Path $Root "src\CNM.Api\CNM.Api.csproj"
+$ApiProject = Join-Path $Root "src\EthosCn.Api\EthosCn.Api.csproj"
 $FrontendDir = Join-Path $Root "frontend"
 $LogDir = Join-Path $Root ".hub-logs"
 $ApiLog = Join-Path $LogDir "api.log"
@@ -35,7 +35,7 @@ if (Test-Path $EnvFile) {
 if (-not $FrontendOnly) {
     if ($ForceDeps) {
         Write-Host "[CNM] Restoring NuGet packages..."
-        dotnet restore (Join-Path $Root "CNM.sln") | Out-Null
+        dotnet restore (Join-Path $Root "ethos-cn-service.sln") | Out-Null
     }
 
     Write-Host "[CNM] Starting API on http://localhost:5000 ..."

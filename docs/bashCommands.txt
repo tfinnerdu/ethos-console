@@ -16,7 +16,7 @@ Force reinstall of all dependencies (NuGet + npm):
   .\start-local.ps1 -ForceDeps
 
 Direct API run (without start-local.ps1):
-  dotnet run --project src\CNM.Api\CNM.Api.csproj --urls http://localhost:5000
+  dotnet run --project src\EthosCn.Api\EthosCn.Api.csproj --urls http://localhost:5000
 
 Direct frontend run:
   cd frontend && npm run dev
@@ -24,11 +24,11 @@ Direct frontend run:
 --- BUILD ---
 
 Restore + build entire solution:
-  dotnet restore CNM.sln
-  dotnet build CNM.sln
+  dotnet restore ethos-cn-service.sln
+  dotnet build ethos-cn-service.sln
 
 Publish API for Docker:
-  dotnet publish src\CNM.Api\CNM.Api.csproj -c Release -o publish\api
+  dotnet publish src\EthosCn.Api\EthosCn.Api.csproj -c Release -o publish\api
 
 Build frontend for production:
   cd frontend && npm run build
@@ -36,29 +36,29 @@ Build frontend for production:
 --- TESTS ---
 
 Run all tests:
-  dotnet test CNM.sln
+  dotnet test ethos-cn-service.sln
 
 Run specific test project:
-  dotnet test tests\CNM.Application.Tests\CNM.Application.Tests.csproj
+  dotnet test tests\EthosCn.Application.Tests\EthosCn.Application.Tests.csproj
 
 Run with coverage:
-  dotnet test CNM.sln --collect:"XPlat Code Coverage"
+  dotnet test ethos-cn-service.sln --collect:"XPlat Code Coverage"
 
 --- DATABASE / EF CORE ---
 
 Add a new migration (from repo root):
-  dotnet ef migrations add <MigrationName> --project src\CNM.Infrastructure --startup-project src\CNM.Api
+  dotnet ef migrations add <MigrationName> --project src\EthosCn.Infrastructure --startup-project src\EthosCn.Api
 
 Apply migrations to local dev DB:
-  dotnet ef database update --project src\CNM.Infrastructure --startup-project src\CNM.Api
+  dotnet ef database update --project src\EthosCn.Infrastructure --startup-project src\EthosCn.Api
 
 List existing migrations:
-  dotnet ef migrations list --project src\CNM.Infrastructure --startup-project src\CNM.Api
+  dotnet ef migrations list --project src\EthosCn.Infrastructure --startup-project src\EthosCn.Api
 
 --- DOCKER ---
 
 Build images locally:
-  docker build -f src\CNM.Api\Dockerfile -t doaneu/cnm-api:local .
+  docker build -f src\EthosCn.Api\Dockerfile -t doaneu/cnm-api:local .
   docker build -f frontend\Dockerfile -t doaneu/cnm-frontend:local frontend\
 
 Run full stack with Compose (local SQL Server included):

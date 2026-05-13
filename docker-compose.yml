@@ -4,7 +4,7 @@ services:
   cnm-api:
     build:
       context: .
-      dockerfile: src/CNM.Api/Dockerfile
+      dockerfile: src/EthosCn.Api/Dockerfile
     ports:
       - "5000:8080"
     environment:
