@@ -3,6 +3,7 @@ using EthosCn.Infrastructure.Colleague.Das;
 using EthosCn.Infrastructure.Colleague.Sql;
 using EthosCn.Infrastructure.Colleague.WebApi;
 using EthosCn.Infrastructure.Colleague.WebApi.About;
+using EthosCn.Infrastructure.Health;
 using EthosCn.Infrastructure.Persistence;
 using EthosCn.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Hosting;
@@ -68,6 +69,11 @@ public static class ServiceRegistration
         services.AddScoped<IChangeNotificationRepository, ChangeNotificationRepository>();
         services.AddScoped<IResourceRepository, ResourceRepository>();
         services.AddScoped<IColleagueAboutRepository, ColleagueAboutRepository>();
+
+        services.AddHealthChecks()
+            .AddCheck<CnmDatabaseHealthCheck>("database", tags: ["deep"])
+            .AddCheck<ColleagueApiHealthCheck>("colleague-api", tags: ["deep"])
+            .AddCheck<ResourcesSeededHealthCheck>("resources-seeded", tags: ["deep"]);
 
         return services;
     }

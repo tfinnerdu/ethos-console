@@ -83,8 +83,11 @@ Port-forward API for local testing against dev cluster:
 
 --- API (local) ---
 
-Health check:
+Shallow health check (liveness — no external dependencies):
   curl http://localhost:9501/api/v1/health
+
+Deep health check (DB reachable, migrations at head, Colleague API, resources seeded):
+  curl http://localhost:9501/api/v1/health/deep
 
 Swagger UI:
   http://localhost:9501/swagger

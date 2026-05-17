@@ -1,8 +1,11 @@
+using System.Text.Json;
 using EthosCn.Api.DevAuth;
 using EthosCn.Application;
 using EthosCn.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -77,6 +80,30 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
+
+    app.MapHealthChecks("/api/v1/health/deep", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("deep"),
+        ResponseWriter = async (ctx, report) =>
+        {
+            ctx.Response.ContentType = "application/json";
+            ctx.Response.StatusCode = report.Status == HealthStatus.Healthy ? 200 : 503;
+            await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString().ToLowerInvariant(),
+                total_duration_ms = (long)report.TotalDuration.TotalMilliseconds,
+                checks = report.Entries.ToDictionary(
+                    e => e.Key,
+                    e => new
+                    {
+                        status = e.Value.Status.ToString().ToLowerInvariant(),
+                        description = e.Value.Description,
+                        duration_ms = (long)e.Value.Duration.TotalMilliseconds,
+                        error = e.Value.Exception?.Message
+                    })
+            }));
+        }
+    });
 
     app.Run();
 }
