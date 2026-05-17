@@ -5,9 +5,11 @@ using EthosCn.Infrastructure.Colleague.WebApi;
 using EthosCn.Infrastructure.Colleague.WebApi.About;
 using EthosCn.Infrastructure.Persistence;
 using EthosCn.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Refit;
 
 namespace EthosCn.Infrastructure;
@@ -16,14 +18,18 @@ public static class ServiceRegistration
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
     {
         services.AddDbContext<CnmDbContext>(opts =>
             opts.UseSqlServer(
                 configuration.GetConnectionString("CnmDb"),
                 sql => sql.MigrationsAssembly(typeof(CnmDbContext).Assembly.FullName)));
 
-        services.AddScoped<IAuditRepository, AuditRepository>();
+        if (environment.IsDevelopment())
+            services.AddScoped<IAuditRepository, FileAuditRepository>();
+        else
+            services.AddScoped<IAuditRepository, AuditRepository>();
 
         services
             .AddOptions<ColleagueWebApiOptions>()
@@ -50,7 +56,11 @@ public static class ServiceRegistration
                 var opts = configuration
                     .GetSection(ColleagueWebApiOptions.SectionName)
                     .Get<ColleagueWebApiOptions>()!;
-                client.BaseAddress = new Uri(opts.BaseUrl);
+                // Fall back to a valid placeholder so DI resolution doesn't throw
+                // when ColleagueWebApi:BaseUrl isn't set in local dev.
+                client.BaseAddress = new Uri(string.IsNullOrWhiteSpace(opts.BaseUrl)
+                    ? "http://localhost"
+                    : opts.BaseUrl);
                 client.Timeout = opts.Timeout;
             })
             .AddStandardResilienceHandler();

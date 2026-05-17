@@ -1,5 +1,8 @@
+using EthosCn.Api.DevAuth;
 using EthosCn.Application;
 using EthosCn.Infrastructure;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -18,18 +21,24 @@ try
 
     builder.Services
         .AddApplication()
-        .AddInfrastructure(builder.Configuration);
+        .AddInfrastructure(builder.Configuration, builder.Environment);
 
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<EthosCn.Application.Common.Interfaces.ICurrentUserService,
         EthosCn.Api.Services.CurrentUserService>();
 
-    builder.Services
-        .AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(opts =>
-        {
-            builder.Configuration.Bind("AzureAd", opts);
-        });
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services
+            .AddAuthentication("DevAuth")
+            .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>("DevAuth", _ => { });
+    }
+    else
+    {
+        builder.Services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(opts => builder.Configuration.Bind("AzureAd", opts));
+    }
 
     builder.Services.AddAuthorization(opts =>
     {
