@@ -1,5 +1,8 @@
+from datetime import datetime, timezone
+
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
+from app.database import db, ResourceAnnotation
 
 resources_bp = Blueprint("resources", __name__)
 
@@ -58,3 +61,42 @@ def graphql_proxy():
         return jsonify(result)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
+
+
+@resources_bp.get("/<name>")
+def resource_detail(name: str):
+    annotation = ResourceAnnotation.query.filter_by(resource_name=name).first()
+    cn_supported = name in _cn_resource_cache if _cn_resource_cache else None
+    available = name in _resource_cache if _resource_cache else None
+    return jsonify({
+        "name": name,
+        "cn_supported": cn_supported,
+        "annotation": annotation.to_dict() if annotation else None,
+        "available": available,
+    })
+
+
+@resources_bp.put("/<name>/annotate")
+def annotate_resource(name: str):
+    data = request.get_json(force=True) or {}
+    annotation = ResourceAnnotation.query.filter_by(resource_name=name).first()
+    if annotation is None:
+        annotation = ResourceAnnotation(resource_name=name)
+        db.session.add(annotation)
+
+    if "trigger_conditions_gap" in data:
+        annotation.trigger_conditions_gap = bool(data["trigger_conditions_gap"])
+    if "notes" in data:
+        annotation.notes = data["notes"]
+    if "updated_by" in data:
+        annotation.updated_by = data["updated_by"]
+    annotation.last_updated = datetime.now(timezone.utc)
+
+    db.session.commit()
+    return jsonify(annotation.to_dict())
+
+
+@resources_bp.get("/annotations")
+def list_annotations():
+    annotations = ResourceAnnotation.query.order_by(ResourceAnnotation.resource_name).all()
+    return jsonify({"items": [a.to_dict() for a in annotations]})

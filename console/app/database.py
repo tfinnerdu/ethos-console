@@ -194,3 +194,88 @@ def seed_mnemonics(app):
             if not ColleagueMnemonic.query.filter_by(mnemonic=entry["mnemonic"]).first():
                 db.session.add(ColleagueMnemonic(**entry))
         db.session.commit()
+
+
+class ResourceAnnotation(db.Model):
+    __tablename__ = "resource_annotations"
+    id = db.Column(db.Integer, primary_key=True)
+    resource_name = db.Column(db.String(200), nullable=False, unique=True)
+    trigger_conditions_gap = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.Text)
+    updated_by = db.Column(db.String(100))
+    last_updated = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "resource_name": self.resource_name,
+            "trigger_conditions_gap": self.trigger_conditions_gap,
+            "notes": self.notes,
+            "updated_by": self.updated_by,
+            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
+        }
+
+
+class SavedQuery(db.Model):
+    __tablename__ = "saved_queries"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    query_text = db.Column(db.Text, nullable=False)
+    variables = db.Column(db.JSON)
+    is_preloaded = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_by = db.Column(db.String(100))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "query_text": self.query_text,
+            "variables": self.variables or {},
+            "is_preloaded": self.is_preloaded,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+SEED_SAVED_QUERIES = [
+    {
+        "name": "Person by ID — names + credentials",
+        "query_text": "query GetPerson($id: String!) { persons16(filter: { id: { EQ: $id } }) { edges { node { id names { firstName lastName preferredName } credentials { type { credentialType } value } } } } }",
+        "variables": {"id": ""},
+        "is_preloaded": True,
+    },
+    {
+        "name": "Student academic programs",
+        "query_text": "query GetStudentPrograms($studentId: String!) { studentAcademicPrograms15(filter: { student: { id: { EQ: $studentId } } }) { edges { node { id student { id } program { id } enrollmentStatus { enrollmentStatus } startOn endOn } } } }",
+        "variables": {"studentId": ""},
+        "is_preloaded": True,
+    },
+    {
+        "name": "Sections with meetings",
+        "query_text": "query GetSections($termId: String!) { sections16(filter: { academicPeriod: { id: { EQ: $termId } } }) { edges { node { id course { id } number meeting { startOn endOn days startTime endTime } } } } }",
+        "variables": {"termId": ""},
+        "is_preloaded": True,
+    },
+    {
+        "name": "Person addresses",
+        "query_text": "query GetAddresses($personId: String!) { personAddresses11(filter: { person: { id: { EQ: $personId } } }) { edges { node { id type { addressType } address { addressLines city state { abbreviation } postalCode } } } } }",
+        "variables": {"personId": ""},
+        "is_preloaded": True,
+    },
+    {
+        "name": "Applications (admissions)",
+        "query_text": "query GetApplications { applications16 { edges { node { id applicant { id } academicPeriod { id } appliedOn admissionPopulation { admissionPopulation } } } } }",
+        "variables": {},
+        "is_preloaded": True,
+    },
+]
+
+
+def seed_saved_queries(app):
+    with app.app_context():
+        for entry in SEED_SAVED_QUERIES:
+            if not SavedQuery.query.filter_by(name=entry["name"]).first():
+                db.session.add(SavedQuery(**entry))
+        db.session.commit()

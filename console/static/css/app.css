@@ -275,3 +275,70 @@ body {
 }
 
 .scrollable { overflow-y: auto; }
+
+/* ── Schema explorer (GraphQL builder) ── */
+.schema-resource-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--doane-navy);
+  user-select: none;
+}
+.schema-resource-header:hover { background: #f0f4ff; }
+
+.schema-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 28px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+}
+.schema-field-row:hover { background: #f8f9ff; }
+
+.field-type-badge {
+  font-size: 0.65rem;
+  color: #6c757d;
+  background: #f0f0f0;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: auto;
+}
+
+/* ── Saved query chips ── */
+.chip-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #d0e8ff;
+  color: #0056b3;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid #b8d4f5;
+  transition: background 0.12s;
+}
+.chip-saved:hover { background: #b8d4f5; }
+.chip-saved.preloaded {
+  background: #fff3cd;
+  color: #856404;
+  border-color: #ffc107;
+}
+.chip-saved.preloaded:hover { background: #ffe69c; }
+
+/* ── Inline link button ── */
+.btn-xs-link {
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--doane-orange);
+  text-decoration: none;
+  background: none;
+  border: none;
+}
+.btn-xs-link:hover { color: var(--doane-navy); }

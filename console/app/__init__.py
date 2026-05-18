@@ -1,7 +1,7 @@
 import os
 import logging
 from flask import Flask
-from .database import db, seed_mnemonics
+from .database import db, seed_mnemonics, seed_saved_queries
 from .ethos_client import EthosClient
 from .bus_monitor import BusMonitor
 from .health_monitor import EthosHealthMonitor
@@ -30,6 +30,7 @@ def create_app(config_name: str | None = None) -> Flask:
     with app.app_context():
         db.create_all()
         seed_mnemonics(app)
+        seed_saved_queries(app)
 
     ethos = EthosClient(
         api_key=app.config["ETHOS_API_KEY"],
@@ -39,7 +40,7 @@ def create_app(config_name: str | None = None) -> Flask:
     health_monitor = EthosHealthMonitor(ethos)
 
     if ethos.is_configured():
-        monitor.start(poll_interval=app.config["BUS_POLL_INTERVAL"])
+        monitor.start(poll_interval=app.config["BUS_POLL_INTERVAL"], app=app)
 
     app.extensions["ethos_client"] = ethos
     app.extensions["bus_monitor"] = monitor
@@ -51,6 +52,8 @@ def create_app(config_name: str | None = None) -> Flask:
     from .routes.replay import replay_bp
     from .routes.mnemonics import mnemonics_bp
     from .routes.resources import resources_bp
+    from .routes.graphql_routes import graphql_bp
+    from .routes.errors import errors_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(bus_bp, url_prefix="/api/bus")
@@ -58,6 +61,8 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(replay_bp, url_prefix="/api/replay")
     app.register_blueprint(mnemonics_bp, url_prefix="/api/mnemonics")
     app.register_blueprint(resources_bp, url_prefix="/api/resources")
+    app.register_blueprint(graphql_bp, url_prefix="/api/graphql-console")
+    app.register_blueprint(errors_bp, url_prefix="/api/errors")
 
     return app
 

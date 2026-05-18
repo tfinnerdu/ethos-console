@@ -32,3 +32,8 @@ def mnemonics():
 @main_bp.get("/health")
 def health_ui():
     return render_template("health.html", active_tab="health")
+
+
+@main_bp.get("/errors")
+def errors_ui():
+    return render_template("errors.html", active_tab="health")

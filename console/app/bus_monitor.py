@@ -21,11 +21,13 @@ class BusMonitor:
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self._poll_interval: int = 2
+        self._app = None
 
-    def start(self, poll_interval: int = 2):
+    def start(self, poll_interval: int = 2, app=None):
         if self.running:
             return
         self._poll_interval = poll_interval
+        self._app = app
         self.running = True
         self._thread = threading.Thread(target=self._poll_loop, daemon=True, name="bus-monitor")
         self._thread.start()
@@ -69,6 +71,15 @@ class BusMonitor:
                             "message": str(exc),
                         })
                     log.warning("BusMonitor poll error: %s", exc)
+                    if self._app:
+                        try:
+                            with self._app.app_context():
+                                from app.database import db, EthosErrorLog
+                                entry = EthosErrorLog(source="bus_monitor", endpoint="/consume", error_message=str(exc))
+                                db.session.add(entry)
+                                db.session.commit()
+                        except Exception:
+                            pass
 
             time.sleep(self._poll_interval)
 

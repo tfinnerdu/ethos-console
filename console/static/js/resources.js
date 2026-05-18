@@ -1,0 +1,183 @@
+'use strict';
+
+let allResources = [];
+let cnSet = new Set();
+let annotationMap = {};
+let currentFilter = 'all';
+let selectedResource = null;
+
+async function loadResources() {
+  document.getElementById('resource-status').textContent = 'Fetching from Ethos...';
+  const [resR, cnR, annR] = await Promise.allSettled([
+    fetch('/api/resources/').then(r => r.json()),
+    fetch('/api/resources/cn-enabled').then(r => r.json()),
+    fetch('/api/resources/annotations').then(r => r.json()),
+  ]);
+
+  if (resR.status === 'fulfilled' && resR.value.items) {
+    allResources = resR.value.items;
+  }
+  if (cnR.status === 'fulfilled' && cnR.value.items) {
+    cnSet = new Set((cnR.value.items || []).map(i => i.resourceName || i.name || i));
+  }
+  if (annR.status === 'fulfilled') {
+    annotationMap = {};
+    (annR.value || []).forEach(a => { annotationMap[a.resource_name] = a; });
+  }
+
+  renderTable();
+}
+
+function renderTable() {
+  const q = (document.getElementById('resource-search').value || '').toLowerCase();
+  let rows = allResources.filter(r => {
+    const name = resourceName(r).toLowerCase();
+    if (q && !name.includes(q)) return false;
+    if (currentFilter === 'cn') return cnSet.has(resourceName(r));
+    if (currentFilter === 'gap') return annotationMap[resourceName(r)]?.trigger_conditions_gap;
+    return true;
+  });
+
+  const total = allResources.length;
+  document.getElementById('resource-status').textContent =
+    total ? `Showing ${rows.length} of ${total} resources` : 'No resources — check ETHOS_API_KEY';
+
+  const tbody = document.getElementById('resource-list-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No matches</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const name = resourceName(r);
+    const ver = r.latestVersion || r.version || '—';
+    const isCn = cnSet.has(name);
+    const ann = annotationMap[name];
+    const isGap = ann?.trigger_conditions_gap;
+    const isSel = selectedResource === name;
+
+    return `<tr class="resource-row${isSel ? ' selected' : ''}" onclick="selectResource('${name}', '${ver}', ${JSON.stringify((r.versions||[]).join(', ') || ver)})">
+      <td class="font-monospace small">${name}</td>
+      <td class="text-muted small">v${ver}</td>
+      <td>${isCn ? '<span class="badge badge-active" style="font-size:.65rem">CN ✓</span>' : '<span class="badge badge-unknown" style="font-size:.65rem">—</span>'}</td>
+      <td>${isGap ? '<i class="bi bi-exclamation-triangle-fill text-warning" title="TRIGGER_CONDITIONS gap"></i>' : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function resourceName(r) {
+  return r.name || r.resourceName || '';
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function filterTable() { renderTable(); }
+
+async function refreshResources() {
+  await fetch('/api/resources/refresh', { method: 'POST' });
+  allResources = []; cnSet = new Set();
+  await loadResources();
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+
+async function selectResource(name, version, versions) {
+  selectedResource = name;
+  renderTable();
+
+  document.getElementById('detail-placeholder').style.display = 'none';
+  const panel = document.getElementById('detail-panel');
+  panel.style.display = '';
+
+  document.getElementById('dp-name').textContent = name;
+  document.getElementById('dp-versions').textContent = 'Available: v' + (versions || version);
+
+  // Badges
+  const isCn = cnSet.has(name);
+  const ann = annotationMap[name];
+  document.getElementById('dp-badges').innerHTML = [
+    isCn ? '<span class="badge bg-success">CN ✓</span>' : '<span class="badge bg-secondary">CN —</span>',
+    isCn ? '' : '',
+  ].join('');
+
+  // Populate annotation fields
+  document.getElementById('dp-notes').value = ann?.notes || '';
+  document.getElementById('dp-gap-check').checked = !!(ann?.trigger_conditions_gap);
+
+  // Mnemonic matches
+  loadMnemonicMatches(name);
+}
+
+async function loadMnemonicMatches(resourceName) {
+  const container = document.getElementById('dp-mnemonics');
+  container.innerHTML = '<div class="text-muted small">Searching...</div>';
+  try {
+    const r = await fetch(`/api/mnemonics/?q=${encodeURIComponent(resourceName)}`);
+    const items = await r.json();
+    const matches = items.filter(m => (m.eedm_resource || '').toLowerCase().includes(resourceName.toLowerCase()));
+    if (!matches.length) {
+      container.innerHTML = '<div class="text-muted small">No mnemonic entries match this resource. <a href="/mnemonics">Add one →</a></div>';
+      return;
+    }
+    container.innerHTML = matches.map(m => `
+      <div class="d-flex justify-content-between align-items-start border-bottom py-2">
+        <div>
+          <div class="fw-bold font-monospace small">${m.mnemonic}</div>
+          <div class="text-muted small">${m.colleague_file || ''}</div>
+          ${m.gotchas ? `<div class="mnemonic-gotcha mt-1" style="font-size:.75rem">⚠ ${m.gotchas.substring(0,120)}${m.gotchas.length > 120 ? '…' : ''}</div>` : ''}
+        </div>
+        <div class="text-end">
+          ${m.cn_supported ? '<span class="badge bg-success" style="font-size:.65rem">CN ✓</span>' : ''}
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="text-danger small">Error: ${e.message}</div>`;
+  }
+}
+
+async function saveAnnotation() {
+  if (!selectedResource) return;
+  const btn = document.querySelector('[onclick="saveAnnotation()"]');
+  btn.disabled = true;
+
+  const body = {
+    notes: document.getElementById('dp-notes').value || null,
+    trigger_conditions_gap: document.getElementById('dp-gap-check').checked,
+    updated_by: 'console',
+  };
+
+  try {
+    const r = await fetch(`/api/resources/${encodeURIComponent(selectedResource)}/annotate`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    annotationMap[selectedResource] = data;
+    renderTable();
+
+    const status = document.getElementById('dp-save-status');
+    status.textContent = '✓ Saved';
+    status.className = 'small text-success ms-2';
+    setTimeout(() => { status.textContent = ''; }, 2500);
+
+    // Refresh gap badge
+    document.getElementById('dp-badges').innerHTML = [
+      cnSet.has(selectedResource) ? '<span class="badge bg-success">CN ✓</span>' : '<span class="badge bg-secondary">CN —</span>',
+      data.trigger_conditions_gap ? '<span class="badge bg-warning text-dark">⚠ Gap</span>' : '',
+    ].join('');
+  } catch (e) {
+    const status = document.getElementById('dp-save-status');
+    status.textContent = '✗ ' + e.message;
+    status.className = 'small text-danger ms-2';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+loadResources();

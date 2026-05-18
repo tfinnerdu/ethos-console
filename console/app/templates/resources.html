@@ -2,116 +2,118 @@
 {% block title_suffix %} — Resources{% endblock %}
 
 {% block content %}
-<div class="alert alert-info d-flex align-items-start gap-2" role="alert">
-  <i class="bi bi-info-circle-fill mt-1"></i>
-  <div>
-    <strong>Phase 2 feature.</strong> The EEDM Resource Coverage Map fetches available resources
-    from your Ethos instance. Requires <code>ETHOS_API_KEY</code> to be configured.
-  </div>
-</div>
+<div class="row g-3">
 
-<div class="console-card">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div class="console-card-header mb-0">EEDM Resource Coverage Map</div>
-    <div class="d-flex gap-2 align-items-center">
-      <input type="text" id="resource-search" class="form-control form-control-sm"
-             placeholder="Search..." style="width:200px;" oninput="filterResources()" />
-      <div class="btn-group btn-group-sm" role="group">
-        <input type="radio" class="btn-check" name="filter-mode" id="filter-all" checked>
-        <label class="btn btn-outline-secondary" for="filter-all" onclick="setFilter('all')">All</label>
-        <input type="radio" class="btn-check" name="filter-mode" id="filter-cn">
-        <label class="btn btn-outline-secondary" for="filter-cn" onclick="setFilter('cn')">CN Enabled</label>
+  <!-- Left: resource list -->
+  <div class="col-12 col-xl-5">
+    <div class="console-card">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="console-card-header mb-0">EEDM Resource Coverage Map</div>
+        <button class="btn btn-sm btn-outline-secondary" onclick="refreshResources()" id="btn-refresh">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
       </div>
-      <button class="btn btn-sm btn-outline-secondary" onclick="refreshResources()">
-        <i class="bi bi-arrow-clockwise"></i>
-      </button>
+
+      <div class="input-group input-group-sm mb-2">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" id="resource-search" class="form-control"
+               placeholder="Filter resources..." oninput="filterTable()" />
+      </div>
+
+      <div class="d-flex gap-1 mb-2">
+        <button class="btn btn-xs filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+        <button class="btn btn-xs filter-btn" data-filter="cn" onclick="setFilter('cn', this)">
+          <i class="bi bi-bell-fill me-1" style="font-size:.65rem;color:#28a745"></i>CN Only
+        </button>
+        <button class="btn btn-xs filter-btn" data-filter="gap" onclick="setFilter('gap', this)">
+          <i class="bi bi-exclamation-triangle-fill me-1" style="font-size:.65rem;color:#ffc107"></i>Known Gaps
+        </button>
+      </div>
+
+      <div id="resource-status" class="text-muted small mb-2">Loading...</div>
+
+      <div style="max-height:520px; overflow-y:auto;">
+        <table class="table table-sm table-hover resource-table mb-0">
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th>Ver</th>
+              <th>CN</th>
+              <th>Gap</th>
+            </tr>
+          </thead>
+          <tbody id="resource-list-tbody">
+            <tr><td colspan="4" class="text-center py-4 text-muted">
+              <i class="bi bi-cloud-slash d-block mb-1" style="font-size:1.4rem"></i>
+              Requires ETHOS_API_KEY
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <div id="resource-status" class="text-muted small mb-2">Loading...</div>
+  <!-- Right: detail panel -->
+  <div class="col-12 col-xl-7">
+    <div id="detail-panel" style="display:none;">
 
-  <div class="table-responsive">
-    <table class="table table-sm resource-table mb-0" id="resource-table">
-      <thead>
-        <tr>
-          <th>Resource</th>
-          <th>Latest Version</th>
-          <th>CN Supported</th>
-          <th>Versions</th>
-        </tr>
-      </thead>
-      <tbody id="resource-list-tbody">
-        <tr><td colspan="4" class="text-center py-4 text-muted">
-          <i class="bi bi-cloud-slash d-block mb-2" style="font-size:1.5rem"></i>
-          Requires ETHOS_API_KEY configuration
-        </td></tr>
-      </tbody>
-    </table>
+      <!-- Header -->
+      <div class="console-card mb-3">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h5 class="mb-0 font-monospace fw-bold" id="dp-name"></h5>
+            <div class="small text-muted mt-1" id="dp-versions"></div>
+          </div>
+          <div class="d-flex gap-2 flex-wrap" id="dp-badges"></div>
+        </div>
+
+        <!-- Annotation editor -->
+        <div class="mb-2">
+          <label class="form-label small text-muted fw-semibold mb-1">Internal Notes</label>
+          <textarea class="form-control form-control-sm" id="dp-notes" rows="3"
+                    placeholder="Conductor workflow mapping, known issues, gotchas..."></textarea>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="dp-gap-check" />
+          <label class="form-check-label small" for="dp-gap-check">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+            Flag as TRIGGER_CONDITIONS gap — CN fires silently or unreliably
+          </label>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-sm btn-doane" onclick="saveAnnotation()">
+            <i class="bi bi-check-lg me-1"></i>Save Annotation
+          </button>
+          <span id="dp-save-status" class="small text-muted"></span>
+        </div>
+      </div>
+
+      <!-- Mnemonic matches -->
+      <div class="console-card">
+        <div class="console-card-header">Colleague Mnemonic Matches</div>
+        <div id="dp-mnemonics">
+          <div class="text-muted small">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="console-card text-muted text-center py-5" id="detail-placeholder">
+      <i class="bi bi-grid-3x3-gap display-6 d-block mb-2"></i>
+      Select a resource to view details and add annotations
+    </div>
   </div>
 </div>
 {% endblock %}
 
+{% block head %}
+<style>
+.btn-xs { padding: 2px 8px; font-size: .75rem; border-radius: 4px; border: 1px solid #dee2e6; background: #fff; cursor: pointer; }
+.btn-xs.active { background: var(--doane-navy); color: #fff; border-color: var(--doane-navy); }
+.resource-row { cursor: pointer; }
+.resource-row.selected td { background: #fff8f2; }
+</style>
+{% endblock %}
+
 {% block scripts %}
-<script>
-let allResources = [], cnResources = new Set(), currentFilter = 'all';
-
-async function loadResources() {
-  const [resResp, cnResp] = await Promise.allSettled([
-    fetch('/api/resources/').then(r => r.json()),
-    fetch('/api/resources/cn-enabled').then(r => r.json())
-  ]);
-
-  if (resResp.status === 'fulfilled' && resResp.value.items) {
-    allResources = resResp.value.items;
-  }
-  if (cnResp.status === 'fulfilled' && cnResp.value.items) {
-    cnResources = new Set((cnResp.value.items || []).map(i => i.resourceName || i.name || i));
-  }
-
-  renderTable();
-}
-
-function renderTable() {
-  const q = document.getElementById('resource-search').value.toLowerCase();
-  let rows = allResources.filter(r => {
-    const name = (r.name || r.resourceName || '').toLowerCase();
-    const matchFilter = currentFilter === 'all' || cnResources.has(r.name || r.resourceName);
-    const matchSearch = !q || name.includes(q);
-    return matchFilter && matchSearch;
-  });
-
-  document.getElementById('resource-status').textContent =
-    `Showing ${rows.length} of ${allResources.length} resources`;
-
-  const tbody = document.getElementById('resource-list-tbody');
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No results</td></tr>';
-    return;
-  }
-  tbody.innerHTML = rows.map(r => {
-    const name = r.name || r.resourceName || '';
-    const ver = r.latestVersion || r.version || '—';
-    const isCn = cnResources.has(name);
-    const versions = (r.versions || [ver]).join(', ');
-    return `<tr>
-      <td class="font-monospace">${name}</td>
-      <td>v${ver}</td>
-      <td>${isCn
-        ? '<span class="badge bg-success">CN ✓</span>'
-        : '<span class="badge bg-secondary">—</span>'}</td>
-      <td class="text-muted small">${versions}</td>
-    </tr>`;
-  }).join('');
-}
-
-function filterResources() { renderTable(); }
-function setFilter(f) { currentFilter = f; renderTable(); }
-async function refreshResources() {
-  await fetch('/api/resources/refresh', {method:'POST'});
-  allResources = []; cnResources = new Set();
-  await loadResources();
-}
-
-loadResources();
-</script>
+<script src="/static/js/resources.js"></script>
 {% endblock %}
