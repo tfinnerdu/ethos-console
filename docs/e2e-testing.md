@@ -333,3 +333,142 @@ Audit entries go to `.hub-logs/audit.txt` when running locally. Each line is one
 Columns: `[timestamp] action | targetType | targetIdentifier | userId | sourceIp | outcome`
 
 The file is wiped on each `cnm\start-local.ps1` run (API log is wiped; audit file is append-only and persists across restarts).
+
+---
+
+## 11. Ethos Dev Console — Automated Tests
+
+The Flask console (`console/`) has a pytest suite covering all API blueprints against an in-memory SQLite database with no live Ethos connection required.
+
+### Prerequisites
+
+```powershell
+cd console
+pip install -r requirements.txt
+pip install pytest
+```
+
+### Run all console tests
+
+```powershell
+pytest
+```
+
+### Run a specific module
+
+```powershell
+pytest tests/test_health.py
+pytest tests/test_errors_api.py
+pytest tests/test_resources_api.py
+pytest tests/test_graphql_api.py
+```
+
+### What is covered
+
+| Test module | Scenarios |
+|---|---|
+| `test_health.py` | Liveness probe always-200; full health check shape; latency key presence |
+| `test_errors_api.py` | Empty list, POST + retrieve, filter by status, spikes shape, flush, CSV export |
+| `test_resources_api.py` | Resource list, CN-enabled list, annotations CRUD, idempotent upsert |
+| `test_graphql_api.py` | Schema 503 when unconfigured, schema with mock, saved query CRUD, preloaded guard |
+
+---
+
+## 12. Ethos Dev Console — Smoke Test Checklist
+
+Run after starting the console with `.\console\start-local.ps1`:
+
+### Liveness
+
+```powershell
+# Always 200 — use for Uptime Kuma / k8s liveness probe
+curl http://localhost:5000/api/health/live
+```
+
+Expected: `{"status": "ok"}`
+
+### Health dashboard
+
+```powershell
+curl http://localhost:5000/api/health/
+```
+
+Expected: JSON with keys `token`, `queue_depth`, `latency`, `resource_health`, `ethos_configured`
+
+### Resources
+
+```powershell
+# Full EEDM resource list — requires ETHOS_API_KEY
+curl http://localhost:5000/api/resources/
+
+# CN-enabled resources
+curl http://localhost:5000/api/resources/cn-enabled
+
+# Annotations (empty on first run)
+curl http://localhost:5000/api/resources/annotations
+```
+
+### GraphQL builder
+
+```powershell
+# Schema introspection — requires ETHOS_API_KEY
+curl http://localhost:5000/api/graphql-console/schema
+
+# Seeded saved queries — always available
+curl http://localhost:5000/api/graphql-console/saved
+```
+
+Expected for saved queries: `{"items": [...]}` with 5 preloaded Doane queries.
+
+### Error log
+
+```powershell
+curl http://localhost:5000/api/errors/
+curl http://localhost:5000/api/errors/spikes
+```
+
+### Frontend smoke tests
+
+Open `http://localhost:5000` and verify:
+
+- [ ] Bus Monitor loads, SSE stream connects (status dot animates)
+- [ ] Resources page loads, table renders (empty without `ETHOS_API_KEY`)
+- [ ] GraphQL page loads, saved query chips appear (5 preloaded)
+- [ ] Health page loads without JS console errors
+- [ ] Error Log page loads, metric tiles show `0` or `—`
+- [ ] "View all →" link from Health navigates to `/errors`
+- [ ] Mnemonics page loads, table renders
+
+---
+
+## 13. Ethos Dev Console — Health Endpoint Reference
+
+| Endpoint | Method | Purpose | Use for |
+|---|---|---|---|
+| `/api/health/live` | GET | Liveness probe — always 200 if process up | k8s liveness, Uptime Kuma |
+| `/api/health/` | GET | Full operational health | Dashboards, alerts |
+
+### Full health response shape
+
+```json
+{
+  "ethos_configured": true,
+  "token": { "valid": true, "expires_in_minutes": 45 },
+  "queue_depth": 12,
+  "queue_status": "green",
+  "queue_error": null,
+  "latency": { "p50": 142, "p95": 380, "p99": 510, "max": 720, "sample_count": 87 },
+  "recent_errors": [],
+  "error_count_1h": 0,
+  "error_status": "green",
+  "resource_health": [
+    { "resource": "persons", "hourly_rate": 43, "last_seen_seconds_ago": 5, "status": "green" }
+  ]
+}
+```
+
+| Field | Green | Amber | Red |
+|---|---|---|---|
+| `queue_status` | depth < 100 | 100–499 | ≥ 500 or error |
+| `error_status` | 0 errors | 1–10 errors | > 10 errors |
+| resource `status` | event within 30 min | no recent event | — |

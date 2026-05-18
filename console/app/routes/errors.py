@@ -42,8 +42,15 @@ def _apply_filters(query, args):
 @errors_bp.get("/")
 def list_errors():
     args = request.args
-    page = int(args.get("page", 1))
-    per_page = int(args.get("per_page", 50))
+    # Accept limit/offset (JS convention) or page/per_page (SQLAlchemy convention)
+    if "limit" in args or "offset" in args:
+        limit = int(args.get("limit", 50))
+        offset = int(args.get("offset", 0))
+        per_page = limit
+        page = (offset // limit) + 1 if limit else 1
+    else:
+        page = int(args.get("page", 1))
+        per_page = int(args.get("per_page", 50))
 
     q = EthosErrorLog.query.order_by(EthosErrorLog.timestamp.desc())
     q = _apply_filters(q, args)

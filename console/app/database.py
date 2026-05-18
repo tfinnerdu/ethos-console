@@ -59,6 +59,7 @@ class ReplayHistory(db.Model):
             "resource_name": self.resource_name,
             "operation": self.operation,
             "workflow_name": self.workflow_name,
+            "conductor_url": self.conductor_url,
             "conductor_workflow_id": self.conductor_workflow_id,
             "outcome": self.outcome,
             "error_message": self.error_message,

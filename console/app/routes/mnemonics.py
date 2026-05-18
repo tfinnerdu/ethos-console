@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 from app.database import db, ColleagueMnemonic
 
@@ -69,7 +70,6 @@ def update_mnemonic(item_id: int):
     if "related_mnemonics" in data:
         item.related_mnemonics = data["related_mnemonics"]
 
-    from datetime import datetime, timezone
     item.last_updated = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify(item.to_dict())

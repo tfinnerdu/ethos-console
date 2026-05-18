@@ -247,8 +247,10 @@ function copyResult() {
 
 function copyCurl() {
   const query = document.getElementById('query-editor').value;
-  const vars = document.getElementById('vars-editor').value || '{}';
-  const body = JSON.stringify({ query, variables: JSON.parse(vars || '{}') });
+  const varsText = document.getElementById('vars-editor').value || '{}';
+  let variables = {};
+  try { variables = JSON.parse(varsText); } catch { alert('Variables must be valid JSON before copying curl'); return; }
+  const body = JSON.stringify({ query, variables });
   const curl = `curl -X POST https://integrate.elluciancloud.com/graphql \\\n  -H "Authorization: Bearer <ethos_jwt_token>" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}'`;
   navigator.clipboard.writeText(curl).then(() => alert('curl command copied to clipboard'));
 }
@@ -278,7 +280,8 @@ let savedQueries = [];
 async function loadSavedQueries() {
   try {
     const r = await fetch('/api/graphql-console/saved');
-    savedQueries = await r.json();
+    const data = await r.json();
+    savedQueries = data.items ?? (Array.isArray(data) ? data : []);
     renderSavedChips();
   } catch (e) {
     document.getElementById('saved-chips').innerHTML = '<span class="text-muted small">Error loading</span>';

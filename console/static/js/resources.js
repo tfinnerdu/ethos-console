@@ -22,7 +22,7 @@ async function loadResources() {
   }
   if (annR.status === 'fulfilled') {
     annotationMap = {};
-    (annR.value || []).forEach(a => { annotationMap[a.resource_name] = a; });
+    (annR.value?.items || []).forEach(a => { annotationMap[a.resource_name] = a; });
   }
 
   renderTable();
