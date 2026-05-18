@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Schema Browser{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- Left: type list -->
+  <div class="col-12 col-lg-3">
+    <div class="console-card h-100">
+      <div class="console-card-header d-flex justify-content-between align-items-center mb-0 pb-2">
+        <span>EEDM Types</span>
+        <span class="text-muted small fw-normal" id="type-count"></span>
+      </div>
+      <input type="text" class="form-control form-control-sm mt-2 mb-2"
+             id="type-search" placeholder="Filter types…" oninput="filterTypes()" />
+      <div id="type-list" style="max-height:520px;overflow-y:auto;font-size:.8rem">
+        <div class="text-muted small text-center py-3">
+          <button class="btn btn-sm btn-doane" onclick="loadTypes()">Load Schema</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Middle: field table -->
+  <div class="col-12 col-lg-5">
+    <div class="console-card h-100">
+      <div class="console-card-header mb-0 pb-2" id="fields-header">Select a type to browse fields</div>
+      <div id="fields-panel" class="mt-2">
+        <div class="text-muted small text-center py-4">
+          <i class="bi bi-diagram-3" style="font-size:2rem;opacity:.3"></i><br>
+          Select a resource type on the left
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: validator -->
+  <div class="col-12 col-lg-4">
+    <div class="console-card">
+      <div class="console-card-header mb-0 pb-2">JSON Payload Validator</div>
+      <div class="mt-2">
+        <div class="row g-2 mb-2">
+          <div class="col-8">
+            <input type="text" class="form-control form-control-sm" id="val-resource"
+                   placeholder="Resource (e.g. persons)" />
+          </div>
+          <div class="col-4">
+            <input type="text" class="form-control form-control-sm" id="val-version"
+                   placeholder="Version (16)" />
+          </div>
+        </div>
+        <textarea id="val-payload" class="form-control form-control-sm font-monospace mb-2"
+                  rows="10" style="font-size:.75rem;resize:vertical"
+                  placeholder='Paste EEDM JSON payload here…&#10;&#10;{"id":"...", "firstName": "..."}'></textarea>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-doane flex-fill" onclick="validatePayload()">
+            <i class="bi bi-check2-circle me-1"></i>Validate
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="formatPayload()">
+            <i class="bi bi-braces"></i>
+          </button>
+        </div>
+        <div id="val-result" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/schema_browser.js"></script>
+{% endblock %}

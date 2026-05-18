@@ -46,6 +46,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.extensions["bus_monitor"] = monitor
     app.extensions["health_monitor"] = health_monitor
 
+    from .routes.auth import auth_bp
     from .routes.main import main_bp
     from .routes.bus import bus_bp
     from .routes.health import health_bp
@@ -54,7 +55,10 @@ def create_app(config_name: str | None = None) -> Flask:
     from .routes.resources import resources_bp
     from .routes.graphql_routes import graphql_bp
     from .routes.errors import errors_bp
+    from .routes.schema_browser import schema_browser_bp
+    from .routes.phase3 import phase3_bp
 
+    app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(bus_bp, url_prefix="/api/bus")
     app.register_blueprint(health_bp, url_prefix="/api/health")
@@ -63,6 +67,8 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(resources_bp, url_prefix="/api/resources")
     app.register_blueprint(graphql_bp, url_prefix="/api/graphql-console")
     app.register_blueprint(errors_bp, url_prefix="/api/errors")
+    app.register_blueprint(schema_browser_bp, url_prefix="/api/schema-browser")
+    app.register_blueprint(phase3_bp, url_prefix="/api/phase3")
 
     return app
 

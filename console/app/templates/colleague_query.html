@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Direct Query{% endblock %}
+
+{% block content %}
+{% if not unidata_configured %}
+<!-- Not configured state -->
+<div class="row justify-content-center mt-4">
+  <div class="col-12 col-lg-6">
+    <div class="console-card text-center py-4">
+      <i class="bi bi-terminal" style="font-size:2.5rem;color:#dee2e6"></i>
+      <h5 class="mt-3 mb-1" style="color:#1F3864">Colleague Direct Query</h5>
+      <p class="text-muted small mb-3">
+        Run UniQuery SELECT statements directly against Colleague files via ODBC.
+        Useful for spot-checking data during Ethos integration development without
+        opening a full Colleague session.
+      </p>
+      <div class="alert alert-warning text-start small py-2 mb-3">
+        <strong>Connection required.</strong> Add <code>UNIDATA_CONN_STR</code> to
+        <code>.env</code> to enable this feature.
+      </div>
+      <div class="console-card text-start" style="background:#f8f9fa">
+        <div class="small fw-bold mb-2">Setup steps</div>
+        <ol class="small mb-2 ps-3">
+          <li>Install the UniData ODBC driver on the host running the console.</li>
+          <li>Create a DSN in <code>odbcinst.ini</code> / <code>odbc.ini</code> pointing at Colleague.</li>
+          <li>Add <code>UNIDATA_CONN_STR=DSN=ColleagueDS;UID=svc-console;PWD=…</code> to <code>.env</code>.</li>
+          <li>Add <code>pyodbc==5.2.0</code> to <code>requirements.txt</code> and reinstall.</li>
+          <li>Restart the console — this page will activate automatically.</li>
+        </ol>
+        <div class="text-muted" style="font-size:.72rem">
+          The service account needs <code>SELECT</code> access to Colleague files.
+          <strong>Read-only</strong> — INSERT/UPDATE/DELETE are not supported.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<!-- Configured — functional UI -->
+<div class="row g-3">
+  <div class="col-12 col-lg-3">
+    <div class="console-card">
+      <div class="console-card-header">Colleague Files</div>
+      <input type="text" class="form-control form-control-sm mb-2"
+             id="cq-file-search" placeholder="Filter files…" oninput="filterFiles()" />
+      <div id="cq-file-list" style="max-height:480px;overflow-y:auto;font-size:.8rem">
+        <div class="text-muted small text-center py-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="loadFiles()">Load Files</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-9">
+    <div class="console-card mb-3">
+      <div class="console-card-header mb-0 pb-2">UniQuery / SELECT Statement</div>
+      <textarea id="cq-statement" class="form-control form-control-sm font-monospace mt-2 mb-2"
+                rows="5" style="font-size:.8rem;resize:vertical"
+                placeholder="SELECT ID, FIRST.NAME, LAST.NAME FROM PERSON WITH LAST.NAME = 'Smith'"></textarea>
+      <div class="d-flex gap-2 align-items-center">
+        <button class="btn btn-sm btn-doane" id="btn-run-query" onclick="runQuery()">
+          <i class="bi bi-play-fill me-1"></i>Run
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="clearQuery()">Clear</button>
+        <span class="text-muted small ms-auto" id="cq-meta"></span>
+      </div>
+    </div>
+    <div class="console-card">
+      <div class="console-card-header mb-0 pb-2 d-flex justify-content-between">
+        <span>Results</span>
+        <button class="btn-xs-link btn" id="btn-export-cq" style="display:none"
+                onclick="exportResults()"><i class="bi bi-filetype-csv me-1"></i>Export</button>
+      </div>
+      <div id="cq-results" class="mt-2">
+        <div class="text-muted small text-center py-4">Run a query to see results.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/colleague_query.js"></script>
+{% endblock %}

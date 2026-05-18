@@ -44,6 +44,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CNM Solution Items", "cnm",
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Console Solution Items", "console", "{55555555-5555-5555-5555-555555555555}"
 	ProjectSection(SolutionItems) = preProject
+		console\.env = console\.env
 		console\.env.example = console\.env.example
 		console\config.py = console\config.py
 		console\Dockerfile = console\Dockerfile

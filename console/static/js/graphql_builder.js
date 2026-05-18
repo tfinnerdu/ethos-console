@@ -8,13 +8,16 @@ let saveModal = null;
 
 // ── Schema loading ────────────────────────────────────────────────────────────
 
-async function loadSchema() {
+async function loadSchema(forceRefresh = false) {
   const btn = document.getElementById('btn-load-schema');
   const status = document.getElementById('schema-status');
   btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
   status.textContent = 'Loading...';
 
   try {
+    if (forceRefresh) {
+      await fetch('/api/graphql-console/schema', { method: 'DELETE' });
+    }
     const r = await fetch('/api/graphql-console/schema');
     const data = await r.json();
     if (data.error) throw new Error(data.error);

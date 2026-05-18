@@ -7,6 +7,7 @@ class Config:
     CONDUCTOR_API_KEY = os.environ.get("CONDUCTOR_API_KEY", "")
     CONDUCTOR_URL = os.environ.get("CONDUCTOR_URL", "")
     UNIDATA_CONN_STR = os.environ.get("UNIDATA_CONN_STR", "")
+    CONSOLE_KEY = os.environ.get("CONSOLE_KEY", "")
     BUS_POLL_INTERVAL = int(os.environ.get("BUS_POLL_INTERVAL", "2"))
     SILENCE_THRESHOLD_MINUTES = int(os.environ.get("SILENCE_THRESHOLD_MINUTES", "30"))
 

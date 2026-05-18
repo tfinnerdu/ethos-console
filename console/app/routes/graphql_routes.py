@@ -1,3 +1,4 @@
+import time
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
 from app.database import db, EthosErrorLog, SavedQuery
@@ -19,13 +20,17 @@ INTROSPECTION_QUERY = """
 }
 """
 
+SCHEMA_CACHE_TTL = 4 * 3600  # 4 hours
+
 _schema_cache = None
+_schema_cache_time: float = 0.0
 
 
 @graphql_bp.get("/schema")
 def get_schema():
-    global _schema_cache
-    if _schema_cache is not None:
+    global _schema_cache, _schema_cache_time
+    age = time.time() - _schema_cache_time
+    if _schema_cache is not None and age < SCHEMA_CACHE_TTL:
         return jsonify(_schema_cache)
 
     ethos = get_ethos(current_app._get_current_object())
@@ -35,9 +40,19 @@ def get_schema():
     try:
         result = ethos.graphql(INTROSPECTION_QUERY)
         _schema_cache = result
+        _schema_cache_time = time.time()
         return jsonify(result)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
+
+
+@graphql_bp.delete("/schema")
+def invalidate_schema_cache():
+    """Force-expire the schema cache so the next GET re-fetches from Ethos."""
+    global _schema_cache, _schema_cache_time
+    _schema_cache = None
+    _schema_cache_time = 0.0
+    return jsonify({"invalidated": True})
 
 
 @graphql_bp.post("/execute")
