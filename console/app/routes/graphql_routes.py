@@ -39,9 +39,10 @@ def get_schema():
 
     try:
         result = ethos.graphql(INTROSPECTION_QUERY)
-        _schema_cache = result
+        schema = result.get("data", {}).get("__schema", result)
+        _schema_cache = schema
         _schema_cache_time = time.time()
-        return jsonify(result)
+        return jsonify(schema)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
 

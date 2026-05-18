@@ -252,6 +252,14 @@ def test_phase3_unidata_files_503(client):
     assert r.status_code == 503
 
 
+def test_phase3_colleague_files_503(client):
+    r = client.get("/api/phase3/colleague-files")
+    assert r.status_code == 503
+    data = r.get_json()
+    assert "error" in data
+    assert "setup" in data
+
+
 # ── Error CSV column order contract ───────────────────────────────────────────
 # Any consumer parsing the CSV (downstream scripts, Excel macros) depends on
 # column order being stable.

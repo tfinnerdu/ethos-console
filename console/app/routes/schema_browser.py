@@ -6,28 +6,30 @@
 /api/schema-browser/validate       — validate a payload against the fetched schema
 """
 import jsonschema
+import requests as req
+import time
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
 from app.routes.graphql_routes import _schema_cache, INTROSPECTION_QUERY, SCHEMA_CACHE_TTL
-import time
 
 schema_browser_bp = Blueprint("schema_browser", __name__)
 
 
 def _get_schema(ethos):
-    """Return the cached introspection schema, fetching if needed."""
+    """Return the cached (unwrapped) introspection schema, fetching if needed."""
     import app.routes.graphql_routes as gr
     age = time.time() - gr._schema_cache_time
     if gr._schema_cache is not None and age < SCHEMA_CACHE_TTL:
         return gr._schema_cache
     result = ethos.graphql(INTROSPECTION_QUERY)
-    gr._schema_cache = result
+    schema = result.get("data", {}).get("__schema", result)
+    gr._schema_cache = schema
     gr._schema_cache_time = time.time()
-    return result
+    return schema
 
 
 def _build_type_map(schema_data: dict) -> dict:
-    types = schema_data.get("data", {}).get("__schema", {}).get("types", [])
+    types = schema_data.get("types", [])
     return {t["name"]: t for t in types}
 
 
@@ -39,7 +41,7 @@ def list_types():
     try:
         schema = _get_schema(ethos)
         type_map = _build_type_map(schema)
-        query_type_name = schema.get("data", {}).get("__schema", {}).get("queryType", {}).get("name", "Query")
+        query_type_name = schema.get("queryType", {}).get("name", "Query")
         query_type = type_map.get(query_type_name, {})
         resources = []
         for field in (query_type.get("fields") or []):
@@ -88,7 +90,6 @@ def get_resource_schema(resource: str):
         return jsonify({"error": "Ethos API key not configured"}), 503
     version = request.args.get("version")
     try:
-        import requests as req
         accept = (
             f"application/vnd.hedtech.integration.v{version}+json"
             if version
@@ -125,7 +126,6 @@ def validate_payload():
         return jsonify({"error": "payload is required"}), 400
 
     try:
-        import requests as req
         headers = ethos.get_headers()
         headers["Accept"] = "application/schema+json"
         if version:

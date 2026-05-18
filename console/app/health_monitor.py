@@ -45,7 +45,7 @@ class EthosHealthMonitor:
         n = len(sorted_l)
 
         def pct(p: float) -> float:
-            return round(sorted_l[min(int(n * p), n - 1)])
+            return round(sorted_l[int((n - 1) * p)])
 
         return {
             "p50": pct(0.50),

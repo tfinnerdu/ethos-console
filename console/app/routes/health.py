@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, current_app
 from app import get_health_monitor
+from app.auth import api_auth_required
 
 health_bp = Blueprint("health", __name__)
 
@@ -11,6 +12,7 @@ def liveness():
 
 
 @health_bp.get("/")
+@api_auth_required
 def health_check():
     hm = get_health_monitor(current_app._get_current_object())
     return jsonify(hm.check_health())

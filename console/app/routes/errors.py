@@ -78,7 +78,7 @@ def error_spikes():
             )
         )
         rows = [{"hour": row[0], "count": row[1]} for row in result]
-        return jsonify({"items": rows})
+        return jsonify(rows)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

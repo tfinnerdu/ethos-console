@@ -15,6 +15,7 @@ def app():
         TESTING=True,
         SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
         ETHOS_API_KEY="",
+        CONSOLE_KEY="",  # open-access by default; individual tests set this explicitly
         WTF_CSRF_ENABLED=False,
     )
 
@@ -31,7 +32,8 @@ def client(app):
 
 @pytest.fixture()
 def mock_ethos(app):
-    """Return the EthosClient stored in app.extensions, replaced with a MagicMock."""
+    """Replace app.extensions['ethos_client'] with a MagicMock for one test."""
+    original = app.extensions.get("ethos_client")
     mock = MagicMock()
     mock.is_configured.return_value = True
     mock.token_status = {"valid": True, "expires_in_minutes": 45}
@@ -43,4 +45,5 @@ def mock_ethos(app):
     mock.get_cn_available_resources.return_value = [{"resourceName": "persons"}]
     mock.graphql.return_value = {"data": {}}
     app.extensions["ethos_client"] = mock
-    return mock
+    yield mock
+    app.extensions["ethos_client"] = original
