@@ -1,76 +1,88 @@
-CNM - Change Notification Manager
-===================================
+Doane Ethos Console — Dev Commands
+====================================
+
+Project layout:
+  cnm/       Change Notification Manager (.NET 8 API + React frontend)
+  console/   Ethos Dev Console (Flask/Python)
+  docs/      Shared documentation
+  ethos-console.sln  Visual Studio solution (references cnm/ projects)
+
+=============================
+ CNM — Change Notification Manager
+=============================
 
 --- LOCAL DEV STARTUP ---
 
-Full stack (API + frontend):
-  .\start-local.ps1
+Full stack (API + frontend) — run from repo root:
+  .\cnm\start-local.ps1
 
 API only:
-  .\start-local.ps1 -ApiOnly
+  .\cnm\start-local.ps1 -ApiOnly
 
 Frontend only:
-  .\start-local.ps1 -FrontendOnly
+  .\cnm\start-local.ps1 -FrontendOnly
 
 Force reinstall of all dependencies (NuGet + npm):
-  .\start-local.ps1 -ForceDeps
+  .\cnm\start-local.ps1 -ForceDeps
 
 Direct API run (without start-local.ps1):
-  dotnet run --project src\EthosCn.Api\EthosCn.Api.csproj --urls http://localhost:9501
+  dotnet run --project cnm\src\EthosCn.Api\EthosCn.Api.csproj --urls http://localhost:9501
 
 Direct frontend run:
-  cd frontend && npm run dev
+  cd cnm\frontend && npm run dev
 
 --- BUILD ---
 
 Restore + build entire solution:
-  dotnet restore ethos-cn-service.sln
-  dotnet build ethos-cn-service.sln
+  dotnet restore ethos-console.sln
+  dotnet build ethos-console.sln
 
 Publish API for Docker:
-  dotnet publish src\EthosCn.Api\EthosCn.Api.csproj -c Release -o publish\api
+  dotnet publish cnm\src\EthosCn.Api\EthosCn.Api.csproj -c Release -o publish\api
 
 Build frontend for production:
-  cd frontend && npm run build
+  cd cnm\frontend && npm run build
 
 --- TESTS ---
 
 Run all tests:
-  dotnet test ethos-cn-service.sln
+  dotnet test ethos-console.sln
 
 Run specific test project:
-  dotnet test tests\EthosCn.Application.Tests\EthosCn.Application.Tests.csproj
+  dotnet test cnm\tests\EthosCn.Application.Tests\EthosCn.Application.Tests.csproj
+  dotnet test cnm\tests\EthosCn.Api.Tests\EthosCn.Api.Tests.csproj
+  dotnet test cnm\tests\EthosCn.Infrastructure.Tests\EthosCn.Infrastructure.Tests.csproj
 
 Run with coverage:
-  dotnet test ethos-cn-service.sln --collect:"XPlat Code Coverage"
+  dotnet test ethos-console.sln --collect:"XPlat Code Coverage"
 
 --- DATABASE / EF CORE ---
 
 Add a new migration (from repo root):
-  dotnet ef migrations add <MigrationName> --project src\EthosCn.Infrastructure --startup-project src\EthosCn.Api
+  dotnet ef migrations add <MigrationName> --project cnm\src\EthosCn.Infrastructure --startup-project cnm\src\EthosCn.Api
 
 Apply migrations to local dev DB:
-  dotnet ef database update --project src\EthosCn.Infrastructure --startup-project src\EthosCn.Api
+  dotnet ef database update --project cnm\src\EthosCn.Infrastructure --startup-project cnm\src\EthosCn.Api
 
 List existing migrations:
-  dotnet ef migrations list --project src\EthosCn.Infrastructure --startup-project src\EthosCn.Api
+  dotnet ef migrations list --project cnm\src\EthosCn.Infrastructure --startup-project cnm\src\EthosCn.Api
 
 --- DOCKER ---
 
 Build images locally:
-  docker build -f src\EthosCn.Api\Dockerfile -t doaneu/cnm-api:local .
-  docker build -f frontend\Dockerfile -t doaneu/cnm-frontend:local frontend\
+  docker build -f cnm\src\EthosCn.Api\Dockerfile -t doaneu/cnm-api:local .
+  docker build -f cnm\frontend\Dockerfile -t doaneu/cnm-frontend:local cnm\frontend\
 
-Run full stack with Compose (local SQL Server included):
-  docker-compose up
+Run full CNM stack with Compose (local SQL Server included):
+  cd cnm && docker-compose up
 
 Tear down and remove volumes:
-  docker-compose down -v
+  cd cnm && docker-compose down -v
 
 --- KUBERNETES (dev cluster) ---
 
-Apply all manifests:
-  kubectl apply -f k8s\
+Apply CNM manifests:
+  kubectl apply -f cnm\k8s\
 
 Check pod status:
   kubectl get pods -n cnm-dev
@@ -81,7 +93,7 @@ Tail API logs:
 Port-forward API for local testing against dev cluster:
   kubectl port-forward svc/cnm-api 9501:8080 -n cnm-dev
 
---- API (local) ---
+--- CNM API (local) ---
 
 Shallow health check (liveness — no external dependencies):
   curl http://localhost:9501/api/v1/health
@@ -95,7 +107,39 @@ Swagger UI:
 Change notifications list:
   curl http://localhost:9501/api/v1/change-notifications
 
---- FRONTEND (local) ---
+--- CNM FRONTEND (local) ---
 
 Dev server:  http://localhost:9500
 API proxy:   /api -> http://localhost:9501
+
+=============================
+ Console — Ethos Dev Console
+=============================
+
+--- LOCAL DEV STARTUP ---
+
+Start (run from repo root):
+  .\console\start-local.ps1
+
+Or with force deps reinstall:
+  .\console\start-local.ps1 -ForceDeps
+
+Direct run (venv already active):
+  cd console && python run.py
+
+--- KUBERNETES (prod) ---
+
+Apply console manifests:
+  kubectl apply -f console\k8s\
+
+--- CONSOLE (local) ---
+
+Dev server:  http://localhost:9502
+  Bus Monitor:  http://localhost:9502/
+  Replay:       http://localhost:9502/replay
+  GraphQL:      http://localhost:9502/graphql
+  Resources:    http://localhost:9502/resources
+  Mnemonics:    http://localhost:9502/mnemonics
+  Health:       http://localhost:9502/health
+  Health API:   http://localhost:9502/api/health/
+  Bus SSE:      http://localhost:9502/api/bus/stream

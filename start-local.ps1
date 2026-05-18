@@ -1,77 +1,45 @@
 param(
-    [switch]$ForceDeps,
-    [switch]$ApiOnly,
-    [switch]$FrontendOnly
+    [switch]$CnmOnly,
+    [switch]$ConsoleOnly,
+    [switch]$ForceDeps
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $Root = $PSScriptRoot
-$ApiProject = Join-Path $Root "src\EthosCn.Api\EthosCn.Api.csproj"
-$FrontendDir = Join-Path $Root "frontend"
-$LogDir = Join-Path $Root ".hub-logs"
-$ApiLog = Join-Path $LogDir "api.log"
-$ApiLogErr = Join-Path $LogDir "api.err"
 
-if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory $LogDir | Out-Null }
+Write-Host ""
+Write-Host "  Doane Ethos Console — Local Hub"
+Write-Host "  ================================"
+Write-Host "  CNM (Change Notification Manager) → http://localhost:9500 (frontend)"
+Write-Host "                                       http://localhost:9501 (API)"
+Write-Host "  Ethos Dev Console                 → http://localhost:9502"
+Write-Host ""
 
-# Kill any previous API instance holding the log file open
-$portConn = Get-NetTCPConnection -LocalPort 9501 -State Listen -ErrorAction SilentlyContinue
-if ($portConn) {
-    Write-Host "[CNM] Stopping existing API process on port 9501 (PID $($portConn.OwningProcess))..."
-    Stop-Process -Id $portConn.OwningProcess -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 750
+$forceSwitches = if ($ForceDeps) { "-ForceDeps" } else { "" }
+
+if (-not $ConsoleOnly) {
+    Write-Host "[Hub] Starting CNM..."
+    $cnmScript = Join-Path $Root "cnm\start-local.ps1"
+    Start-Process powershell `
+        -ArgumentList "-NoExit -File `"$cnmScript`" -ApiOnly $forceSwitches" `
+        -WindowStyle Normal
 }
 
-# Wipe logs on each start
-if (Test-Path $ApiLog) { Remove-Item $ApiLog }
-if (Test-Path $ApiLogErr) { Remove-Item $ApiLogErr }
-
-$env:ASPNETCORE_ENVIRONMENT = "Development"
-
-# Load .env if present (key=value lines only)
-$EnvFile = Join-Path $Root ".env"
-if (Test-Path $EnvFile) {
-    Get-Content $EnvFile | Where-Object { $_ -match "^\s*[^#]" -and $_ -match "=" } | ForEach-Object {
-        $parts = $_ -split "=", 2
-        [System.Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
-    }
-    Write-Host "[CNM] Loaded .env"
+if (-not $CnmOnly) {
+    Write-Host "[Hub] Starting Ethos Dev Console..."
+    $consoleScript = Join-Path $Root "console\start-local.ps1"
+    Start-Process powershell `
+        -ArgumentList "-NoExit -File `"$consoleScript`" $forceSwitches" `
+        -WindowStyle Normal
 }
 
-if (-not $FrontendOnly) {
-    if ($ForceDeps) {
-        Write-Host "[CNM] Restoring NuGet packages..."
-        dotnet restore (Join-Path $Root "ethos-cn-service.sln") | Out-Null
-    }
-
-    Write-Host "[CNM] Starting API on http://0.0.0.0:9501 ..."
-    $ApiProc = Start-Process `
-        -FilePath "dotnet" `
-        -ArgumentList "watch run --project `"$ApiProject`" --no-launch-profile --urls http://0.0.0.0:9501" `
-        -NoNewWindow `
-        -PassThru `
-        -RedirectStandardOutput $ApiLog `
-        -RedirectStandardError $ApiLogErr
-    Write-Host "[CNM] API PID $($ApiProc.Id)"
-}
-
-if (-not $ApiOnly) {
-    if ($ForceDeps) {
-        Write-Host "[CNM] Installing frontend packages..."
-        Push-Location $FrontendDir
-        npm install
-        Pop-Location
-    }
-
-    Write-Host "[CNM] Starting frontend on http://localhost:9500 ..."
-    Push-Location $FrontendDir
+if (-not $ConsoleOnly) {
+    Write-Host "[Hub] Starting CNM frontend..."
+    $frontendDir = Join-Path $Root "cnm\frontend"
+    Push-Location $frontendDir
+    if ($ForceDeps) { npm install }
     npm run dev
     Pop-Location
-}
-
-if (-not $FrontendOnly -and $ApiOnly) {
-    Write-Host "[CNM] API running. Press Ctrl+C to stop."
-    Wait-Process -Id $ApiProc.Id
 }

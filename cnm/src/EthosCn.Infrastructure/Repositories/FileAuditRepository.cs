@@ -12,7 +12,7 @@ namespace EthosCn.Infrastructure.Repositories;
 internal sealed class FileAuditRepository(IWebHostEnvironment env) : IAuditRepository
 {
     private readonly string _path = Path.Combine(
-        Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..")),
+        Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "..")),
         ".hub-logs",
         "audit.txt");
 

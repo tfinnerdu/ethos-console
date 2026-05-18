@@ -28,7 +28,7 @@ Required to run manual E2E without Colleague connectivity:
 - [ ] .NET 8 SDK installed
 - [ ] Node 20+ installed
 - [ ] Repository cloned and on the correct branch
-- [ ] `.\start-local.ps1 -ForceDeps` run at least once (installs npm packages)
+- [ ] `.\cnm\start-local.ps1 -ForceDeps` run at least once (installs npm packages)
 - [ ] No `.env` required — dev auth bypass and file audit are active
 
 ### Local stack (with Colleague)
@@ -38,7 +38,7 @@ Additional requirements for Colleague-connected testing:
 - [ ] VPN connected to Doane network
 - [ ] `.env` at repo root with `ColleagueWebApi__BaseUrl`, `__Username`, `__Password` populated
 - [ ] `ConnectionStrings__CnmDb` pointing to a local or shared SQL Server instance
-- [ ] EF migrations applied: `dotnet ef database update --project src\EthosCn.Infrastructure --startup-project src\EthosCn.Api`
+- [ ] EF migrations applied: `dotnet ef database update --project cnm\src\EthosCn.Infrastructure --startup-project cnm\src\EthosCn.Api`
 
 ### Dev cluster
 
@@ -53,21 +53,21 @@ Additional requirements for Colleague-connected testing:
 ### All tests (unit + API integration)
 
 ```
-dotnet test ethos-cn-service.sln
+dotnet test ethos-console.sln
 ```
 
 ### With coverage report
 
 ```
-dotnet test ethos-cn-service.sln --collect:"XPlat Code Coverage"
+dotnet test ethos-console.sln --collect:"XPlat Code Coverage"
 ```
 
 ### Specific project
 
 ```
-dotnet test tests\EthosCn.Application.Tests\EthosCn.Application.Tests.csproj
-dotnet test tests\EthosCn.Api.Tests\EthosCn.Api.Tests.csproj
-dotnet test tests\EthosCn.Infrastructure.Tests\EthosCn.Infrastructure.Tests.csproj
+dotnet test cnm\tests\EthosCn.Application.Tests\EthosCn.Application.Tests.csproj
+dotnet test cnm\tests\EthosCn.Api.Tests\EthosCn.Api.Tests.csproj
+dotnet test cnm\tests\EthosCn.Infrastructure.Tests\EthosCn.Infrastructure.Tests.csproj
 ```
 
 ### Colleague contract tests (integration-only)
@@ -76,7 +76,7 @@ These are skipped by default. Set the environment variable before running:
 
 ```powershell
 $env:COLLEAGUE_INTEGRATION_TESTS = "true"
-dotnet test tests\EthosCn.Infrastructure.Tests\EthosCn.Infrastructure.Tests.csproj
+dotnet test cnm\tests\EthosCn.Infrastructure.Tests\EthosCn.Infrastructure.Tests.csproj
 ```
 
 > These require VPN + dev Colleague credentials in `.env`. Do not run against prod.
@@ -88,7 +88,7 @@ dotnet test tests\EthosCn.Infrastructure.Tests\EthosCn.Infrastructure.Tests.cspr
 Run these immediately after starting the stack, before doing anything else.
 
 ```powershell
-.\start-local.ps1
+.\cnm\start-local.ps1
 ```
 
 Wait for both the API and Vite to report ready, then verify:
@@ -292,7 +292,7 @@ Verify via ingress (`du-int.doane.edu/dev/cnm`) that the frontend loads and prox
 
 Run before any release or after a significant code change:
 
-- [ ] All automated tests pass: `dotnet test ethos-cn-service.sln`
+- [ ] All automated tests pass: `dotnet test ethos-console.sln`
 - [ ] Shallow health returns 200
 - [ ] Deep health returns expected shape with all three check keys
 - [ ] Resources endpoint returns exactly 41 items
@@ -332,4 +332,4 @@ Audit entries go to `.hub-logs/audit.txt` when running locally. Each line is one
 
 Columns: `[timestamp] action | targetType | targetIdentifier | userId | sourceIp | outcome`
 
-The file is wiped on each `start-local.ps1` run (API log is wiped; audit file is append-only and persists across restarts).
+The file is wiped on each `cnm\start-local.ps1` run (API log is wiped; audit file is append-only and persists across restarts).

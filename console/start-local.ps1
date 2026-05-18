@@ -6,6 +6,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $Root = $PSScriptRoot
+$RepoRoot = Split-Path $Root -Parent
 $LogDir = Join-Path $Root ".logs"
 $AppLog = Join-Path $LogDir "app.log"
 $AppLogErr = Join-Path $LogDir "app.err"
@@ -20,16 +21,18 @@ if ($portConn) {
     Start-Sleep -Milliseconds 500
 }
 
-# Load .env if present
-$EnvFile = Join-Path $Root ".env"
-if (Test-Path $EnvFile) {
-    Get-Content $EnvFile | Where-Object { $_ -match "^\s*[^#]" -and $_ -match "=" } | ForEach-Object {
-        $parts = $_ -split "=", 2
-        [System.Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
+# Load repo-root .env, then console-local .env (local overrides root)
+foreach ($envSearch in @((Join-Path $RepoRoot ".env"), (Join-Path $Root ".env"))) {
+    if (Test-Path $envSearch) {
+        Get-Content $envSearch | Where-Object { $_ -match "^\s*[^#]" -and $_ -match "=" } | ForEach-Object {
+            $parts = $_ -split "=", 2
+            [System.Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
+        }
+        Write-Host "[EthosConsole] Loaded $envSearch"
     }
-    Write-Host "[EthosConsole] Loaded .env"
-} else {
-    Write-Host "[EthosConsole] No .env found — copy .env.example to .env and fill in ETHOS_API_KEY"
+}
+if (-not (Test-Path (Join-Path $RepoRoot ".env")) -and -not (Test-Path (Join-Path $Root ".env"))) {
+    Write-Host "[EthosConsole] No .env found — copy console\.env.example to .env and fill in ETHOS_API_KEY"
 }
 
 # Create/activate venv if needed
