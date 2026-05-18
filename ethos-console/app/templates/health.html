@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Health{% endblock %}
+
+{% block content %}
+<!-- Metric tiles -->
+<div class="row g-3 mb-3" id="health-tiles">
+  <div class="col-6 col-md-3">
+    <div class="metric-tile">
+      <div class="metric-value d-flex align-items-center gap-2">
+        <span class="status-dot gray" id="token-dot"></span>
+        <span id="token-valid">—</span>
+      </div>
+      <div class="metric-label">Token Status</div>
+      <div class="metric-sub" id="token-expiry">Loading...</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-tile">
+      <div class="metric-value" id="queue-depth">—</div>
+      <div class="metric-label">Queue Depth</div>
+      <div class="metric-sub" id="queue-status-text"></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-tile">
+      <div class="metric-value" id="msg-rate">—</div>
+      <div class="metric-label">P50 Latency (ms)</div>
+      <div class="metric-sub" id="msg-rate-sub"></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-tile">
+      <div class="metric-value" id="error-count">—</div>
+      <div class="metric-label">Errors (session)</div>
+      <div class="metric-sub" id="error-sub"></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Resource health -->
+  <div class="col-12 col-lg-7">
+    <div class="console-card">
+      <div class="console-card-header">Resource Health</div>
+      <div class="table-responsive">
+        <table class="table table-sm resource-table mb-0">
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th class="text-end">Rate/hr</th>
+              <th>Last Event</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="resource-health-tbody">
+            <tr><td colspan="4" class="text-muted text-center py-3">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Latency + errors -->
+  <div class="col-12 col-lg-5">
+    <div class="console-card mb-3">
+      <div class="console-card-header">API Latency (last 100 calls)</div>
+      <div class="row g-2 text-center" id="latency-row">
+        <div class="col-3"><div class="fw-bold" id="lat-p50">—</div><div class="text-muted" style="font-size:.7rem">P50</div></div>
+        <div class="col-3"><div class="fw-bold" id="lat-p95">—</div><div class="text-muted" style="font-size:.7rem">P95</div></div>
+        <div class="col-3"><div class="fw-bold" id="lat-p99">—</div><div class="text-muted" style="font-size:.7rem">P99</div></div>
+        <div class="col-3"><div class="fw-bold" id="lat-max">—</div><div class="text-muted" style="font-size:.7rem">Max</div></div>
+      </div>
+    </div>
+    <div class="console-card">
+      <div class="console-card-header">Recent Errors</div>
+      <div id="error-list">
+        <div class="text-muted small">No errors recorded.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/health.js"></script>
+{% endblock %}

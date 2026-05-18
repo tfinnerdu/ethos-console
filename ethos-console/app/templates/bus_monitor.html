@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Bus Monitor{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+  <!-- Metric tiles -->
+  <div class="col-6 col-md-3">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-depth">—</div>
+      <div class="metric-label">Queue Depth</div>
+      <div class="metric-sub" id="tile-depth-status"></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-rate">—</div>
+      <div class="metric-label">Events / hr (total)</div>
+      <div class="metric-sub" id="tile-last-poll">Waiting...</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-resources">—</div>
+      <div class="metric-label">Active Resources</div>
+      <div class="metric-sub" id="tile-silent">— silent</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-total">0</div>
+      <div class="metric-label">Events Seen (session)</div>
+      <div class="metric-sub" id="tile-paused-status">Streaming</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Live feed -->
+  <div class="col-12 col-xl-7">
+    <div class="console-card h-100">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="console-card-header mb-0">Live Event Feed</div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" id="btn-pause">
+            <i class="bi bi-pause-fill"></i> Pause
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" id="btn-clear">
+            <i class="bi bi-trash3"></i> Clear
+          </button>
+          <a href="/api/bus/export?limit=100" class="btn btn-sm btn-outline-secondary" target="_blank">
+            <i class="bi bi-download"></i> Export
+          </a>
+        </div>
+      </div>
+      <div id="event-feed">
+        <div class="feed-row text-muted">Connecting to event stream...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resource activity table -->
+  <div class="col-12 col-xl-5">
+    <div class="console-card h-100">
+      <div class="console-card-header">Resource Activity</div>
+      <div class="table-responsive" style="max-height:400px; overflow-y:auto;">
+        <table class="table table-sm resource-table mb-0">
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th class="text-end">Events/hr</th>
+              <th>Last Event</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="resource-tbody">
+            <tr><td colspan="4" class="text-muted text-center py-3">No events yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-2 d-flex align-items-center gap-2">
+        <label class="form-label mb-0 small text-muted">Alert if silent &gt;</label>
+        <input type="number" id="silence-threshold" class="form-control form-control-sm" style="width:64px" value="30" min="1" />
+        <span class="small text-muted">min</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/bus_monitor.js"></script>
+{% endblock %}

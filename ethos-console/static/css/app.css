@@ -1,0 +1,277 @@
+:root {
+  --doane-orange: #FF7900;
+  --doane-navy: #1F3864;
+  --doane-navy-dark: #152648;
+  --doane-orange-light: #FFA54D;
+}
+
+body {
+  background-color: #f4f5f7;
+  font-size: 0.875rem;
+}
+
+/* ── Navbar ── */
+.doane-nav {
+  background-color: var(--doane-navy);
+  height: 52px;
+}
+
+.doane-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--doane-orange);
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.env-badge {
+  background-color: var(--doane-orange);
+  color: #fff;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+/* ── Tab bar ── */
+.tab-bar {
+  background-color: var(--doane-navy-dark);
+  padding: 0 0 0 0;
+  border-bottom: 2px solid var(--doane-navy);
+}
+
+.tab-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  color: rgba(255,255,255,0.65);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-item:hover {
+  color: #fff;
+}
+
+.tab-item.active {
+  color: var(--doane-orange);
+  border-bottom-color: var(--doane-orange);
+}
+
+/* ── Cards ── */
+.console-card {
+  background: #fff;
+  border: 1px solid #e2e4e8;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.console-card-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--doane-navy);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e8eaed;
+}
+
+/* ── Event feed ── */
+#event-feed {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.78rem;
+  background: #0d1117;
+  color: #c9d1d9;
+  border-radius: 6px;
+  height: 380px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.feed-row {
+  padding: 2px 0;
+  border-bottom: 1px solid #21262d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feed-row.feed-error { color: #f85149; }
+.feed-row.feed-created { color: #56d364; }
+.feed-row.feed-updated { color: #79c0ff; }
+.feed-row.feed-deleted { color: #f0883e; }
+.feed-row.feed-silent { color: #d29922; }
+
+.feed-ts { color: #8b949e; margin-right: 6px; }
+.feed-resource { color: #cae8ff; margin-right: 6px; min-width: 220px; display: inline-block; }
+.feed-op { min-width: 80px; display: inline-block; }
+.feed-guid { color: #8b949e; font-size: 0.72rem; }
+
+/* ── Status dots ── */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.status-dot.green  { background: #28a745; }
+.status-dot.amber  { background: #ffc107; }
+.status-dot.red    { background: #dc3545; }
+.status-dot.gray   { background: #6c757d; }
+
+/* ── Metric tiles ── */
+.metric-tile {
+  background: #fff;
+  border: 1px solid #e2e4e8;
+  border-radius: 6px;
+  padding: 14px 18px;
+}
+.metric-tile .metric-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--doane-navy);
+  line-height: 1;
+}
+.metric-tile .metric-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  margin-top: 4px;
+}
+.metric-tile .metric-sub {
+  font-size: 0.78rem;
+  color: #495057;
+  margin-top: 2px;
+}
+
+/* ── Resource table ── */
+.resource-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+}
+
+.resource-table td {
+  vertical-align: middle;
+  font-size: 0.82rem;
+}
+
+.badge-active   { background: #d4edda; color: #155724; }
+.badge-silent   { background: #fff3cd; color: #856404; }
+.badge-unknown  { background: #e2e3e5; color: #383d41; }
+.badge-error    { background: #f8d7da; color: #721c24; }
+
+/* ── Mnemonic cards ── */
+.mnemonic-card {
+  border: 1px solid #e2e4e8;
+  border-radius: 6px;
+  padding: 14px;
+  background: #fff;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.mnemonic-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-color: var(--doane-orange);
+}
+.mnemonic-title {
+  font-weight: 700;
+  color: var(--doane-navy);
+  font-size: 0.95rem;
+}
+.mnemonic-resource {
+  color: var(--doane-orange);
+  font-size: 0.78rem;
+}
+.mnemonic-file {
+  color: #6c757d;
+  font-size: 0.75rem;
+}
+.mnemonic-gotcha {
+  background: #fff3cd;
+  border-left: 3px solid #ffc107;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  border-radius: 0 4px 4px 0;
+  margin-top: 8px;
+}
+
+/* ── JSON viewer ── */
+.json-block {
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.78rem;
+  border-radius: 6px;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* ── Replay ── */
+.replay-source-btn {
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.15s;
+  text-align: center;
+}
+.replay-source-btn.active {
+  border-color: var(--doane-orange);
+  background: #fff8f2;
+}
+
+/* ── GraphQL ── */
+.schema-tree {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.78rem;
+  max-height: 520px;
+  overflow-y: auto;
+}
+.schema-field {
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.schema-field:hover { background: #f0f4ff; }
+.schema-field-name { color: var(--doane-navy); }
+.schema-field-type { color: #6c757d; font-size: 0.72rem; }
+
+/* ── Utilities ── */
+.text-orange { color: var(--doane-orange); }
+.border-orange { border-color: var(--doane-orange) !important; }
+
+.btn-doane {
+  background-color: var(--doane-orange);
+  color: #fff;
+  border: none;
+}
+.btn-doane:hover {
+  background-color: var(--doane-orange-light);
+  color: #fff;
+}
+.btn-doane:disabled {
+  background-color: #ccc;
+}
+
+.scrollable { overflow-y: auto; }

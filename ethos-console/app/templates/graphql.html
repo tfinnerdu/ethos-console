@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title_suffix %} — GraphQL{% endblock %}
+
+{% block content %}
+<div class="alert alert-info d-flex align-items-start gap-2" role="alert">
+  <i class="bi bi-info-circle-fill mt-1"></i>
+  <div>
+    <strong>Phase 2 feature.</strong> The GraphQL Builder UI is planned for the next sprint.
+    Requires <code>ETHOS_API_KEY</code> and GraphQL introspection access.
+    In the meantime, use the curl snippets below for common queries.
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="console-card">
+      <div class="console-card-header">GraphQL Query Editor</div>
+      <textarea class="form-control font-monospace mb-2" id="gql-editor" rows="14"
+                placeholder="query {&#10;  persons16 {&#10;    edges {&#10;      node {&#10;        id&#10;        names { firstName lastName }&#10;      }&#10;    }&#10;  }&#10;}"></textarea>
+      <div class="d-flex gap-2">
+        <button class="btn btn-doane" id="btn-run-gql" onclick="runGraphQL()">
+          <i class="bi bi-play-fill me-1"></i>Run
+        </button>
+        <button class="btn btn-outline-secondary" onclick="copyCurl()">
+          <i class="bi bi-terminal me-1"></i>Copy curl
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="console-card mb-3">
+      <div class="console-card-header">Variables (JSON)</div>
+      <textarea class="form-control font-monospace" id="gql-vars" rows="5" placeholder="{}"></textarea>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="console-card">
+      <div class="console-card-header">Result</div>
+      <div class="json-block" id="gql-result">Run a query to see results.</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runGraphQL() {
+  const query = document.getElementById('gql-editor').value;
+  const varsText = document.getElementById('gql-vars').value.trim();
+  let variables = {};
+  try { variables = varsText ? JSON.parse(varsText) : {}; } catch(e) {
+    alert('Variables must be valid JSON'); return;
+  }
+  const btn = document.getElementById('btn-run-gql');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Running...';
+  try {
+    const r = await fetch('/api/resources/graphql', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query, variables})
+    });
+    const data = await r.json();
+    document.getElementById('gql-result').textContent = JSON.stringify(data, null, 2);
+  } catch(e) {
+    document.getElementById('gql-result').textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Run';
+  }
+}
+
+function copyCurl() {
+  const query = document.getElementById('gql-editor').value;
+  const vars = document.getElementById('gql-vars').value || '{}';
+  const body = JSON.stringify({query, variables: JSON.parse(vars)});
+  const curl = `curl -X POST https://integrate.elluciancloud.com/graphql \\\n  -H "Authorization: Bearer <token>" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}'`;
+  navigator.clipboard.writeText(curl).then(() => alert('curl command copied to clipboard'));
+}
+</script>
+{% endblock %}

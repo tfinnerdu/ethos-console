@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Mnemonics{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- Search + list -->
+  <div class="col-12 col-lg-5">
+    <div class="console-card">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="console-card-header mb-0">Colleague Mnemonic Reference</div>
+        <button class="btn btn-sm btn-doane" data-bs-toggle="modal" data-bs-target="#addModal">
+          <i class="bi bi-plus-lg me-1"></i>Add
+        </button>
+      </div>
+      <div class="input-group mb-3">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" id="search-input" class="form-control" placeholder="Search mnemonic, file, resource..." />
+      </div>
+      <div id="mnemonic-list" style="max-height:600px; overflow-y:auto;">
+        <div class="text-muted text-center py-3">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail panel -->
+  <div class="col-12 col-lg-7">
+    <div class="console-card" id="detail-panel" style="display:none;">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 fw-bold text-navy" id="detail-mnemonic"></h5>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" id="btn-edit-detail" onclick="openEditModal()">
+            <i class="bi bi-pencil"></i> Edit
+          </button>
+          <button class="btn btn-sm btn-outline-danger" id="btn-delete-detail" onclick="deleteSelected()">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <div class="small text-muted">Colleague File</div>
+          <div class="fw-semibold font-monospace" id="detail-file">—</div>
+        </div>
+        <div class="col-6">
+          <div class="small text-muted">EEDM Resource</div>
+          <div class="fw-semibold text-orange" id="detail-resource">—</div>
+        </div>
+        <div class="col-6">
+          <div class="small text-muted">Version</div>
+          <div id="detail-version">—</div>
+        </div>
+        <div class="col-6">
+          <div class="small text-muted">CN Supported</div>
+          <div id="detail-cn">—</div>
+        </div>
+      </div>
+
+      <div class="mb-3" id="detail-cn-notes-block" style="display:none;">
+        <div class="small text-muted mb-1">CN Notes</div>
+        <div id="detail-cn-notes" class="small"></div>
+      </div>
+
+      <div class="mb-3" id="detail-gotcha-block" style="display:none;">
+        <div class="mnemonic-gotcha" id="detail-gotcha"></div>
+      </div>
+
+      <div class="mb-3" id="detail-fields-block" style="display:none;">
+        <div class="small text-muted mb-1">Field Mappings</div>
+        <table class="table table-sm table-bordered mb-0">
+          <thead><tr><th>Colleague Field</th><th>Ethos Field</th><th>Notes</th></tr></thead>
+          <tbody id="detail-fields-tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="detail-related-block" style="display:none;">
+        <div class="small text-muted mb-1">Related Mnemonics</div>
+        <div id="detail-related" class="d-flex flex-wrap gap-1"></div>
+      </div>
+    </div>
+
+    <div class="console-card text-muted text-center py-5" id="detail-placeholder">
+      <i class="bi bi-book display-6 d-block mb-2"></i>
+      Select a mnemonic to view details
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-title">Add Mnemonic</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-id" />
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label">Mnemonic *</label>
+            <input type="text" class="form-control text-uppercase" id="form-mnemonic" />
+          </div>
+          <div class="col-6">
+            <label class="form-label">Colleague File</label>
+            <input type="text" class="form-control" id="form-file" />
+          </div>
+          <div class="col-6">
+            <label class="form-label">EEDM Resource</label>
+            <input type="text" class="form-control" id="form-resource" />
+          </div>
+          <div class="col-3">
+            <label class="form-label">Version</label>
+            <input type="text" class="form-control" id="form-version" placeholder="e.g. 16" />
+          </div>
+          <div class="col-3">
+            <label class="form-label">CN Supported</label>
+            <select class="form-select" id="form-cn">
+              <option value="false">No</option>
+              <option value="true">Yes</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">CN Notes</label>
+            <textarea class="form-control" id="form-cn-notes" rows="2"></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Gotchas / Quirks</label>
+            <textarea class="form-control" id="form-gotchas" rows="3"
+                      placeholder="Multi-value fields, encoding quirks, known bugs..."></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Related Mnemonics (comma-separated)</label>
+            <input type="text" class="form-control" id="form-related" placeholder="PERSON, EACH, TERMS" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-doane" onclick="saveMnemonic()">
+          <i class="bi bi-check-lg me-1"></i>Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/mnemonics.js"></script>
+{% endblock %}

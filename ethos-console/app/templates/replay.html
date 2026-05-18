@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Replay{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <!-- Source selector + fetch -->
+  <div class="col-12 col-xl-6">
+    <div class="console-card">
+      <div class="console-card-header">Change Notification Replayer</div>
+
+      <!-- Source mode -->
+      <div class="d-flex gap-2 mb-3">
+        <div class="replay-source-btn active flex-fill text-center" id="src-id" onclick="setSource('id')">
+          <i class="bi bi-hash"></i><br><small>From Message ID</small>
+        </div>
+        <div class="replay-source-btn flex-fill text-center" id="src-paste" onclick="setSource('paste')">
+          <i class="bi bi-clipboard"></i><br><small>Paste Raw JSON</small>
+        </div>
+        <div class="replay-source-btn flex-fill text-center" id="src-build" onclick="setSource('build')">
+          <i class="bi bi-pencil-square"></i><br><small>Build Manually</small>
+        </div>
+      </div>
+
+      <!-- From message ID -->
+      <div id="mode-id">
+        <label class="form-label">Ethos Message ID</label>
+        <div class="input-group mb-3">
+          <input type="number" class="form-control font-monospace" id="message-id-input" placeholder="e.g. 1732847293" />
+          <button class="btn btn-doane" id="btn-fetch" onclick="fetchMessage()">
+            <i class="bi bi-cloud-download me-1"></i>Fetch
+          </button>
+        </div>
+      </div>
+
+      <!-- Paste JSON -->
+      <div id="mode-paste" class="d-none">
+        <label class="form-label">Paste change notification JSON</label>
+        <textarea class="form-control font-monospace mb-3" id="paste-input" rows="8"
+                  placeholder='{"resource":{"name":"persons","id":"...","operation":"updated"},"content":{}}'></textarea>
+        <button class="btn btn-doane btn-sm" onclick="loadPasted()">
+          <i class="bi bi-check-circle me-1"></i>Load
+        </button>
+      </div>
+
+      <!-- Build manually -->
+      <div id="mode-build" class="d-none">
+        <div class="row g-2 mb-2">
+          <div class="col-8">
+            <label class="form-label">Resource Name</label>
+            <input type="text" class="form-control form-control-sm" id="build-resource" placeholder="e.g. persons" />
+          </div>
+          <div class="col-4">
+            <label class="form-label">Operation</label>
+            <select class="form-select form-select-sm" id="build-operation">
+              <option value="updated">updated</option>
+              <option value="created">created</option>
+              <option value="deleted">deleted</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Resource GUID</label>
+          <input type="text" class="form-control form-control-sm font-monospace" id="build-guid"
+                 placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Content (JSON)</label>
+          <textarea class="form-control font-monospace form-control-sm" id="build-content" rows="5"
+                    placeholder='{"id": "...", "firstName": "..."}'>{}</textarea>
+        </div>
+        <button class="btn btn-doane btn-sm" onclick="buildPayload()">
+          <i class="bi bi-arrow-right-circle me-1"></i>Build
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payload preview + trigger -->
+  <div class="col-12 col-xl-6">
+    <div class="console-card mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="console-card-header mb-0">Fetched / Built Message</div>
+        <button class="btn btn-sm btn-outline-secondary" id="btn-copy-json" onclick="copyJSON()" disabled>
+          <i class="bi bi-clipboard"></i> Copy JSON
+        </button>
+      </div>
+      <div class="json-block" id="payload-preview">No message loaded.</div>
+    </div>
+
+    <div class="console-card">
+      <div class="console-card-header">Trigger Conductor Workflow</div>
+      <div class="mb-2">
+        <label class="form-label">Workflow Name</label>
+        <input type="text" class="form-control form-control-sm" id="workflow-name" placeholder="e.g. EDA_Person_Sync" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Conductor URL</label>
+        <input type="text" class="form-control form-control-sm font-monospace" id="conductor-url"
+               value="{{ conductor_url }}" placeholder="https://du-int.doane.edu/prod/conductor" />
+      </div>
+      <button class="btn btn-doane w-100" id="btn-trigger" onclick="triggerReplay()" disabled>
+        <i class="bi bi-play-fill me-1"></i>Replay to Conductor
+      </button>
+
+      <!-- Result -->
+      <div id="replay-result" class="mt-3 d-none">
+        <div id="replay-result-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- History -->
+<div class="console-card mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="console-card-header mb-0">Replay History</div>
+    <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory()">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm resource-table mb-0">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Resource</th>
+          <th>Operation</th>
+          <th>Workflow</th>
+          <th>Outcome</th>
+          <th>Workflow ID</th>
+        </tr>
+      </thead>
+      <tbody id="history-tbody">
+        <tr><td colspan="6" class="text-muted text-center py-3">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/replay.js"></script>
+{% endblock %}

@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ethos-console
+  namespace: ethos-console-prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: ethos-console-prod-strip-prefix@kubernetescrd
+spec:
+  rules:
+    - host: du-int.doane.edu
+      http:
+        paths:
+          - path: /prod/ethos-console
+            pathType: Prefix
+            backend:
+              service:
+                name: ethos-console
+                port:
+                  number: 80
