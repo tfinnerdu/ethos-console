@@ -24,7 +24,7 @@ foreach ($envSearch in @((Join-Path $RepoRoot ".env"), (Join-Path $Root ".env"))
     }
 }
 if (-not (Test-Path (Join-Path $RepoRoot ".env")) -and -not (Test-Path (Join-Path $Root ".env"))) {
-    Write-Host "[EthosConsole] No .env found — copy console\.env.example to .env and fill in ETHOS_API_KEY"
+    Write-Host "[EthosConsole] No .env found - copy console\.env.example to .env and fill in ETHOS_API_KEY"
 }
 
 # PORT may be set by .env; fall back to 5012
@@ -69,5 +69,5 @@ $proc = Start-Process `
     -RedirectStandardOutput $AppLog `
     -RedirectStandardError $AppLogErr
 
-Write-Host "[EthosConsole] PID $($proc.Id) — http://localhost:$Port"
+Write-Host "[EthosConsole] PID $($proc.Id) - http://localhost:$Port"
 Wait-Process -Id $proc.Id

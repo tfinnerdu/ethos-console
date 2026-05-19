@@ -23,7 +23,7 @@ $CnmFrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else {
 $ConsolePort     = if ($env:PORT)              { $env:PORT }              else { "5012" }
 
 Write-Host ""
-Write-Host "  Doane Ethos Console — Local Hub"
+Write-Host "  Doane Ethos Console - Local Hub"
 Write-Host "  ================================"
 Write-Host "  CNM (Change Notification Manager) → http://localhost:$CnmFrontendPort (frontend)"
 Write-Host "                                       http://localhost:$CnmApiPort (API)"
