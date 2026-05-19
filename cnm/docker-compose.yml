@@ -18,15 +18,6 @@ services:
     depends_on:
       - cnm-db
 
-  cnm-frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "8080:80"
-    depends_on:
-      - cnm-api
-
   cnm-db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:

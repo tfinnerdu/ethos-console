@@ -1,7 +1,5 @@
 param(
-    [switch]$ForceDeps,
-    [switch]$ApiOnly,
-    [switch]$FrontendOnly
+    [switch]$ForceDeps
 )
 
 Set-StrictMode -Version Latest
@@ -10,7 +8,6 @@ $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $RepoRoot = Split-Path $Root -Parent
 $ApiProject = Join-Path $Root "src\EthosCn.Api\EthosCn.Api.csproj"
-$FrontendDir = Join-Path $Root "frontend"
 $LogDir = Join-Path $RepoRoot ".hub-logs"
 $ApiLog = Join-Path $LogDir "api.log"
 $ApiLogErr = Join-Path $LogDir "api.err"
@@ -31,10 +28,10 @@ if (Test-Path $EnvFile) {
 
 $ApiPort = if ($env:CNM_API_PORT) { $env:CNM_API_PORT } else { "5011" }
 
-# Kill any previous API instance holding the log file open
+# Kill any previous instance on the port
 $portConn = Get-NetTCPConnection -LocalPort $ApiPort -State Listen -ErrorAction SilentlyContinue
 if ($portConn) {
-    Write-Host "[CNM] Stopping existing API process on port $ApiPort (PID $($portConn.OwningProcess))..."
+    Write-Host "[CNM] Stopping existing process on port $ApiPort (PID $($portConn.OwningProcess))..."
     Stop-Process -Id $portConn.OwningProcess -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 750
 }
@@ -43,39 +40,19 @@ if ($portConn) {
 if (Test-Path $ApiLog) { Remove-Item $ApiLog }
 if (Test-Path $ApiLogErr) { Remove-Item $ApiLogErr }
 
-if (-not $FrontendOnly) {
-    if ($ForceDeps) {
-        Write-Host "[CNM] Restoring NuGet packages..."
-        dotnet restore (Join-Path $RepoRoot "ethos-console.sln") | Out-Null
-    }
-
-    Write-Host "[CNM] Starting API on http://0.0.0.0:$ApiPort ..."
-    $ApiProc = Start-Process `
-        -FilePath "dotnet" `
-        -ArgumentList "watch run --project `"$ApiProject`" --no-launch-profile --urls http://0.0.0.0:$ApiPort" `
-        -NoNewWindow `
-        -PassThru `
-        -RedirectStandardOutput $ApiLog `
-        -RedirectStandardError $ApiLogErr
-    Write-Host "[CNM] API PID $($ApiProc.Id)"
+if ($ForceDeps) {
+    Write-Host "[CNM] Restoring NuGet packages..."
+    dotnet restore (Join-Path $RepoRoot "ethos-console.sln") | Out-Null
 }
 
-if (-not $ApiOnly) {
-    if ($ForceDeps) {
-        Write-Host "[CNM] Installing frontend packages..."
-        Push-Location $FrontendDir
-        npm install
-        Pop-Location
-    }
-
-    $FrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else { "5010" }
-    Write-Host "[CNM] Starting frontend on http://localhost:$FrontendPort ..."
-    Push-Location $FrontendDir
-    npm run dev
-    Pop-Location
-}
-
-if (-not $FrontendOnly -and $ApiOnly) {
-    Write-Host "[CNM] API running. Press Ctrl+C to stop."
-    Wait-Process -Id $ApiProc.Id
-}
+Write-Host "[CNM] Starting API on http://0.0.0.0:$ApiPort ..."
+$ApiProc = Start-Process `
+    -FilePath "dotnet" `
+    -ArgumentList "watch run --project `"$ApiProject`" --no-launch-profile --urls http://0.0.0.0:$ApiPort" `
+    -NoNewWindow `
+    -PassThru `
+    -RedirectStandardOutput $ApiLog `
+    -RedirectStandardError $ApiLogErr
+Write-Host "[CNM] API PID $($ApiProc.Id) - http://localhost:$ApiPort"
+Write-Host "[CNM] Press Ctrl+C to stop."
+Wait-Process -Id $ApiProc.Id

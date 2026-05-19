@@ -26,24 +26,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EthosCn.Infrastructure.Test
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CNM Solution Items", "CNM Solution Items", "{44444444-4444-4444-4444-444444444444}"
 	ProjectSection(SolutionItems) = preProject
-		cnm\frontend\.env = cnm\frontend\.env
-		cnm\frontend\.env.example = cnm\frontend\.env.example
+		cnm\docker-compose.yml = cnm\docker-compose.yml
+		cnm\global.json = cnm\global.json
 		cnm\k8s\configmap.yaml = cnm\k8s\configmap.yaml
 		cnm\k8s\deployment.yaml = cnm\k8s\deployment.yaml
-		cnm\docker-compose.yml = cnm\docker-compose.yml
-		cnm\frontend\Dockerfile = cnm\frontend\Dockerfile
-		cnm\global.json = cnm\global.json
-		cnm\frontend\index.html = cnm\frontend\index.html
 		cnm\k8s\ingress.yaml = cnm\k8s\ingress.yaml
 		cnm\k8s\middleware.yaml = cnm\k8s\middleware.yaml
 		cnm\k8s\namespace.yaml = cnm\k8s\namespace.yaml
-		cnm\frontend\nginx.conf = cnm\frontend\nginx.conf
-		cnm\frontend\package.json = cnm\frontend\package.json
 		cnm\k8s\secret-template.yaml = cnm\k8s\secret-template.yaml
 		cnm\k8s\service.yaml = cnm\k8s\service.yaml
 		cnm\start-local.ps1 = cnm\start-local.ps1
-		cnm\frontend\tsconfig.json = cnm\frontend\tsconfig.json
-		cnm\frontend\vite.config.ts = cnm\frontend\vite.config.ts
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "console", "console", "{20000000-0000-0000-0000-000000000002}"

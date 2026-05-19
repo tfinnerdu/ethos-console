@@ -19,13 +19,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: cnm-frontend
-                port:
-                  number: 80
-          - path: /dev/cnm/api
-            pathType: Prefix
-            backend:
-              service:
                 name: cnm-api
                 port:
                   number: 8080

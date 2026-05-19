@@ -118,16 +118,16 @@ curl http://localhost:5011/api/v1/me
 curl http://localhost:5011/api/v1/about
 ```
 
-### Frontend smoke tests
+### Console smoke test (Change Notifications tab)
 
-Open `http://rmw01tfinner.doane.local:5010` (or `http://localhost:5010`) and verify:
+Open the Ethos Dev Console at `http://localhost:5012` and navigate to the **Change Notifications** tab, then verify:
 
-- [ ] Page loads without a blank screen or console errors
-- [ ] Change Notifications nav item is visible and active by default
-- [ ] Change Notifications list loads (empty table is expected without Colleague)
-- [ ] Diagnostics nav item is visible and navigates to the diagnostics page
-- [ ] Diagnostics page shows all 41 resources in the "Subscribed but NOT published" section
-- [ ] Audit Log nav item is visible and navigates to the audit log page
+- [ ] Monitor section loads — CNM health dot turns green, notification list populates
+- [ ] Change Notifications list loads (empty table is expected without Colleague configured)
+- [ ] Diagnostics sub-tab shows subscription/publishing alignment
+- [ ] Audit Log sub-tab loads and paginates
+- [ ] Push section is accessible via the Push pill button
+- [ ] Push form accepts a resource name, operation, and GUID list
 - [ ] Audit Log shows empty table (no entries yet)
 - [ ] Header shows user display name (`Dev User (local)` in local dev)
 
@@ -284,7 +284,7 @@ kubectl port-forward svc/cnm-api 5011:8080 -n cnm-dev
 # Then run the API smoke tests from §4 against localhost:5011
 ```
 
-Verify via ingress (`du-int.doane.edu/dev/cnm`) that the frontend loads and proxies correctly to the API.
+Verify via ingress (`du-int.doane.edu/dev/cnm`) that the CNM API health endpoint responds. The UI is served by the Ethos Dev Console — no separate frontend pod is deployed.
 
 ---
 

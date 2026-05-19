@@ -18,25 +18,23 @@ if (Test-Path $EnvFile) {
     }
 }
 
-$CnmApiPort      = if ($env:CNM_API_PORT)      { $env:CNM_API_PORT }      else { "5011" }
-$CnmFrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else { "5010" }
-$ConsolePort     = if ($env:PORT)              { $env:PORT }              else { "5012" }
+$CnmApiPort  = if ($env:CNM_API_PORT) { $env:CNM_API_PORT } else { "5011" }
+$ConsolePort = if ($env:PORT)         { $env:PORT }         else { "5012" }
 
 Write-Host ""
 Write-Host "  Doane Ethos Console - Local Hub"
 Write-Host "  ================================"
-Write-Host "  CNM (Change Notification Manager) → http://localhost:$CnmFrontendPort (frontend)"
-Write-Host "                                       http://localhost:$CnmApiPort (API)"
-Write-Host "  Ethos Dev Console                 → http://localhost:$ConsolePort"
+Write-Host "  CNM API          -> http://localhost:$CnmApiPort"
+Write-Host "  Ethos Console    -> http://localhost:$ConsolePort"
 Write-Host ""
 
 $forceSwitches = if ($ForceDeps) { "-ForceDeps" } else { "" }
 
 if (-not $ConsoleOnly) {
-    Write-Host "[Hub] Starting CNM..."
+    Write-Host "[Hub] Starting CNM API..."
     $cnmScript = Join-Path $Root "cnm\start-local.ps1"
     Start-Process powershell `
-        -ArgumentList "-NoExit -File `"$cnmScript`" -ApiOnly $forceSwitches" `
+        -ArgumentList "-NoExit -File `"$cnmScript`" $forceSwitches" `
         -WindowStyle Normal
 }
 
@@ -48,11 +46,4 @@ if (-not $CnmOnly) {
         -WindowStyle Normal
 }
 
-if (-not $ConsoleOnly) {
-    Write-Host "[Hub] Starting CNM frontend..."
-    $frontendDir = Join-Path $Root "cnm\frontend"
-    Push-Location $frontendDir
-    if ($ForceDeps) { npm install }
-    npm run dev
-    Pop-Location
-}
+Write-Host "[Hub] Both services launched in separate windows."
