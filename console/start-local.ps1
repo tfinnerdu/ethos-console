@@ -13,10 +13,10 @@ $AppLogErr = Join-Path $LogDir "app.err"
 
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory $LogDir | Out-Null }
 
-# Kill any previous instance on port 9502
-$portConn = Get-NetTCPConnection -LocalPort 9502 -State Listen -ErrorAction SilentlyContinue
+# Kill any previous instance on the configured port
+$portConn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
 if ($portConn) {
-    Write-Host "[EthosConsole] Stopping existing process on port 9502 (PID $($portConn.OwningProcess))..."
+    Write-Host "[EthosConsole] Stopping existing process on port $Port (PID $($portConn.OwningProcess))..."
     Stop-Process -Id $portConn.OwningProcess -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 500
 }
@@ -35,6 +35,9 @@ if (-not (Test-Path (Join-Path $RepoRoot ".env")) -and -not (Test-Path (Join-Pat
     Write-Host "[EthosConsole] No .env found — copy console\.env.example to .env and fill in ETHOS_API_KEY"
 }
 
+# PORT may be set by .env; fall back to 9502
+$Port = if ($env:PORT) { $env:PORT } else { "9502" }
+
 # Create/activate venv if needed
 $VenvDir = Join-Path $Root ".venv"
 if (-not (Test-Path $VenvDir) -or $ForceDeps) {
@@ -51,9 +54,9 @@ if ($ForceDeps -or -not (Test-Path (Join-Path $VenvDir "Scripts\flask.exe"))) {
 }
 
 $env:FLASK_ENV = "development"
-$env:PORT = "9502"
+$env:PORT = $Port
 
-Write-Host "[EthosConsole] Starting Ethos Dev Console on http://localhost:9502 ..."
+Write-Host "[EthosConsole] Starting Ethos Dev Console on http://localhost:$Port ..."
 Write-Host "[EthosConsole] Logs: $AppLog"
 Write-Host "[EthosConsole] Press Ctrl+C to stop."
 
@@ -66,5 +69,5 @@ $proc = Start-Process `
     -RedirectStandardOutput $AppLog `
     -RedirectStandardError $AppLogErr
 
-Write-Host "[EthosConsole] PID $($proc.Id) — http://localhost:9502"
+Write-Host "[EthosConsole] PID $($proc.Id) — http://localhost:$Port"
 Wait-Process -Id $proc.Id

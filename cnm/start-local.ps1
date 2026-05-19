@@ -18,9 +18,9 @@ $ApiLogErr = Join-Path $LogDir "api.err"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory $LogDir | Out-Null }
 
 # Kill any previous API instance holding the log file open
-$portConn = Get-NetTCPConnection -LocalPort 9501 -State Listen -ErrorAction SilentlyContinue
+$portConn = Get-NetTCPConnection -LocalPort $ApiPort -State Listen -ErrorAction SilentlyContinue
 if ($portConn) {
-    Write-Host "[CNM] Stopping existing API process on port 9501 (PID $($portConn.OwningProcess))..."
+    Write-Host "[CNM] Stopping existing API process on port $ApiPort (PID $($portConn.OwningProcess))..."
     Stop-Process -Id $portConn.OwningProcess -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 750
 }
@@ -41,16 +41,18 @@ if (Test-Path $EnvFile) {
     Write-Host "[CNM] Loaded .env"
 }
 
+$ApiPort = if ($env:CNM_API_PORT) { $env:CNM_API_PORT } else { "9501" }
+
 if (-not $FrontendOnly) {
     if ($ForceDeps) {
         Write-Host "[CNM] Restoring NuGet packages..."
         dotnet restore (Join-Path $RepoRoot "ethos-console.sln") | Out-Null
     }
 
-    Write-Host "[CNM] Starting API on http://0.0.0.0:9501 ..."
+    Write-Host "[CNM] Starting API on http://0.0.0.0:$ApiPort ..."
     $ApiProc = Start-Process `
         -FilePath "dotnet" `
-        -ArgumentList "watch run --project `"$ApiProject`" --no-launch-profile --urls http://0.0.0.0:9501" `
+        -ArgumentList "watch run --project `"$ApiProject`" --no-launch-profile --urls http://0.0.0.0:$ApiPort" `
         -NoNewWindow `
         -PassThru `
         -RedirectStandardOutput $ApiLog `
@@ -66,7 +68,8 @@ if (-not $ApiOnly) {
         Pop-Location
     }
 
-    Write-Host "[CNM] Starting frontend on http://localhost:9500 ..."
+    $FrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else { "9500" }
+    Write-Host "[CNM] Starting frontend on http://localhost:$FrontendPort ..."
     Push-Location $FrontendDir
     npm run dev
     Pop-Location
