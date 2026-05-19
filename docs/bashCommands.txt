@@ -26,7 +26,7 @@ Force reinstall of all dependencies (NuGet + npm):
   .\cnm\start-local.ps1 -ForceDeps
 
 Direct API run (without start-local.ps1):
-  dotnet run --project cnm\src\EthosCn.Api\EthosCn.Api.csproj --urls http://localhost:9501
+  dotnet run --project cnm\src\EthosCn.Api\EthosCn.Api.csproj --urls http://localhost:5011
 
 Direct frontend run:
   cd cnm\frontend && npm run dev
@@ -91,26 +91,26 @@ Tail API logs:
   kubectl logs -f deployment/cnm-api -n cnm-dev
 
 Port-forward API for local testing against dev cluster:
-  kubectl port-forward svc/cnm-api 9501:8080 -n cnm-dev
+  kubectl port-forward svc/cnm-api 5011:8080 -n cnm-dev
 
 --- CNM API (local) ---
 
 Shallow health check (liveness — no external dependencies):
-  curl http://localhost:9501/api/v1/health
+  curl http://localhost:5011/api/v1/health
 
 Deep health check (DB reachable, migrations at head, Colleague API, resources seeded):
-  curl http://localhost:9501/api/v1/health/deep
+  curl http://localhost:5011/api/v1/health/deep
 
 Swagger UI:
-  http://localhost:9501/swagger
+  http://localhost:5011/swagger
 
 Change notifications list:
-  curl http://localhost:9501/api/v1/change-notifications
+  curl http://localhost:5011/api/v1/change-notifications
 
 --- CNM FRONTEND (local) ---
 
-Dev server:  http://localhost:9500
-API proxy:   /api -> http://localhost:9501
+Dev server:  http://localhost:5010
+API proxy:   /api -> http://localhost:5011
 
 =============================
  Console — Ethos Dev Console
@@ -134,12 +134,12 @@ Apply console manifests:
 
 --- CONSOLE (local) ---
 
-Dev server:  http://localhost:9502
-  Bus Monitor:  http://localhost:9502/
-  Replay:       http://localhost:9502/replay
-  GraphQL:      http://localhost:9502/graphql
-  Resources:    http://localhost:9502/resources
-  Mnemonics:    http://localhost:9502/mnemonics
-  Health:       http://localhost:9502/health
-  Health API:   http://localhost:9502/api/health/
-  Bus SSE:      http://localhost:9502/api/bus/stream
+Dev server:  http://localhost:5012
+  Bus Monitor:  http://localhost:5012/
+  Replay:       http://localhost:5012/replay
+  GraphQL:      http://localhost:5012/graphql
+  Resources:    http://localhost:5012/resources
+  Mnemonics:    http://localhost:5012/mnemonics
+  Health:       http://localhost:5012/health
+  Health API:   http://localhost:5012/api/health/
+  Bus SSE:      http://localhost:5012/api/bus/stream

@@ -18,9 +18,9 @@ if (Test-Path $EnvFile) {
     }
 }
 
-$CnmApiPort      = if ($env:CNM_API_PORT)      { $env:CNM_API_PORT }      else { "9501" }
-$CnmFrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else { "9500" }
-$ConsolePort     = if ($env:PORT)              { $env:PORT }              else { "9502" }
+$CnmApiPort      = if ($env:CNM_API_PORT)      { $env:CNM_API_PORT }      else { "5011" }
+$CnmFrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else { "5010" }
+$ConsolePort     = if ($env:PORT)              { $env:PORT }              else { "5012" }
 
 Write-Host ""
 Write-Host "  Doane Ethos Console — Local Hub"

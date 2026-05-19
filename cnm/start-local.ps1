@@ -41,7 +41,7 @@ if (Test-Path $EnvFile) {
     Write-Host "[CNM] Loaded .env"
 }
 
-$ApiPort = if ($env:CNM_API_PORT) { $env:CNM_API_PORT } else { "9501" }
+$ApiPort = if ($env:CNM_API_PORT) { $env:CNM_API_PORT } else { "5011" }
 
 if (-not $FrontendOnly) {
     if ($ForceDeps) {
@@ -68,7 +68,7 @@ if (-not $ApiOnly) {
         Pop-Location
     }
 
-    $FrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else { "9500" }
+    $FrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else { "5010" }
     Write-Host "[CNM] Starting frontend on http://localhost:$FrontendPort ..."
     Push-Location $FrontendDir
     npm run dev

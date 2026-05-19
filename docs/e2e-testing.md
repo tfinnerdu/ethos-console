@@ -97,30 +97,30 @@ Wait for both the API and Vite to report ready, then verify:
 
 ```powershell
 # Shallow health — should return 200 with status: ok
-curl http://localhost:9501/api/v1/health
+curl http://localhost:5011/api/v1/health
 
 # Deep health — expect 200 (healthy) or 503 (degraded if Colleague not configured)
-curl http://localhost:9501/api/v1/health/deep
+curl http://localhost:5011/api/v1/health/deep
 
 # Resources — should return array of 41 items
-curl http://localhost:9501/api/v1/resources
+curl http://localhost:5011/api/v1/resources
 
 # Change notifications — should return empty array [] until Colleague connected
-curl http://localhost:9501/api/v1/change-notifications
+curl http://localhost:5011/api/v1/change-notifications
 
 # Diagnostics — should return diff with totalSubscribed: 41
-curl http://localhost:9501/api/v1/diagnostics/subscription-publishing
+curl http://localhost:5011/api/v1/diagnostics/subscription-publishing
 
 # Me endpoint — should return dev-user in local dev
-curl http://localhost:9501/api/v1/me
+curl http://localhost:5011/api/v1/me
 
 # About — should return { version: null } until Colleague connected
-curl http://localhost:9501/api/v1/about
+curl http://localhost:5011/api/v1/about
 ```
 
 ### Frontend smoke tests
 
-Open `http://rmw01tfinner.doane.local:9500` (or `http://localhost:9500`) and verify:
+Open `http://rmw01tfinner.doane.local:5010` (or `http://localhost:5010`) and verify:
 
 - [ ] Page loads without a blank screen or console errors
 - [ ] Change Notifications nav item is visible and active by default
@@ -238,12 +238,12 @@ Verify all v1.5+ write paths return `501 Not Implemented`:
 
 ```powershell
 # These should all return 501
-curl -X POST   http://localhost:9501/api/v1/change-notifications/any/enable
-curl -X POST   http://localhost:9501/api/v1/change-notifications/any/disable
-curl -X POST   http://localhost:9501/api/v1/change-notifications/bulk/status
-curl -X PUT    http://localhost:9501/api/v1/change-notifications/any -d '{}'
-curl -X POST   http://localhost:9501/api/v1/change-notifications -d '{}'
-curl -X DELETE http://localhost:9501/api/v1/change-notifications/any
+curl -X POST   http://localhost:5011/api/v1/change-notifications/any/enable
+curl -X POST   http://localhost:5011/api/v1/change-notifications/any/disable
+curl -X POST   http://localhost:5011/api/v1/change-notifications/bulk/status
+curl -X PUT    http://localhost:5011/api/v1/change-notifications/any -d '{}'
+curl -X POST   http://localhost:5011/api/v1/change-notifications -d '{}'
+curl -X DELETE http://localhost:5011/api/v1/change-notifications/any
 ```
 
 Each should return: `{ "error": "Not implemented in v1.", "code": "NOT_IMPLEMENTED" }`
@@ -279,9 +279,9 @@ kubectl get pods -n cnm-dev
 kubectl logs -f deployment/cnm-api -n cnm-dev
 
 # Port-forward and run smoke tests
-kubectl port-forward svc/cnm-api 9501:8080 -n cnm-dev
+kubectl port-forward svc/cnm-api 5011:8080 -n cnm-dev
 
-# Then run the API smoke tests from §4 against localhost:9501
+# Then run the API smoke tests from §4 against localhost:5011
 ```
 
 Verify via ingress (`du-int.doane.edu/dev/cnm`) that the frontend loads and proxies correctly to the API.
@@ -482,7 +482,7 @@ Requires `CNM_BASE_URL` set and the CNM service running.
 ### API smoke tests
 
 ```bash
-BASE=http://localhost:9502
+BASE=http://localhost:5012
 
 # Health proxy
 curl $BASE/api/cn/health
