@@ -1,0 +1,138 @@
+"""Proxy routes that surface CNM API data in the Ethos Dev Console.
+
+All routes return 503 with a setup guide when CNM_BASE_URL is not set.
+CNM errors (network, HTTP 4xx/5xx) are surfaced as 502 with the original
+message so the frontend can display them inline rather than crashing.
+"""
+from flask import Blueprint, jsonify, request, current_app
+from app.auth import api_auth_required
+from app.cn_client import CnmClient
+
+cn_bp = Blueprint("cn_monitor", __name__)
+
+
+def _get_cnm() -> CnmClient:
+    app = current_app._get_current_object()
+    return CnmClient(
+        base_url=app.config.get("CNM_BASE_URL", ""),
+        api_key=app.config.get("CNM_API_KEY", ""),
+    )
+
+
+def _require_cnm():
+    client = _get_cnm()
+    if not client.is_configured():
+        return None, jsonify({
+            "error": "CNM service not configured",
+            "setup": (
+                "Set CNM_BASE_URL in .env to enable this tab. "
+                "Example: CNM_BASE_URL=http://localhost:5000 (dev) or "
+                "https://your-host/prod/cnm (production). "
+                "Set CNM_API_KEY to a Bearer token for production (leave empty in dev)."
+            ),
+        }), 503
+    return client, None, None
+
+
+# ── Health ────────────────────────────────────────────────────────────────────
+
+@cn_bp.get("/health")
+@api_auth_required
+def cnm_health():
+    client, err, code = _require_cnm()
+    if err:
+        return err, code
+    try:
+        return jsonify(client.get_health())
+    except Exception as exc:
+        return jsonify({"error": str(exc), "status": "unreachable"}), 502
+
+
+# ── Change notifications ──────────────────────────────────────────────────────
+
+@cn_bp.get("/notifications")
+@api_auth_required
+def list_notifications():
+    client, err, code = _require_cnm()
+    if err:
+        return err, code
+    resource = request.args.get("resource")
+    status = request.args.get("status")
+    try:
+        items = client.get_notifications(resource=resource, status=status)
+        return jsonify({"items": items, "total": len(items)})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
+
+
+@cn_bp.get("/notifications/<cn_id>")
+@api_auth_required
+def get_notification(cn_id: str):
+    client, err, code = _require_cnm()
+    if err:
+        return err, code
+    try:
+        return jsonify(client.get_notification(cn_id))
+    except Exception as exc:
+        status = 404 if "404" in str(exc) else 502
+        return jsonify({"error": str(exc)}), status
+
+
+@cn_bp.get("/notifications/<cn_id>/paragraph")
+@api_auth_required
+def get_paragraph(cn_id: str):
+    client, err, code = _require_cnm()
+    if err:
+        return err, code
+    try:
+        return jsonify(client.get_paragraph(cn_id))
+    except Exception as exc:
+        status = 404 if "404" in str(exc) else 502
+        return jsonify({"error": str(exc)}), status
+
+
+@cn_bp.get("/notifications/<cn_id>/history")
+@api_auth_required
+def get_cn_history(cn_id: str):
+    client, err, code = _require_cnm()
+    if err:
+        return err, code
+    try:
+        items = client.get_cn_history(cn_id)
+        return jsonify({"items": items})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
+
+
+# ── Diagnostics ───────────────────────────────────────────────────────────────
+
+@cn_bp.get("/diagnostics")
+@api_auth_required
+def diagnostics():
+    client, err, code = _require_cnm()
+    if err:
+        return err, code
+    try:
+        return jsonify(client.get_diagnostics())
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
+
+
+# ── Audit log ─────────────────────────────────────────────────────────────────
+
+@cn_bp.get("/audit-log")
+@api_auth_required
+def audit_log():
+    client, err, code = _require_cnm()
+    if err:
+        return err, code
+    try:
+        data = client.get_audit_log(
+            page=int(request.args.get("page", 1)),
+            page_size=int(request.args.get("pageSize", 50)),
+            user_id=request.args.get("userId"),
+            target_identifier=request.args.get("targetIdentifier"),
+        )
+        return jsonify(data)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502

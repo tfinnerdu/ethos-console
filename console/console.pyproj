@@ -33,6 +33,7 @@
     <Compile Include="app\bus_monitor.py" />
     <Compile Include="app\database.py" />
     <Compile Include="app\ethos_client.py" />
+    <Compile Include="app\cn_client.py" />
     <Compile Include="app\health_monitor.py" />
     <Compile Include="app\routes\__init__.py" />
     <Compile Include="app\routes\auth.py" />
@@ -42,6 +43,7 @@
     <Compile Include="app\routes\health.py" />
     <Compile Include="app\routes\main.py" />
     <Compile Include="app\routes\mnemonics.py" />
+    <Compile Include="app\routes\cn_monitor.py" />
     <Compile Include="app\routes\phase3.py" />
     <Compile Include="app\routes\replay.py" />
     <Compile Include="app\routes\resources.py" />
@@ -72,6 +74,7 @@
   <ItemGroup>
     <Content Include="app\templates\base.html" />
     <Content Include="app\templates\bus_monitor.html" />
+    <Content Include="app\templates\cn_monitor.html" />
     <Content Include="app\templates\colleague_query.html" />
     <Content Include="app\templates\errors.html" />
     <Content Include="app\templates\field_diff.html" />
@@ -88,6 +91,7 @@
   <ItemGroup>
     <Content Include="static\css\app.css" />
     <Content Include="static\js\bus_monitor.js" />
+    <Content Include="static\js\cn_monitor.js" />
     <Content Include="static\js\colleague_query.js" />
     <Content Include="static\js\errors.js" />
     <Content Include="static\js\field_diff.js" />

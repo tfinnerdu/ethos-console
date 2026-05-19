@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title_suffix %} — CN Monitor{% endblock %}
+
+{% block content %}
+{% if not cnm_configured %}
+<!-- ── Setup guide ──────────────────────────────────────────────────────── -->
+<div class="row justify-content-center mt-4">
+  <div class="col-lg-7">
+    <div class="card border-warning">
+      <div class="card-header bg-warning text-dark fw-semibold">
+        <i class="bi bi-bell-slash me-2"></i>CNM service not configured
+      </div>
+      <div class="card-body">
+        <p class="mb-3">
+          The Change Notification Monitor tab proxies data from the <strong>EthosCn CNM API</strong>.
+          To enable it, point the console at your running CNM instance.
+        </p>
+        <ol class="mb-3">
+          <li class="mb-2">
+            Add <code>CNM_BASE_URL</code> to <code>console/.env</code>:<br>
+            <code class="text-muted">CNM_BASE_URL=http://localhost:5000</code>&nbsp;(dev)<br>
+            <code class="text-muted">CNM_BASE_URL=https://your-host/prod/cnm</code>&nbsp;(prod)
+          </li>
+          <li class="mb-2">
+            <strong>Production only</strong> — also add a Bearer token:<br>
+            <code class="text-muted">CNM_API_KEY=&lt;Azure AD service token&gt;</code><br>
+            In dev the CNM DevAuth handler accepts requests without a token.
+          </li>
+          <li class="mb-2">Restart the console: <code>python run.py</code></li>
+          <li>Return to this tab — it will load automatically when configured.</li>
+        </ol>
+        <div class="alert alert-info small mb-0">
+          <i class="bi bi-info-circle me-1"></i>
+          The CNM service must be running and reachable from the console host.
+          See <code>cnm/docker-compose.yml</code> for local startup.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- ── Live UI ───────────────────────────────────────────────────────────── -->
+
+<!-- Status bar -->
+<div class="row g-2 mb-3">
+  <div class="col-auto">
+    <div class="card stat-card h-100">
+      <div class="card-body p-2 d-flex align-items-center gap-2">
+        <span id="cnm-dot" class="status-dot dot-gray"></span>
+        <div>
+          <div class="stat-label">CNM Service</div>
+          <div id="cnm-status-text" class="fw-semibold small">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card stat-card h-100">
+      <div class="card-body p-2 text-center">
+        <div class="stat-label">Total Notifications</div>
+        <div id="tile-total" class="stat-value">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card stat-card h-100">
+      <div class="card-body p-2 text-center">
+        <div class="stat-label">Enabled</div>
+        <div id="tile-enabled" class="stat-value text-success">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card stat-card h-100">
+      <div class="card-body p-2 text-center">
+        <div class="stat-label">Disabled</div>
+        <div id="tile-disabled" class="stat-value text-warning">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card stat-card h-100">
+      <div class="card-body p-2 text-center">
+        <div class="stat-label">Subscribed</div>
+        <div id="tile-subscribed" class="stat-value">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card stat-card h-100">
+      <div class="card-body p-2 text-center">
+        <div class="stat-label">Published</div>
+        <div id="tile-published" class="stat-value">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card stat-card h-100 border-danger">
+      <div class="card-body p-2 text-center">
+        <div class="stat-label text-danger">Gaps</div>
+        <div id="tile-gaps" class="stat-value text-danger">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main tabs -->
+<ul class="nav nav-tabs mb-3" id="cnTabs">
+  <li class="nav-item">
+    <a class="nav-link active" data-bs-toggle="tab" href="#tab-notifications">
+      <i class="bi bi-bell me-1"></i>Change Notifications
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tab-diagnostics">
+      <i class="bi bi-diagram-3 me-1"></i>Diagnostics
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tab-audit">
+      <i class="bi bi-journal-text me-1"></i>Audit Log
+    </a>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ── Notifications tab ───────────────────────────────────────────────── -->
+  <div class="tab-pane fade show active" id="tab-notifications">
+    <div class="row g-2 mb-2">
+      <div class="col">
+        <input id="cn-search" type="text" class="form-control form-control-sm"
+               placeholder="Filter by resource name…" oninput="filterNotifications()">
+      </div>
+      <div class="col-auto">
+        <select id="cn-status-filter" class="form-select form-select-sm" onchange="filterNotifications()">
+          <option value="">All statuses</option>
+          <option value="Enabled">Enabled</option>
+          <option value="Disabled">Disabled</option>
+          <option value="Unknown">Unknown</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-sm btn-outline-secondary" onclick="loadNotifications()">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- List -->
+      <div class="col-lg-5">
+        <div id="cn-list-wrap" style="max-height:calc(100vh - 320px);overflow-y:auto;">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Resource</th>
+                <th>Status</th>
+                <th class="text-center" title="Has Paragraph"><i class="bi bi-file-text"></i></th>
+                <th>Modified</th>
+              </tr>
+            </thead>
+            <tbody id="cn-tbody">
+              <tr><td colspan="4" class="text-muted small text-center py-3">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detail drawer -->
+      <div class="col-lg-7">
+        <div id="cn-detail" class="card h-100">
+          <div class="card-body text-muted small d-flex align-items-center justify-content-center">
+            <span>Select a notification to view details</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Diagnostics tab ─────────────────────────────────────────────────── -->
+  <div class="tab-pane fade" id="tab-diagnostics">
+    <div id="diag-loading" class="text-muted small">Loading diagnostics…</div>
+    <div id="diag-content" class="row g-3" style="display:none!important">
+
+      <div class="col-md-4">
+        <div class="card border-success h-100">
+          <div class="card-header bg-success text-white fw-semibold small">
+            <i class="bi bi-check-circle me-1"></i>Aligned
+            <span id="diag-aligned-count" class="badge bg-white text-success ms-1">0</span>
+          </div>
+          <div class="card-body p-2" style="max-height:400px;overflow-y:auto;">
+            <ul id="diag-aligned-list" class="list-unstyled mb-0 small font-monospace"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card border-warning h-100">
+          <div class="card-header bg-warning text-dark fw-semibold small">
+            <i class="bi bi-exclamation-triangle me-1"></i>Subscribed, not published
+            <span id="diag-snp-count" class="badge bg-white text-warning ms-1">0</span>
+          </div>
+          <div class="card-body p-2" style="max-height:400px;overflow-y:auto;">
+            <p class="text-muted x-small mb-2">
+              Ethos will send these events but CNM won't fire — check CNM event configs.
+            </p>
+            <ul id="diag-snp-list" class="list-unstyled mb-0 small font-monospace"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card border-danger h-100">
+          <div class="card-header bg-danger text-white fw-semibold small">
+            <i class="bi bi-x-circle me-1"></i>Published, not subscribed
+            <span id="diag-pns-count" class="badge bg-white text-danger ms-1">0</span>
+          </div>
+          <div class="card-body p-2" style="max-height:400px;overflow-y:auto;">
+            <p class="text-muted x-small mb-2">
+              CNM is configured for these but Ethos won't deliver them — check Ethos subscriptions.
+            </p>
+            <ul id="diag-pns-list" class="list-unstyled mb-0 small font-monospace"></ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Audit log tab ──────────────────────────────────────────────────── -->
+  <div class="tab-pane fade" id="tab-audit">
+    <div class="row g-2 mb-2">
+      <div class="col">
+        <input id="audit-target" type="text" class="form-control form-control-sm"
+               placeholder="Filter by target ID…" oninput="loadAuditLog(1)">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-sm btn-outline-secondary" onclick="loadAuditLog(1)">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+    </div>
+
+    <div style="max-height:calc(100vh - 300px);overflow-y:auto;">
+      <table class="table table-sm table-striped align-middle">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th>Timestamp</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Target</th>
+            <th>Outcome</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody">
+          <tr><td colspan="5" class="text-muted small text-center py-3">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex align-items-center gap-2 mt-2">
+      <button id="audit-prev" class="btn btn-sm btn-outline-secondary" onclick="auditPage(-1)" disabled>
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <span id="audit-page-label" class="small text-muted">Page 1</span>
+      <button id="audit-next" class="btn btn-sm btn-outline-secondary" onclick="auditPage(1)">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+
+</div><!-- tab-content -->
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if cnm_configured %}
+<script src="/static/js/cn_monitor.js"></script>
+{% endif %}
+{% endblock %}

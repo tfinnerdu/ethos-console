@@ -57,6 +57,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from .routes.errors import errors_bp
     from .routes.schema_browser import schema_browser_bp
     from .routes.phase3 import phase3_bp
+    from .routes.cn_monitor import cn_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -69,6 +70,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(errors_bp, url_prefix="/api/errors")
     app.register_blueprint(schema_browser_bp, url_prefix="/api/schema-browser")
     app.register_blueprint(phase3_bp, url_prefix="/api/phase3")
+    app.register_blueprint(cn_bp, url_prefix="/api/cn")
 
     return app
 

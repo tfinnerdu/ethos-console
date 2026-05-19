@@ -154,6 +154,7 @@ EXPECTED_PREFIXES = {
     "/api/errors",
     "/api/schema-browser",
     "/api/phase3",
+    "/api/cn",
 }
 
 

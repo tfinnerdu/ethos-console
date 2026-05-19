@@ -472,3 +472,59 @@ Open `http://localhost:5000` and verify:
 | `queue_status` | depth < 100 | 100–499 | ≥ 500 or error |
 | `error_status` | 0 errors | 1–10 errors | > 10 errors |
 | resource `status` | event within 30 min | no recent event | — |
+
+---
+
+## 14. CN Monitor — Smoke Test
+
+Requires `CNM_BASE_URL` set and the CNM service running.
+
+### API smoke tests
+
+```bash
+BASE=http://localhost:9502
+
+# Health proxy
+curl $BASE/api/cn/health
+
+# Notifications list (all)
+curl $BASE/api/cn/notifications
+
+# Notifications — filter by resource
+curl "$BASE/api/cn/notifications?resource=persons"
+
+# Notification detail (replace ID with a real one from the list)
+curl $BASE/api/cn/notifications/{id}
+
+# Paragraph text for a CN that has one
+curl $BASE/api/cn/notifications/{id}/paragraph
+
+# Per-CN audit history
+curl $BASE/api/cn/notifications/{id}/history
+
+# Subscription / publishing diagnostics
+curl $BASE/api/cn/diagnostics
+
+# Audit log (admin — may return 403 without CNM.Admin role)
+curl $BASE/api/cn/audit-log
+```
+
+### Frontend smoke test
+
+- [ ] **CN Monitor tab** loads — not the setup guide
+- [ ] **Status bar**: CNM dot is green, version and uptime shown
+- [ ] **Tiles**: Total, Enabled, Disabled, Subscribed, Published, Gaps all show numbers
+- [ ] **Notifications table** populates with rows
+- [ ] Resource filter box narrows the list in real time
+- [ ] Status dropdown filters correctly (Enabled / Disabled)
+- [ ] Clicking a row opens the **detail drawer** — shows description, paragraph/process codes, parameters, EDPS rules, recent history
+- [ ] **Diagnostics tab**: three columns (Aligned, Subscribed-not-published, Published-not-subscribed) populate
+- [ ] **Audit Log tab**: table populates on first visit; pagination controls work; target filter narrows results
+- [ ] Refresh buttons (↻) on Notifications and Audit Log reload data
+
+### Setup guide test (no CNM_BASE_URL)
+
+Remove `CNM_BASE_URL` from `.env`, restart, navigate to `/cn-monitor`:
+
+- [ ] Setup guide card is shown with correct instructions
+- [ ] No JS errors in console

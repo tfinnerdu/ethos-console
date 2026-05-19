@@ -67,3 +67,11 @@ def colleague_query():
     unidata_configured = bool(current_app.config.get("UNIDATA_CONN_STR"))
     return render_template("colleague_query.html", active_tab="colleague_query",
                            unidata_configured=unidata_configured)
+
+
+@main_bp.get("/cn-monitor")
+@login_required
+def cn_monitor():
+    cnm_configured = bool(current_app.config.get("CNM_BASE_URL"))
+    return render_template("cn_monitor.html", active_tab="cn_monitor",
+                           cnm_configured=cnm_configured)
