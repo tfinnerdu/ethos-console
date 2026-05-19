@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{77777777-7777-7777-7777-777777777777}</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>run.py</StartupFile>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>EthosConsole</Name>
+    <RootNamespace>console</RootNamespace>
+    <ProjectTypeGuids>{888888A0-9F3D-457C-B088-3A5042F75D52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <DebugStdLib>False</DebugStdLib>
+    <EnableUnmanagedDebugging>False</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+
+  <!-- ── Application source ─────────────────────────────────────────────── -->
+  <ItemGroup>
+    <Compile Include="run.py" />
+    <Compile Include="config.py" />
+    <Compile Include="app\__init__.py" />
+    <Compile Include="app\auth.py" />
+    <Compile Include="app\bus_monitor.py" />
+    <Compile Include="app\database.py" />
+    <Compile Include="app\ethos_client.py" />
+    <Compile Include="app\health_monitor.py" />
+    <Compile Include="app\routes\__init__.py" />
+    <Compile Include="app\routes\auth.py" />
+    <Compile Include="app\routes\bus.py" />
+    <Compile Include="app\routes\errors.py" />
+    <Compile Include="app\routes\graphql_routes.py" />
+    <Compile Include="app\routes\health.py" />
+    <Compile Include="app\routes\main.py" />
+    <Compile Include="app\routes\mnemonics.py" />
+    <Compile Include="app\routes\phase3.py" />
+    <Compile Include="app\routes\replay.py" />
+    <Compile Include="app\routes\resources.py" />
+    <Compile Include="app\routes\schema_browser.py" />
+  </ItemGroup>
+
+  <!-- ── Tests ──────────────────────────────────────────────────────────── -->
+  <ItemGroup>
+    <Compile Include="tests\__init__.py" />
+    <Compile Include="tests\conftest.py" />
+    <Compile Include="tests\test_auth.py" />
+    <Compile Include="tests\test_bus_api.py" />
+    <Compile Include="tests\test_bus_monitor.py" />
+    <Compile Include="tests\test_contracts.py" />
+    <Compile Include="tests\test_errors_api.py" />
+    <Compile Include="tests\test_ethos_client.py" />
+    <Compile Include="tests\test_graphql_api.py" />
+    <Compile Include="tests\test_health.py" />
+    <Compile Include="tests\test_health_monitor.py" />
+    <Compile Include="tests\test_mnemonics_api.py" />
+    <Compile Include="tests\test_relay_api.py" />
+    <Compile Include="tests\test_replay_api.py" />
+    <Compile Include="tests\test_resources_api.py" />
+    <Compile Include="tests\test_schema_browser_api.py" />
+  </ItemGroup>
+
+  <!-- ── Templates ─────────────────────────────────────────────────────── -->
+  <ItemGroup>
+    <Content Include="app\templates\base.html" />
+    <Content Include="app\templates\bus_monitor.html" />
+    <Content Include="app\templates\colleague_query.html" />
+    <Content Include="app\templates\errors.html" />
+    <Content Include="app\templates\field_diff.html" />
+    <Content Include="app\templates\graphql.html" />
+    <Content Include="app\templates\health.html" />
+    <Content Include="app\templates\login.html" />
+    <Content Include="app\templates\mnemonics.html" />
+    <Content Include="app\templates\replay.html" />
+    <Content Include="app\templates\resources.html" />
+    <Content Include="app\templates\schema_browser.html" />
+  </ItemGroup>
+
+  <!-- ── Static assets ──────────────────────────────────────────────────── -->
+  <ItemGroup>
+    <Content Include="static\css\app.css" />
+    <Content Include="static\js\bus_monitor.js" />
+    <Content Include="static\js\colleague_query.js" />
+    <Content Include="static\js\errors.js" />
+    <Content Include="static\js\field_diff.js" />
+    <Content Include="static\js\graphql_builder.js" />
+    <Content Include="static\js\health.js" />
+    <Content Include="static\js\mnemonics.js" />
+    <Content Include="static\js\relay.js" />
+    <Content Include="static\js\replay.js" />
+    <Content Include="static\js\resources.js" />
+    <Content Include="static\js\schema_browser.js" />
+  </ItemGroup>
+
+  <!-- ── Config & infra ─────────────────────────────────────────────────── -->
+  <ItemGroup>
+    <None Include="requirements.txt" />
+    <None Include="pytest.ini" />
+    <None Include="Dockerfile" />
+    <None Include="start-local.ps1" />
+    <None Include=".env.example" />
+    <None Include="k8s\deployment.yaml" />
+    <None Include="k8s\ingress.yaml" />
+    <None Include="k8s\namespace.yaml" />
+    <None Include="k8s\secret-template.yaml" />
+    <None Include="k8s\service.yaml" />
+  </ItemGroup>
+
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+  <!-- Fallback if PTVS targets are not installed (Rider / dotnet CLI) -->
+  <Target Name="Build" />
+  <Target Name="Rebuild" DependsOnTargets="Build" />
+  <Target Name="Clean" />
+</Project>
