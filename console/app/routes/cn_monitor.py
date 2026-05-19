@@ -118,6 +118,44 @@ def diagnostics():
         return jsonify({"error": str(exc)}), 502
 
 
+# ── Push change notifications ─────────────────────────────────────────────────
+
+@cn_bp.post("/push")
+@api_auth_required
+def push_notifications():
+    app = current_app._get_current_object()
+    ethos = app.extensions.get("ethos_client")
+    if not ethos or not ethos.is_configured():
+        return jsonify({"error": "Ethos not configured", "setup": "Set ETHOS_API_KEY in .env"}), 503
+
+    data = request.get_json(silent=True) or {}
+    resource_name = (data.get("resource_name") or "").strip()
+    operation = data.get("operation", "replaced")
+    guids = [g.strip() for g in (data.get("guids") or []) if str(g).strip()]
+
+    if not resource_name:
+        return jsonify({"error": "resource_name is required"}), 400
+    if not guids:
+        return jsonify({"error": "at least one guid is required"}), 400
+
+    results = []
+    for guid in guids:
+        try:
+            body, version = ethos.get_resource_by_id(resource_name, guid)
+            notification = {
+                "resource": {"name": resource_name, "id": guid, "version": version},
+                "operation": operation,
+                "contentType": "resource-representation",
+                "content": body,
+            }
+            ethos.publish_notification(notification)
+            results.append({"guid": guid, "status": "success", "version": version})
+        except Exception as exc:
+            results.append({"guid": guid, "status": "error", "error": str(exc), "version": None})
+
+    return jsonify({"results": results})
+
+
 # ── Audit log ─────────────────────────────────────────────────────────────────
 
 @cn_bp.get("/audit-log")

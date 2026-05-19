@@ -1,10 +1,29 @@
 {% extends "base.html" %}
-{% block title_suffix %} — CN Monitor{% endblock %}
+{% block title_suffix %} - Change Notifications{% endblock %}
 
 {% block content %}
+
+<!-- Section switcher -->
+<ul class="nav nav-pills mb-3">
+  <li class="nav-item">
+    <button class="nav-link active" id="btn-section-monitor" onclick="cnSection('monitor')">
+      <i class="bi bi-bell me-1"></i>Monitor
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" id="btn-section-push" onclick="cnSection('push')">
+      <i class="bi bi-send me-1"></i>Push
+    </button>
+  </li>
+</ul>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- Monitor section                                                           -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="cn-section-monitor">
+
 {% if not cnm_configured %}
-<!-- ── Setup guide ──────────────────────────────────────────────────────── -->
-<div class="row justify-content-center mt-4">
+<div class="row justify-content-center mt-2">
   <div class="col-lg-7">
     <div class="card border-warning">
       <div class="card-header bg-warning text-dark fw-semibold">
@@ -12,27 +31,24 @@
       </div>
       <div class="card-body">
         <p class="mb-3">
-          The Change Notification Monitor tab proxies data from the <strong>EthosCn CNM API</strong>.
+          The Monitor section proxies data from the <strong>EthosCn CNM API</strong>.
           To enable it, point the console at your running CNM instance.
         </p>
         <ol class="mb-3">
           <li class="mb-2">
-            Add <code>CNM_BASE_URL</code> to <code>console/.env</code>:<br>
-            <code class="text-muted">CNM_BASE_URL=http://localhost:5000</code>&nbsp;(dev)<br>
-            <code class="text-muted">CNM_BASE_URL=https://your-host/prod/cnm</code>&nbsp;(prod)
+            Add <code>CNM_BASE_URL</code> to your <code>.env</code>:<br>
+            <code class="text-muted">CNM_BASE_URL=http://localhost:5011</code> (dev)<br>
+            <code class="text-muted">CNM_BASE_URL=https://your-host/prod/cnm</code> (prod)
           </li>
           <li class="mb-2">
             <strong>Production only</strong> — also add a Bearer token:<br>
-            <code class="text-muted">CNM_API_KEY=&lt;Azure AD service token&gt;</code><br>
-            In dev the CNM DevAuth handler accepts requests without a token.
+            <code class="text-muted">CNM_API_KEY=&lt;Azure AD service token&gt;</code>
           </li>
-          <li class="mb-2">Restart the console: <code>python run.py</code></li>
-          <li>Return to this tab — it will load automatically when configured.</li>
+          <li class="mb-2">Restart the console and return to this tab.</li>
         </ol>
         <div class="alert alert-info small mb-0">
           <i class="bi bi-info-circle me-1"></i>
-          The CNM service must be running and reachable from the console host.
-          See <code>cnm/docker-compose.yml</code> for local startup.
+          The Push section is available now — it uses your configured Ethos API key directly.
         </div>
       </div>
     </div>
@@ -40,17 +56,16 @@
 </div>
 
 {% else %}
-<!-- ── Live UI ───────────────────────────────────────────────────────────── -->
 
 <!-- Status bar -->
 <div class="row g-2 mb-3">
   <div class="col-auto">
     <div class="card stat-card h-100">
       <div class="card-body p-2 d-flex align-items-center gap-2">
-        <span id="cnm-dot" class="status-dot dot-gray"></span>
+        <span id="cnm-dot" class="status-dot gray"></span>
         <div>
           <div class="stat-label">CNM Service</div>
-          <div id="cnm-status-text" class="fw-semibold small">—</div>
+          <div id="cnm-status-text" class="fw-semibold small">-</div>
         </div>
       </div>
     </div>
@@ -58,8 +73,8 @@
   <div class="col-auto">
     <div class="card stat-card h-100">
       <div class="card-body p-2 text-center">
-        <div class="stat-label">Total Notifications</div>
-        <div id="tile-total" class="stat-value">—</div>
+        <div class="stat-label">Total</div>
+        <div id="tile-total" class="stat-value">-</div>
       </div>
     </div>
   </div>
@@ -67,7 +82,7 @@
     <div class="card stat-card h-100">
       <div class="card-body p-2 text-center">
         <div class="stat-label">Enabled</div>
-        <div id="tile-enabled" class="stat-value text-success">—</div>
+        <div id="tile-enabled" class="stat-value text-success">-</div>
       </div>
     </div>
   </div>
@@ -75,7 +90,7 @@
     <div class="card stat-card h-100">
       <div class="card-body p-2 text-center">
         <div class="stat-label">Disabled</div>
-        <div id="tile-disabled" class="stat-value text-warning">—</div>
+        <div id="tile-disabled" class="stat-value text-warning">-</div>
       </div>
     </div>
   </div>
@@ -83,7 +98,7 @@
     <div class="card stat-card h-100">
       <div class="card-body p-2 text-center">
         <div class="stat-label">Subscribed</div>
-        <div id="tile-subscribed" class="stat-value">—</div>
+        <div id="tile-subscribed" class="stat-value">-</div>
       </div>
     </div>
   </div>
@@ -91,7 +106,7 @@
     <div class="card stat-card h-100">
       <div class="card-body p-2 text-center">
         <div class="stat-label">Published</div>
-        <div id="tile-published" class="stat-value">—</div>
+        <div id="tile-published" class="stat-value">-</div>
       </div>
     </div>
   </div>
@@ -99,13 +114,13 @@
     <div class="card stat-card h-100 border-danger">
       <div class="card-body p-2 text-center">
         <div class="stat-label text-danger">Gaps</div>
-        <div id="tile-gaps" class="stat-value text-danger">—</div>
+        <div id="tile-gaps" class="stat-value text-danger">-</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Main tabs -->
+<!-- CNM sub-tabs -->
 <ul class="nav nav-tabs mb-3" id="cnTabs">
   <li class="nav-item">
     <a class="nav-link active" data-bs-toggle="tab" href="#tab-notifications">
@@ -126,12 +141,12 @@
 
 <div class="tab-content">
 
-  <!-- ── Notifications tab ───────────────────────────────────────────────── -->
+  <!-- Notifications -->
   <div class="tab-pane fade show active" id="tab-notifications">
     <div class="row g-2 mb-2">
       <div class="col">
         <input id="cn-search" type="text" class="form-control form-control-sm"
-               placeholder="Filter by resource name…" oninput="filterNotifications()">
+               placeholder="Filter by resource name..." oninput="filterNotifications()">
       </div>
       <div class="col-auto">
         <select id="cn-status-filter" class="form-select form-select-sm" onchange="filterNotifications()">
@@ -147,11 +162,9 @@
         </button>
       </div>
     </div>
-
     <div class="row g-3">
-      <!-- List -->
       <div class="col-lg-5">
-        <div id="cn-list-wrap" style="max-height:calc(100vh - 320px);overflow-y:auto;">
+        <div style="max-height:calc(100vh - 340px);overflow-y:auto;">
           <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light sticky-top">
               <tr>
@@ -162,13 +175,11 @@
               </tr>
             </thead>
             <tbody id="cn-tbody">
-              <tr><td colspan="4" class="text-muted small text-center py-3">Loading…</td></tr>
+              <tr><td colspan="4" class="text-muted small text-center py-3">Loading...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-
-      <!-- Detail drawer -->
       <div class="col-lg-7">
         <div id="cn-detail" class="card h-100">
           <div class="card-body text-muted small d-flex align-items-center justify-content-center">
@@ -179,11 +190,10 @@
     </div>
   </div>
 
-  <!-- ── Diagnostics tab ─────────────────────────────────────────────────── -->
+  <!-- Diagnostics -->
   <div class="tab-pane fade" id="tab-diagnostics">
-    <div id="diag-loading" class="text-muted small">Loading diagnostics…</div>
+    <div id="diag-loading" class="text-muted small">Loading diagnostics...</div>
     <div id="diag-content" class="row g-3" style="display:none!important">
-
       <div class="col-md-4">
         <div class="card border-success h-100">
           <div class="card-header bg-success text-white fw-semibold small">
@@ -195,7 +205,6 @@
           </div>
         </div>
       </div>
-
       <div class="col-md-4">
         <div class="card border-warning h-100">
           <div class="card-header bg-warning text-dark fw-semibold small">
@@ -203,14 +212,11 @@
             <span id="diag-snp-count" class="badge bg-white text-warning ms-1">0</span>
           </div>
           <div class="card-body p-2" style="max-height:400px;overflow-y:auto;">
-            <p class="text-muted x-small mb-2">
-              Ethos will send these events but CNM won't fire — check CNM event configs.
-            </p>
+            <p class="text-muted x-small mb-2">Ethos will send these but CNM won't fire - check event configs.</p>
             <ul id="diag-snp-list" class="list-unstyled mb-0 small font-monospace"></ul>
           </div>
         </div>
       </div>
-
       <div class="col-md-4">
         <div class="card border-danger h-100">
           <div class="card-header bg-danger text-white fw-semibold small">
@@ -218,23 +224,20 @@
             <span id="diag-pns-count" class="badge bg-white text-danger ms-1">0</span>
           </div>
           <div class="card-body p-2" style="max-height:400px;overflow-y:auto;">
-            <p class="text-muted x-small mb-2">
-              CNM is configured for these but Ethos won't deliver them — check Ethos subscriptions.
-            </p>
+            <p class="text-muted x-small mb-2">CNM is configured for these but Ethos won't deliver them - check Ethos subscriptions.</p>
             <ul id="diag-pns-list" class="list-unstyled mb-0 small font-monospace"></ul>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 
-  <!-- ── Audit log tab ──────────────────────────────────────────────────── -->
+  <!-- Audit Log -->
   <div class="tab-pane fade" id="tab-audit">
     <div class="row g-2 mb-2">
       <div class="col">
         <input id="audit-target" type="text" class="form-control form-control-sm"
-               placeholder="Filter by target ID…" oninput="loadAuditLog(1)">
+               placeholder="Filter by target ID..." oninput="loadAuditLog(1)">
       </div>
       <div class="col-auto">
         <button class="btn btn-sm btn-outline-secondary" onclick="loadAuditLog(1)">
@@ -242,20 +245,13 @@
         </button>
       </div>
     </div>
-
     <div style="max-height:calc(100vh - 300px);overflow-y:auto;">
       <table class="table table-sm table-striped align-middle">
         <thead class="table-light sticky-top">
-          <tr>
-            <th>Timestamp</th>
-            <th>User</th>
-            <th>Action</th>
-            <th>Target</th>
-            <th>Outcome</th>
-          </tr>
+          <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Target</th><th>Outcome</th></tr>
         </thead>
         <tbody id="audit-tbody">
-          <tr><td colspan="5" class="text-muted small text-center py-3">Loading…</td></tr>
+          <tr><td colspan="5" class="text-muted small text-center py-3">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -271,12 +267,122 @@
   </div>
 
 </div><!-- tab-content -->
-
 {% endif %}
+</div><!-- cn-section-monitor -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- Push section                                                              -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="cn-section-push" style="display:none">
+
+{% if not ethos_configured %}
+<div class="row justify-content-center mt-2">
+  <div class="col-lg-6">
+    <div class="card border-warning">
+      <div class="card-header bg-warning text-dark fw-semibold">
+        <i class="bi bi-exclamation-triangle me-2"></i>Ethos not configured
+      </div>
+      <div class="card-body">
+        Add <code>ETHOS_API_KEY</code> to your <code>.env</code> and restart the console to use Push.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="row g-3" style="min-height:calc(100vh - 180px)">
+
+  <!-- Config panel -->
+  <div class="col-lg-4">
+    <div class="card h-100 d-flex flex-column">
+      <div class="card-header fw-semibold small text-uppercase" style="letter-spacing:.05em;color:var(--doane-navy)">
+        <i class="bi bi-sliders me-1"></i>Configuration
+      </div>
+      <div class="card-body d-flex flex-column gap-3 overflow-auto">
+
+        <div>
+          <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.06em">Resource Name</label>
+          <input id="push-resource" type="text" class="form-control form-control-sm font-monospace"
+                 placeholder="e.g. persons, courses, student-charges">
+          <div class="form-text">Version sourced from x-media-type on the proxy response.</div>
+        </div>
+
+        <div>
+          <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.06em">Operation</label>
+          <select id="push-operation" class="form-select form-select-sm">
+            <option value="replaced">replaced</option>
+            <option value="created">created</option>
+            <option value="deleted">deleted</option>
+          </select>
+        </div>
+
+        <div class="flex-grow-1 d-flex flex-column">
+          <label class="form-label small fw-semibold text-muted text-uppercase" style="letter-spacing:.06em">
+            GUIDs <span id="push-guid-count" class="fw-normal normal-case text-muted">(0 entered)</span>
+          </label>
+          <textarea id="push-guids" class="form-control form-control-sm font-monospace flex-grow-1"
+                    style="min-height:160px;resize:vertical"
+                    placeholder="One GUID per line"
+                    oninput="updatePushGuidCount()"></textarea>
+        </div>
+
+        <div class="alert alert-info small py-2 mb-0">
+          <i class="bi bi-info-circle me-1"></i>
+          Uses your configured <code>ETHOS_API_KEY</code>. No separate credentials required.
+        </div>
+
+      </div>
+      <div class="card-footer d-flex flex-column gap-2">
+        <div class="progress" id="push-progress" style="height:4px;display:none!important">
+          <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated"
+               id="push-progress-bar" style="width:100%"></div>
+        </div>
+        <button class="btn btn-doane w-100" id="push-run-btn" onclick="runPush()">
+          <i class="bi bi-send me-1"></i>Publish Change Notifications
+        </button>
+        <button class="btn btn-outline-secondary w-100 btn-sm" onclick="clearPushResults()">
+          Clear Results
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results panel -->
+  <div class="col-lg-8">
+    <div class="card h-100 d-flex flex-column">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-semibold small text-uppercase" style="letter-spacing:.05em;color:var(--doane-navy)">
+          <i class="bi bi-list-check me-1"></i>Results
+        </span>
+        <div class="d-flex gap-3 small">
+          <span class="text-warning fw-semibold">
+            <span id="push-stat-pending">0</span> pending
+          </span>
+          <span class="text-success fw-semibold">
+            <span id="push-stat-success">0</span> success
+          </span>
+          <span class="text-danger fw-semibold">
+            <span id="push-stat-error">0</span> error
+          </span>
+        </div>
+      </div>
+      <div class="card-body overflow-auto p-2" id="push-results-list"
+           style="max-height:calc(100vh - 230px)">
+        <div id="push-empty" class="text-muted small text-center py-5">
+          <i class="bi bi-inbox fs-3 d-block mb-2 opacity-25"></i>
+          Configure settings and click Publish to begin.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+</div><!-- cn-section-push -->
+
 {% endblock %}
 
 {% block scripts %}
-{% if cnm_configured %}
 <script src="/static/js/cn_monitor.js"></script>
-{% endif %}
 {% endblock %}

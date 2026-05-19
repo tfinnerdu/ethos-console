@@ -73,5 +73,7 @@ def colleague_query():
 @login_required
 def cn_monitor():
     cnm_configured = bool(current_app.config.get("CNM_BASE_URL"))
+    ethos_configured = bool(current_app.config.get("ETHOS_API_KEY"))
     return render_template("cn_monitor.html", active_tab="cn_monitor",
-                           cnm_configured=cnm_configured)
+                           cnm_configured=cnm_configured,
+                           ethos_configured=ethos_configured)

@@ -92,6 +92,31 @@ class EthosClient:
         r.raise_for_status()
         return r.json() or []
 
+    def get_resource_by_id(self, resource: str, guid: str) -> tuple[dict, str]:
+        r = requests.get(
+            f"{self.base_url}/api/{resource}/{guid}",
+            headers=self.get_headers(),
+            timeout=30,
+        )
+        r.raise_for_status()
+        version = r.headers.get("x-media-type") or "application/json"
+        return r.json(), version
+
+    def publish_notification(self, notification: dict) -> dict:
+        headers = self.get_headers()
+        headers["Content-Type"] = "application/vnd.hedtech.change-notifications.v2+json"
+        r = requests.post(
+            f"{self.base_url}/publish",
+            headers=headers,
+            json=notification,
+            timeout=30,
+        )
+        r.raise_for_status()
+        try:
+            return r.json()
+        except Exception:
+            return {}
+
     def get_cn_available_resources(self) -> list:
         r = requests.get(
             f"{self.base_url}/api/change-notifications/available-resources",

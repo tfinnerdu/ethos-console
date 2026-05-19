@@ -248,3 +248,133 @@ def test_audit_log_passes_target_filter(cnm_client):
     tc, mock = cnm_client
     tc.get("/api/cn/audit-log?targetIdentifier=cn-1")
     mock.get_audit_log.assert_called_with(page=1, page_size=50, user_id=None, target_identifier="cn-1")
+
+
+# ── Push change notifications ─────────────────────────────────────────────────
+
+@pytest.fixture()
+def push_client(app):
+    """Configure app with a mocked EthosClient that supports push methods."""
+    original = app.extensions.get("ethos_client")
+    mock = MagicMock()
+    mock.is_configured.return_value = True
+    mock.get_resource_by_id.return_value = (
+        {"id": "fee12eb6-dae1-456b-a7c4-063458617478", "firstName": "Alice"},
+        "application/vnd.hedtech.integration.v8+json",
+    )
+    mock.publish_notification.return_value = {}
+    app.extensions["ethos_client"] = mock
+    yield app.test_client(), mock
+    app.extensions["ethos_client"] = original
+
+
+def test_push_503_when_ethos_not_configured(client):
+    r = client.post("/api/cn/push", json={"resource_name": "persons", "guids": ["abc"]})
+    assert r.status_code == 503
+    data = r.get_json()
+    assert "error" in data
+    assert "setup" in data
+
+
+def test_push_400_missing_resource_name(push_client):
+    tc, _ = push_client
+    r = tc.post("/api/cn/push", json={"guids": ["abc"]})
+    assert r.status_code == 400
+    assert "resource_name" in r.get_json()["error"]
+
+
+def test_push_400_missing_guids(push_client):
+    tc, _ = push_client
+    r = tc.post("/api/cn/push", json={"resource_name": "persons", "guids": []})
+    assert r.status_code == 400
+    assert "guid" in r.get_json()["error"]
+
+
+def test_push_200_returns_results(push_client):
+    tc, _ = push_client
+    r = tc.post("/api/cn/push", json={
+        "resource_name": "persons",
+        "operation": "replaced",
+        "guids": ["fee12eb6-dae1-456b-a7c4-063458617478"],
+    })
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "results" in data
+    assert len(data["results"]) == 1
+
+
+def test_push_success_result_shape(push_client):
+    tc, _ = push_client
+    data = tc.post("/api/cn/push", json={
+        "resource_name": "persons",
+        "guids": ["fee12eb6-dae1-456b-a7c4-063458617478"],
+    }).get_json()
+    result = data["results"][0]
+    assert result["status"] == "success"
+    assert result["guid"] == "fee12eb6-dae1-456b-a7c4-063458617478"
+    assert "version" in result
+
+
+def test_push_calls_get_resource_by_id(push_client):
+    tc, mock = push_client
+    tc.post("/api/cn/push", json={"resource_name": "persons", "guids": ["abc-123"]})
+    mock.get_resource_by_id.assert_called_with("persons", "abc-123")
+
+
+def test_push_calls_publish_notification(push_client):
+    tc, mock = push_client
+    tc.post("/api/cn/push", json={
+        "resource_name": "persons", "operation": "created", "guids": ["abc-123"],
+    })
+    call_args = mock.publish_notification.call_args[0][0]
+    assert call_args["resource"]["name"] == "persons"
+    assert call_args["resource"]["id"] == "abc-123"
+    assert call_args["operation"] == "created"
+    assert call_args["contentType"] == "resource-representation"
+
+
+def test_push_error_result_when_upstream_fails(app):
+    original = app.extensions.get("ethos_client")
+    mock = MagicMock()
+    mock.is_configured.return_value = True
+    mock.get_resource_by_id.side_effect = Exception("404 Not Found")
+    app.extensions["ethos_client"] = mock
+    r = app.test_client().post("/api/cn/push", json={
+        "resource_name": "persons", "guids": ["bad-guid"],
+    })
+    assert r.status_code == 200
+    result = r.get_json()["results"][0]
+    assert result["status"] == "error"
+    assert "404" in result["error"]
+    app.extensions["ethos_client"] = original
+
+
+def test_push_partial_results_on_mixed_outcomes(app):
+    """Some GUIDs succeed, others fail — all returned in results list."""
+    original = app.extensions.get("ethos_client")
+    mock = MagicMock()
+    mock.is_configured.return_value = True
+    call_count = [0]
+
+    def side_effect(resource, guid):
+        call_count[0] += 1
+        if call_count[0] % 2 == 0:
+            raise Exception("upstream error")
+        return {"id": guid}, "application/json"
+
+    mock.get_resource_by_id.side_effect = side_effect
+    mock.publish_notification.return_value = {}
+    app.extensions["ethos_client"] = mock
+
+    r = app.test_client().post("/api/cn/push", json={
+        "resource_name": "persons",
+        "guids": ["guid-1", "guid-2", "guid-3"],
+    })
+    assert r.status_code == 200
+    results = r.get_json()["results"]
+    assert len(results) == 3
+    statuses = [res["status"] for res in results]
+    assert "success" in statuses
+    assert "error" in statuses
+
+    app.extensions["ethos_client"] = original

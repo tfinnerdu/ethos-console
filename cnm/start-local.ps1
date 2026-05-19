@@ -17,18 +17,6 @@ $ApiLogErr = Join-Path $LogDir "api.err"
 
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory $LogDir | Out-Null }
 
-# Kill any previous API instance holding the log file open
-$portConn = Get-NetTCPConnection -LocalPort $ApiPort -State Listen -ErrorAction SilentlyContinue
-if ($portConn) {
-    Write-Host "[CNM] Stopping existing API process on port $ApiPort (PID $($portConn.OwningProcess))..."
-    Stop-Process -Id $portConn.OwningProcess -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 750
-}
-
-# Wipe logs on each start
-if (Test-Path $ApiLog) { Remove-Item $ApiLog }
-if (Test-Path $ApiLogErr) { Remove-Item $ApiLogErr }
-
 $env:ASPNETCORE_ENVIRONMENT = "Development"
 
 # Load .env if present (key=value lines only)
@@ -42,6 +30,18 @@ if (Test-Path $EnvFile) {
 }
 
 $ApiPort = if ($env:CNM_API_PORT) { $env:CNM_API_PORT } else { "5011" }
+
+# Kill any previous API instance holding the log file open
+$portConn = Get-NetTCPConnection -LocalPort $ApiPort -State Listen -ErrorAction SilentlyContinue
+if ($portConn) {
+    Write-Host "[CNM] Stopping existing API process on port $ApiPort (PID $($portConn.OwningProcess))..."
+    Stop-Process -Id $portConn.OwningProcess -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 750
+}
+
+# Wipe logs on each start
+if (Test-Path $ApiLog) { Remove-Item $ApiLog }
+if (Test-Path $ApiLogErr) { Remove-Item $ApiLogErr }
 
 if (-not $FrontendOnly) {
     if ($ForceDeps) {

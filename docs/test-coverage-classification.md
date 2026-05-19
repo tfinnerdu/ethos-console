@@ -20,11 +20,11 @@ Every production source file must be accounted for by exactly one (or more) of:
 | `app/cn_client.py` | ✅ | `test_cn_monitor_api.py` — all methods exercised via mocked CnmClient |
 | `app/bus_monitor.py` | ✅ | `test_bus_monitor.py` — all pure-logic methods; thread loop is 📋 (see §12 Bus Monitor in e2e-testing.md) |
 | `app/database.py` | ✅ 📌 | Model to_dict() shapes pinned in `test_contracts.py`; CRUD exercised via API tests; seed counts pinned |
-| `app/ethos_client.py` | ✅ | `test_ethos_client.py` — all methods mocked with `requests` |
+| `app/ethos_client.py` | ✅ | `test_ethos_client.py` — all methods mocked with `requests`; `get_resource_by_id` and `publish_notification` exercised via `test_cn_monitor_api.py` push tests |
 | `app/health_monitor.py` | ✅ | `test_health_monitor.py` — latency percentiles, thresholds, resource health |
 | `app/routes/__init__.py` | 🔧 | Empty init file |
 | `app/routes/auth.py` | ✅ 📌 | Login/logout flow in `test_contracts.py` auth section; login.html render is 📋 |
-| `app/routes/cn_monitor.py` | ✅ 📌 | `test_cn_monitor_api.py` — 503 shape, 200 happy paths, 502 upstream errors; `/api/cn` prefix pinned in `test_contracts.py` |
+| `app/routes/cn_monitor.py` | ✅ 📌 | `test_cn_monitor_api.py` — 503 shape, 200 happy paths, 502 upstream errors, push 400/200/partial results; `/api/cn` prefix pinned in `test_contracts.py` |
 | `app/routes/bus.py` | ✅ 📋 | REST endpoints in `test_bus_api.py`; SSE `/stream` is 📋 (§12 e2e-testing.md — streaming requires live WSGI) |
 | `app/routes/errors.py` | ✅ | `test_errors_api.py` — list, filter, spikes, flush, export |
 | `app/routes/graphql_routes.py` | ✅ 📌 | `test_graphql_api.py`; cache TTL value pinned in `test_contracts.py` |
