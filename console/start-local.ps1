@@ -13,14 +13,6 @@ $AppLogErr = Join-Path $LogDir "app.err"
 
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory $LogDir | Out-Null }
 
-# Kill any previous instance on the configured port
-$portConn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-if ($portConn) {
-    Write-Host "[EthosConsole] Stopping existing process on port $Port (PID $($portConn.OwningProcess))..."
-    Stop-Process -Id $portConn.OwningProcess -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 500
-}
-
 # Load repo-root .env, then console-local .env (local overrides root)
 foreach ($envSearch in @((Join-Path $RepoRoot ".env"), (Join-Path $Root ".env"))) {
     if (Test-Path $envSearch) {
@@ -37,6 +29,14 @@ if (-not (Test-Path (Join-Path $RepoRoot ".env")) -and -not (Test-Path (Join-Pat
 
 # PORT may be set by .env; fall back to 9502
 $Port = if ($env:PORT) { $env:PORT } else { "9502" }
+
+# Kill any previous instance on the configured port
+$portConn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+if ($portConn) {
+    Write-Host "[EthosConsole] Stopping existing process on port $Port (PID $($portConn.OwningProcess))..."
+    Stop-Process -Id $portConn.OwningProcess -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
+}
 
 # Create/activate venv if needed
 $VenvDir = Join-Path $Root ".venv"
