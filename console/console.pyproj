@@ -23,7 +23,6 @@
     <DebugSymbols>true</DebugSymbols>
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
-
   <!-- ── Application source ─────────────────────────────────────────────── -->
   <ItemGroup>
     <Compile Include="run.py" />
@@ -49,9 +48,9 @@
     <Compile Include="app\routes\resources.py" />
     <Compile Include="app\routes\schema_browser.py" />
   </ItemGroup>
-
   <!-- ── Tests ──────────────────────────────────────────────────────────── -->
   <ItemGroup>
+    <Compile Include="tests\test_cn_monitor_api.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
     <Compile Include="tests\test_auth.py" />
@@ -64,14 +63,14 @@
     <Compile Include="tests\test_health.py" />
     <Compile Include="tests\test_health_monitor.py" />
     <Compile Include="tests\test_mnemonics_api.py" />
-    <Compile Include="tests\test_relay_api.py" />
     <Compile Include="tests\test_replay_api.py" />
     <Compile Include="tests\test_resources_api.py" />
     <Compile Include="tests\test_schema_browser_api.py" />
   </ItemGroup>
-
   <!-- ── Templates ─────────────────────────────────────────────────────── -->
   <ItemGroup>
+    <Content Include=".env" />
+    <Content Include=".gitignore" />
     <Content Include="app\templates\base.html" />
     <Content Include="app\templates\bus_monitor.html" />
     <Content Include="app\templates\cn_monitor.html" />
@@ -86,7 +85,6 @@
     <Content Include="app\templates\resources.html" />
     <Content Include="app\templates\schema_browser.html" />
   </ItemGroup>
-
   <!-- ── Static assets ──────────────────────────────────────────────────── -->
   <ItemGroup>
     <Content Include="static\css\app.css" />
@@ -98,12 +96,10 @@
     <Content Include="static\js\graphql_builder.js" />
     <Content Include="static\js\health.js" />
     <Content Include="static\js\mnemonics.js" />
-    <Content Include="static\js\relay.js" />
     <Content Include="static\js\replay.js" />
     <Content Include="static\js\resources.js" />
     <Content Include="static\js\schema_browser.js" />
   </ItemGroup>
-
   <!-- ── Config & infra ─────────────────────────────────────────────────── -->
   <ItemGroup>
     <None Include="requirements.txt" />
@@ -117,7 +113,16 @@
     <None Include="k8s\secret-template.yaml" />
     <None Include="k8s\service.yaml" />
   </ItemGroup>
-
+  <ItemGroup>
+    <Folder Include="app\" />
+    <Folder Include="app\routes\" />
+    <Folder Include="app\templates\" />
+    <Folder Include="k8s\" />
+    <Folder Include="static\" />
+    <Folder Include="static\css\" />
+    <Folder Include="static\js\" />
+    <Folder Include="tests\" />
+  </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Fallback if PTVS targets are not installed (Rider / dotnet CLI) -->
   <Target Name="Build" />
