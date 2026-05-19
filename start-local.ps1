@@ -9,12 +9,25 @@ $ErrorActionPreference = "Stop"
 
 $Root = $PSScriptRoot
 
+# Load .env so port display reflects any local overrides
+$EnvFile = Join-Path $Root ".env"
+if (Test-Path $EnvFile) {
+    Get-Content $EnvFile | Where-Object { $_ -match "^\s*[^#]" -and $_ -match "=" } | ForEach-Object {
+        $parts = $_ -split "=", 2
+        [System.Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
+    }
+}
+
+$CnmApiPort      = if ($env:CNM_API_PORT)      { $env:CNM_API_PORT }      else { "9501" }
+$CnmFrontendPort = if ($env:CNM_FRONTEND_PORT) { $env:CNM_FRONTEND_PORT } else { "9500" }
+$ConsolePort     = if ($env:PORT)              { $env:PORT }              else { "9502" }
+
 Write-Host ""
 Write-Host "  Doane Ethos Console — Local Hub"
 Write-Host "  ================================"
-Write-Host "  CNM (Change Notification Manager) → http://localhost:9500 (frontend)"
-Write-Host "                                       http://localhost:9501 (API)"
-Write-Host "  Ethos Dev Console                 → http://localhost:9502"
+Write-Host "  CNM (Change Notification Manager) → http://localhost:$CnmFrontendPort (frontend)"
+Write-Host "                                       http://localhost:$CnmApiPort (API)"
+Write-Host "  Ethos Dev Console                 → http://localhost:$ConsolePort"
 Write-Host ""
 
 $forceSwitches = if ($ForceDeps) { "-ForceDeps" } else { "" }
