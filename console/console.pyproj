@@ -64,7 +64,6 @@
     <Compile Include="tests\test_health.py" />
     <Compile Include="tests\test_health_monitor.py" />
     <Compile Include="tests\test_mnemonics_api.py" />
-    <Compile Include="tests\test_relay_api.py" />
     <Compile Include="tests\test_replay_api.py" />
     <Compile Include="tests\test_resources_api.py" />
     <Compile Include="tests\test_schema_browser_api.py" />
@@ -98,7 +97,6 @@
     <Content Include="static\js\graphql_builder.js" />
     <Content Include="static\js\health.js" />
     <Content Include="static\js\mnemonics.js" />
-    <Content Include="static\js\relay.js" />
     <Content Include="static\js\replay.js" />
     <Content Include="static\js\resources.js" />
     <Content Include="static\js\schema_browser.js" />
