@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Colleague API{% endblock %}
+
+{% block content %}
+{% if not colleague_configured %}
+<!-- Not configured -->
+<div class="row justify-content-center mt-4">
+  <div class="col-12 col-lg-6">
+    <div class="console-card text-center py-4">
+      <i class="bi bi-cpu" style="font-size:2.5rem;color:#dee2e6"></i>
+      <h5 class="mt-3 mb-1" style="color:#1F3864">Colleague Web API</h5>
+      <p class="text-muted small mb-3">
+        Call Colleague CTX transactions and inspect event configurations
+        via the Ellucian Colleague Web API (Basic auth).
+      </p>
+      <div class="alert alert-warning text-start small py-2 mb-3">
+        <strong>Connection required.</strong> Add <code>COLLEAGUE_WEB_API_URL</code> and
+        credentials to <code>.env</code> to enable this feature.
+      </div>
+      <div class="console-card text-start" style="background:#f8f9fa">
+        <div class="small fw-bold mb-2">Setup steps</div>
+        <ol class="small mb-2 ps-3">
+          <li>Add to <code>.env</code>:</li>
+        </ol>
+        <pre class="small mb-2 ms-3" style="font-size:.72rem">COLLEAGUE_WEB_API_URL=https://colleague-webapi.doane.edu
+COLLEAGUE_WEB_API_USER=your-service-account
+COLLEAGUE_WEB_API_PASS=your-password</pre>
+        <ol class="small mb-2 ps-3" start="2">
+          <li>Restart the console — this tab activates automatically.</li>
+        </ol>
+        <div class="text-muted" style="font-size:.72rem">
+          Supports CTX transaction calls (<code>POST /api/transactions/{id}</code>),
+          event configuration review, and API metadata browsing.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- Configured UI -->
+<div class="row g-3">
+
+  <!-- Connection Status Bar -->
+  <div class="col-12">
+    <div class="console-card py-2 d-flex align-items-center gap-3">
+      <span class="small fw-semibold" style="color:#1F3864">Colleague Web API</span>
+      <span id="capi-status-dot" class="rounded-circle d-inline-block"
+            style="width:9px;height:9px;background:#adb5bd;flex-shrink:0"></span>
+      <span id="capi-status-text" class="small text-muted">Not tested</span>
+      <button class="btn btn-sm btn-outline-secondary py-0 ms-auto" onclick="testConnection()">
+        <i class="bi bi-wifi me-1"></i>Test Connection
+      </button>
+    </div>
+  </div>
+
+  <!-- CTX Transaction Caller -->
+  <div class="col-12 col-lg-7">
+    <div class="console-card">
+      <div class="console-card-header">CTX Transaction Caller</div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1 fw-semibold">Transaction ID</label>
+        <input type="text" id="ctx-tx-id" class="form-control form-control-sm font-monospace"
+               placeholder="GET.PERSON.INFO" oninput="this.value=this.value.toUpperCase()" />
+        <div class="text-muted" style="font-size:.72rem;margin-top:2px">
+          The ENVISION process name as registered in Colleague Web API
+          (e.g. <code>GET.PERSON.INFO</code>, <code>SAVE.PERSON.INFO</code>)
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <div class="d-flex justify-content-between align-items-end mb-1">
+          <label class="form-label small mb-0 fw-semibold">Request Body (JSON)</label>
+          <button class="btn py-0 text-muted" style="font-size:.75rem" onclick="formatPayload()"
+                  title="Format JSON">
+            <i class="bi bi-braces me-1"></i>Format
+          </button>
+        </div>
+        <textarea id="ctx-payload" class="form-control form-control-sm font-monospace" rows="9"
+                  placeholder='{"KEY.PERSON": ["0012345"]}'></textarea>
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <button class="btn btn-sm btn-doane" id="btn-ctx-call" onclick="callTransaction()">
+          <i class="bi bi-send me-1"></i>Call
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="clearTransaction()">Clear</button>
+        <span id="ctx-meta" class="text-muted small ms-auto"></span>
+      </div>
+
+      <div id="ctx-result" class="mt-3"></div>
+    </div>
+  </div>
+
+  <!-- Right column: Event Configs + API Info -->
+  <div class="col-12 col-lg-5">
+
+    <div class="console-card mb-3">
+      <div class="console-card-header d-flex justify-content-between align-items-center mb-0 pb-2">
+        <span>Event Configurations</span>
+        <button class="btn py-0 text-muted" style="font-size:.85rem"
+                title="Refresh" onclick="loadEventConfigs()">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+      <input type="text" id="evcfg-search" class="form-control form-control-sm mt-2 mb-1"
+             placeholder="Filter by resource name…" oninput="filterEventConfigs()" />
+      <div id="evcfg-list" style="max-height:360px;overflow-y:auto;font-size:.8rem">
+        <div class="text-muted small text-center py-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="loadEventConfigs()">
+            Load Configurations
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="console-card" id="capi-detail-card" style="display:none">
+      <div class="console-card-header d-flex justify-content-between align-items-center mb-0 pb-2">
+        <span id="capi-detail-title">Details</span>
+        <button class="btn py-0 text-muted" style="font-size:.85rem"
+                onclick="document.getElementById('capi-detail-card').style.display='none'">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <div id="capi-detail-content" class="mt-2 small"></div>
+    </div>
+
+  </div>
+
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/colleague_api.js"></script>
+{% endblock %}

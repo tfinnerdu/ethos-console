@@ -133,3 +133,149 @@ function exportResults() {
   a.download = 'colleague_query.csv';
   a.click();
 }
+
+// ── Syntax Reference ──────────────────────────────────────────────────────────
+
+function toggleSyntaxRef() {
+  const card = document.getElementById('syntax-ref-card');
+  card.style.display = card.style.display === 'none' ? '' : 'none';
+}
+
+// ── Snippet Insertion ─────────────────────────────────────────────────────────
+
+const _SNIPPETS = {
+  select:  'SELECT @ID FROM FILE WITH FIELD = "VALUE"',
+  list:    'LIST FILE FIELD1 FIELD2 WITH FIELD1 = "VALUE" SAMPLE 20',
+  count:   'COUNT FILE WITH FIELD = "VALUE"',
+  saving:  'SELECT FILE WITH FIELD = "VALUE" SAVING @ID',
+  sample:  'LIST FILE FIELD1 FIELD2 SAMPLE 10',
+  voc:     'LIST VOC WITH F1 = "F" BY @ID',
+};
+
+function insertSnippet(name) {
+  const ta = document.getElementById('cq-statement');
+  if (!ta) return;
+  ta.value = _SNIPPETS[name] || name;
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+// ── Subroutine Caller ─────────────────────────────────────────────────────────
+
+let _subArgCount = 0;
+
+function toggleSubPanel() {
+  const panel = document.getElementById('sub-panel');
+  const chevron = document.getElementById('sub-chevron');
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? '' : 'none';
+  chevron.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function addSubArg() {
+  const container = document.getElementById('sub-args');
+  const idx = _subArgCount++;
+  const row = document.createElement('div');
+  row.className = 'row g-1 mb-1 align-items-center';
+  row.id = `sub-arg-row-${idx}`;
+  row.innerHTML = `
+    <div class="col-auto" style="width:3rem">
+      <span class="text-muted small font-monospace">A${idx + 1}</span>
+    </div>
+    <div class="col-3">
+      <input type="text" class="form-control form-control-sm font-monospace sub-arg-label"
+             placeholder="Label" style="font-size:.75rem" />
+    </div>
+    <div class="col-2">
+      <select class="form-select form-select-sm sub-arg-dir" style="font-size:.75rem">
+        <option value="in">IN</option>
+        <option value="out">OUT</option>
+        <option value="inout">INOUT</option>
+      </select>
+    </div>
+    <div class="col">
+      <input type="text" class="form-control form-control-sm font-monospace sub-arg-val"
+             placeholder="Value" style="font-size:.75rem" />
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-sm btn-outline-danger py-0" onclick="removeSubArg(this)"
+              style="font-size:.7rem">✕</button>
+    </div>`;
+  container.appendChild(row);
+}
+
+function removeSubArg(btn) {
+  btn.closest('[id^="sub-arg-row-"]').remove();
+}
+
+async function callSubroutine() {
+  const name = document.getElementById('sub-name').value.trim().toUpperCase();
+  if (!name) {
+    document.getElementById('sub-result').innerHTML =
+      '<div class="text-warning small">Enter a subroutine name.</div>';
+    return;
+  }
+
+  const argRows = document.querySelectorAll('#sub-args [id^="sub-arg-row-"]');
+  const args = Array.from(argRows).map(row => ({
+    label: row.querySelector('.sub-arg-label').value.trim() || undefined,
+    direction: row.querySelector('.sub-arg-dir').value,
+    value: row.querySelector('.sub-arg-val').value,
+  }));
+
+  const btn = document.getElementById('btn-sub-call');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Calling…';
+
+  const t0 = Date.now();
+  try {
+    const r = await fetch('/api/phase3/subroutine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, args }),
+    });
+    const data = await r.json();
+    const elapsed = Date.now() - t0;
+    document.getElementById('sub-meta').textContent = `${elapsed}ms`;
+
+    if (data.error) {
+      document.getElementById('sub-result').innerHTML =
+        `<div class="text-danger small">${escapeHtml(data.error)}<br><small class="text-muted">${escapeHtml(data.setup || '')}</small></div>`;
+      return;
+    }
+
+    const rows = (data.args || []).map(a => {
+      const dir = a.direction.toUpperCase();
+      const dirBadge = dir === 'OUT' || dir === 'INOUT'
+        ? `<span class="badge bg-primary me-1" style="font-size:.6rem">${dir}</span>`
+        : `<span class="badge bg-secondary me-1" style="font-size:.6rem">${dir}</span>`;
+      const label = a.label || `A${a.index + 1}`;
+      return `<tr>
+        <td class="font-monospace small pe-2">${escapeHtml(label)}</td>
+        <td>${dirBadge}</td>
+        <td class="font-monospace small" style="max-width:320px;word-break:break-all">${escapeHtml(a.value)}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('sub-result').innerHTML = rows
+      ? `<table class="table table-sm resource-table mb-0">
+           <thead><tr><th>Arg</th><th>Dir</th><th>Value</th></tr></thead>
+           <tbody>${rows}</tbody>
+         </table>`
+      : '<div class="text-muted small text-center py-2">Subroutine called (no args).</div>';
+  } catch (e) {
+    document.getElementById('sub-result').innerHTML =
+      `<div class="text-danger small">Network error: ${escapeHtml(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Call';
+  }
+}
+
+function clearSubroutine() {
+  document.getElementById('sub-name').value = '';
+  document.getElementById('sub-args').innerHTML = '';
+  document.getElementById('sub-result').innerHTML = '';
+  document.getElementById('sub-meta').textContent = '';
+  _subArgCount = 0;
+}

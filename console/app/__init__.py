@@ -68,6 +68,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from .routes.phase3 import phase3_bp
     from .routes.cn_monitor import cn_bp
     from .routes.env import env_bp
+    from .routes.colleague_api import colleague_api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -82,6 +83,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(phase3_bp, url_prefix="/api/phase3")
     app.register_blueprint(cn_bp, url_prefix="/api/cn")
     app.register_blueprint(env_bp, url_prefix="/api/env")
+    app.register_blueprint(colleague_api_bp, url_prefix="/api/colleague")
 
     return app
 

@@ -121,6 +121,42 @@ def run_colleague_query():
         return jsonify({"error": str(exc)}), 500
 
 
+@phase3_bp.post("/subroutine")
+def call_subroutine():
+    err = _require_unidata()
+    if err:
+        return err
+
+    data = request.get_json(force=True) or {}
+    sub_name = (data.get("name") or "").strip().upper()
+    args = data.get("args") or []
+
+    if not sub_name:
+        return jsonify({"error": "name is required"}), 400
+
+    n_args = len(args)
+
+    try:
+        with _connect() as conn:  # noqa: F841
+            sub = _uopy.Subroutine(sub_name, n_args)
+            for i, arg in enumerate(args):
+                if arg.get("direction", "in").lower() in ("in", "inout"):
+                    sub.args[i] = str(arg.get("value", ""))
+            sub.call()
+            result_args = [
+                {
+                    "index": i,
+                    "label": arg.get("label", f"ARG{i + 1}"),
+                    "direction": arg.get("direction", "in"),
+                    "value": str(sub.args[i]),
+                }
+                for i, arg in enumerate(args)
+            ]
+        return jsonify({"subroutine": sub_name, "args": result_args})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @phase3_bp.get("/colleague-files")
 def list_colleague_files():
     err = _require_unidata()

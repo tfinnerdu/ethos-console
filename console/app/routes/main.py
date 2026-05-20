@@ -69,6 +69,14 @@ def colleague_query():
                            unidata_configured=unidata_configured)
 
 
+@main_bp.get("/colleague-api")
+@login_required
+def colleague_api():
+    colleague_configured = bool(current_app.config.get("COLLEAGUE_WEB_API_URL"))
+    return render_template("colleague_api.html", active_tab="colleague_api",
+                           colleague_configured=colleague_configured)
+
+
 @main_bp.get("/cn-monitor")
 @login_required
 def cn_monitor():

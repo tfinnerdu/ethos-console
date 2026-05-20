@@ -57,10 +57,28 @@ UNIDATA_ACCOUNT=D:\Ellucian\coll18\test\apphome</pre>
   </div>
   <div class="col-12 col-lg-9">
     <div class="console-card mb-3">
-      <div class="console-card-header mb-0 pb-2">UniQuery / SELECT Statement</div>
-      <textarea id="cq-statement" class="form-control form-control-sm font-monospace mt-2 mb-2"
+      <div class="console-card-header mb-0 pb-2 d-flex justify-content-between align-items-center">
+        <span>UniQuery / TCL Statement</span>
+        <button class="btn py-0 text-muted" style="font-size:.8rem"
+                onclick="toggleSyntaxRef()" title="Toggle syntax reference">
+          <i class="bi bi-question-circle me-1"></i>Syntax
+        </button>
+      </div>
+
+      <!-- Snippet toolbar -->
+      <div class="d-flex flex-wrap gap-1 mt-2 mb-1">
+        <span class="text-muted" style="font-size:.7rem;line-height:1.8">Snippets:</span>
+        <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.7rem" onclick="insertSnippet('select')">SELECT</button>
+        <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.7rem" onclick="insertSnippet('list')">LIST</button>
+        <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.7rem" onclick="insertSnippet('count')">COUNT</button>
+        <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.7rem" onclick="insertSnippet('saving')">SAVING</button>
+        <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.7rem" onclick="insertSnippet('sample')">SAMPLE</button>
+        <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.7rem" onclick="insertSnippet('voc')">LIST VOC</button>
+      </div>
+
+      <textarea id="cq-statement" class="form-control form-control-sm font-monospace mb-2"
                 rows="5" style="font-size:.8rem;resize:vertical"
-                placeholder="SELECT ID, FIRST.NAME, LAST.NAME FROM PERSON WITH LAST.NAME = 'Smith'"></textarea>
+                placeholder="LIST PERSON FIRST.NAME LAST.NAME WITH LAST.NAME = &quot;Smith&quot; SAMPLE 20"></textarea>
       <div class="d-flex gap-2 align-items-center">
         <button class="btn btn-sm btn-doane" id="btn-run-query" onclick="runQuery()">
           <i class="bi bi-play-fill me-1"></i>Run
@@ -69,7 +87,85 @@ UNIDATA_ACCOUNT=D:\Ellucian\coll18\test\apphome</pre>
         <span class="text-muted small ms-auto" id="cq-meta"></span>
       </div>
     </div>
-    <div class="console-card">
+
+    <!-- UniQuery Syntax Reference (collapsible) -->
+    <div class="console-card mb-3" id="syntax-ref-card" style="display:none">
+      <div class="console-card-header mb-0 pb-2 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-book me-1"></i>UniQuery Quick Reference</span>
+        <button class="btn py-0 text-muted" style="font-size:.8rem" onclick="toggleSyntaxRef()">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <div class="row g-2 mt-1" style="font-size:.78rem">
+        <div class="col-md-4">
+          <div class="fw-semibold text-muted mb-1">Commands</div>
+          <table class="table table-sm table-borderless mb-2" style="font-size:.75rem">
+            <tbody>
+              <tr><td class="font-monospace pe-2 text-nowrap">LIST <em>FILE</em> <em>fields</em></td><td class="text-muted">Print records</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">SELECT <em>FILE</em></td><td class="text-muted">Build select list</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">COUNT <em>FILE</em></td><td class="text-muted">Count matching records</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">SORT <em>FILE</em></td><td class="text-muted">Sort + print</td></tr>
+            </tbody>
+          </table>
+          <div class="fw-semibold text-muted mb-1">Filtering</div>
+          <table class="table table-sm table-borderless mb-0" style="font-size:.75rem">
+            <tbody>
+              <tr><td class="font-monospace pe-2 text-nowrap">WITH <em>field</em> = <em>"val"</em></td><td class="text-muted">Equals</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">WITH <em>field</em> NE <em>"val"</em></td><td class="text-muted">Not equals</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">WITH <em>field</em> GT <em>"val"</em></td><td class="text-muted">Greater than</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">WITH <em>field</em> LT <em>"val"</em></td><td class="text-muted">Less than</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">WITH <em>field</em> LIKE <em>"Sm..."</em></td><td class="text-muted">Wildcard (… = *)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="col-md-4">
+          <div class="fw-semibold text-muted mb-1">Sorting &amp; Limiting</div>
+          <table class="table table-sm table-borderless mb-2" style="font-size:.75rem">
+            <tbody>
+              <tr><td class="font-monospace pe-2 text-nowrap">BY <em>field</em></td><td class="text-muted">Sort ascending</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">BY.DSND <em>field</em></td><td class="text-muted">Sort descending</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">SAMPLE <em>n</em></td><td class="text-muted">Limit to n records</td></tr>
+            </tbody>
+          </table>
+          <div class="fw-semibold text-muted mb-1">Connectors</div>
+          <table class="table table-sm table-borderless mb-2" style="font-size:.75rem">
+            <tbody>
+              <tr><td class="font-monospace pe-2">AND</td><td class="text-muted">Both conditions</td></tr>
+              <tr><td class="font-monospace pe-2">OR</td><td class="text-muted">Either condition</td></tr>
+              <tr><td class="font-monospace pe-2">NOT</td><td class="text-muted">Negate condition</td></tr>
+            </tbody>
+          </table>
+          <div class="fw-semibold text-muted mb-1">Special Fields</div>
+          <table class="table table-sm table-borderless mb-0" style="font-size:.75rem">
+            <tbody>
+              <tr><td class="font-monospace pe-2">@ID</td><td class="text-muted">Record key</td></tr>
+              <tr><td class="font-monospace pe-2">@RECORD</td><td class="text-muted">Whole record</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="col-md-4">
+          <div class="fw-semibold text-muted mb-1">Output Modifiers</div>
+          <table class="table table-sm table-borderless mb-2" style="font-size:.75rem">
+            <tbody>
+              <tr><td class="font-monospace pe-2 text-nowrap">ID.SUPP</td><td class="text-muted">Hide @ID column</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">HDR.SUPP</td><td class="text-muted">No page header</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">COL.HDR.SUPP</td><td class="text-muted">No col headers</td></tr>
+              <tr><td class="font-monospace pe-2 text-nowrap">SAVING <em>field</em></td><td class="text-muted">Save values to list</td></tr>
+            </tbody>
+          </table>
+          <div class="fw-semibold text-muted mb-1">Examples</div>
+          <div class="font-monospace text-muted" style="font-size:.7rem;line-height:1.6">
+            LIST PERSON FIRST.NAME LAST.NAME WITH LAST.NAME = "Smith" SAMPLE 10<br>
+            SELECT PERSON WITH STATUS = "A" SAVING @ID<br>
+            COUNT COURSES WITH START.DATE GE "01/01/2024"<br>
+            LIST VOC WITH F1 = "F" BY @ID
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="console-card mb-3">
       <div class="console-card-header mb-0 pb-2 d-flex justify-content-between">
         <span>Results</span>
         <button class="btn-xs-link btn" id="btn-export-cq" style="display:none"
@@ -77,6 +173,37 @@ UNIDATA_ACCOUNT=D:\Ellucian\coll18\test\apphome</pre>
       </div>
       <div id="cq-results" class="mt-2">
         <div class="text-muted small text-center py-4">Run a query to see results.</div>
+      </div>
+    </div>
+
+    <!-- ENVISION Subroutine Caller (collapsible) -->
+    <div class="console-card">
+      <div class="console-card-header d-flex justify-content-between align-items-center mb-0"
+           onclick="toggleSubPanel()" style="cursor:pointer">
+        <span><i class="bi bi-box-arrow-in-right me-1"></i>ENVISION Subroutine Caller</span>
+        <i class="bi bi-chevron-down" id="sub-chevron" style="transition:transform .2s"></i>
+      </div>
+      <div id="sub-panel" style="display:none;padding-top:.75rem">
+        <div class="row g-2 mb-2">
+          <div class="col">
+            <input type="text" id="sub-name" class="form-control form-control-sm font-monospace"
+                   placeholder="SUBROUTINE.NAME" oninput="this.value=this.value.toUpperCase()" />
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-outline-secondary" onclick="addSubArg()">
+              <i class="bi bi-plus me-1"></i>Add Arg
+            </button>
+          </div>
+        </div>
+        <div id="sub-args" class="mb-2"></div>
+        <div class="d-flex gap-2 align-items-center">
+          <button class="btn btn-sm btn-doane" id="btn-sub-call" onclick="callSubroutine()">
+            <i class="bi bi-play-fill me-1"></i>Call
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="clearSubroutine()">Clear</button>
+          <span id="sub-meta" class="text-muted small ms-auto"></span>
+        </div>
+        <div id="sub-result" class="mt-2"></div>
       </div>
     </div>
   </div>
