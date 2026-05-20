@@ -34,22 +34,46 @@ async function loadSchema(forceRefresh = false) {
 }
 
 function countQueryFields(schema) {
+  if (schema._source === 'available-resources') return (schema.types || []).length;
   const queryTypeName = schema.queryType?.name || 'Query';
   const queryType = (schema.types || []).find(t => t.name === queryTypeName);
   return queryType?.fields?.length || 0;
 }
 
 function renderSchemaTree(schema) {
+  const tree = document.getElementById('schema-tree');
+
+  // Fallback mode: schema built from /api/available-resources
+  if (schema._source === 'available-resources') {
+    const types = (schema.types || []);
+    tree.innerHTML = `<div class="alert alert-info small py-1 px-2 mb-2">
+      GraphQL introspection unavailable — showing ${types.length} EEDM resources from available-resources.
+      Field details require introspection access.
+    </div>`;
+    types.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'mb-1';
+      div.dataset.resource = t.name;
+      const versions = (t._versions || []).join(', ');
+      div.innerHTML = `<div class="schema-resource-header d-flex justify-content-between">
+        <span>${t.name}</span>
+        ${versions ? `<small class="text-muted">${versions}</small>` : ''}
+      </div>`;
+      div.querySelector('.schema-resource-header').onclick = () => selectResourceFallback(t.name);
+      tree.appendChild(div);
+    });
+    return;
+  }
+
   const queryTypeName = schema.queryType?.name || 'Query';
   const typeMap = buildTypeMap(schema.types || []);
   const queryType = typeMap[queryTypeName];
   if (!queryType) {
-    document.getElementById('schema-tree').innerHTML = '<div class="text-muted small p-2">No query type found in schema.</div>';
+    tree.innerHTML = '<div class="text-muted small p-2">No query type found in schema.</div>';
     return;
   }
 
   const fields = (queryType.fields || []).sort((a, b) => a.name.localeCompare(b.name));
-  const tree = document.getElementById('schema-tree');
   tree.innerHTML = '';
 
   fields.forEach(field => {
@@ -155,6 +179,11 @@ function getNodeFields(field, typeMap) {
   const nodeTypeName = getTypeName(nodeField.type);
   const nodeType = typeMap[nodeTypeName];
   return nodeType?.fields || [];
+}
+
+function selectResourceFallback(resourceName) {
+  document.getElementById('query-editor').value =
+    `{\n  ${resourceName}(first: 10) {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}`;
 }
 
 function onFieldToggle(resourceName, fieldName, checked) {

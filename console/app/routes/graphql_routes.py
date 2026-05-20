@@ -30,6 +30,35 @@ query IntrospectionQuery {
 
 SCHEMA_CACHE_TTL = 4 * 3600  # 4 hours
 
+
+def _schema_from_resources(resources: list) -> dict:
+    """Build a minimal schema-browser-compatible object from /api/available-resources."""
+    types = []
+    for r in resources:
+        name = r.get("name", "")
+        if not name:
+            continue
+        reps = r.get("representations") or []
+        versions = sorted(
+            {rep.get("X-MediaType", "").split("v")[-1].split("+")[0]
+             for rep in reps if "X-MediaType" in rep} - {""},
+            reverse=True,
+        )
+        types.append({
+            "name": name,
+            "kind": "OBJECT",
+            "fields": [{"name": v, "type": {"name": "String", "kind": "SCALAR", "ofType": None}}
+                       for v in versions],
+            "_versions": versions,
+            "_from_resources": True,
+        })
+    types.sort(key=lambda t: t["name"])
+    return {
+        "queryType": {"name": "Query"},
+        "types": types,
+        "_source": "available-resources",
+    }
+
 _schema_cache = None
 _schema_cache_time: float = 0.0
 
@@ -47,13 +76,19 @@ def get_schema():
 
     try:
         result = ethos.graphql(INTROSPECTION_QUERY)
-        if "errors" in result:
-            errors = result["errors"]
-            msg = errors[0].get("message", "GraphQL error") if errors else "GraphQL error"
-            return jsonify({"error": msg, "graphql_errors": errors}), 502
-        schema = result.get("data", {}).get("__schema")
-        if schema is None:
-            return jsonify({"error": "Ethos returned no schema data", "raw": result}), 502
+        if "errors" not in result:
+            schema = result.get("data", {}).get("__schema")
+            if schema is not None:
+                _schema_cache = schema
+                _schema_cache_time = time.time()
+                return jsonify(schema)
+    except Exception:
+        pass
+
+    # Introspection unavailable — fall back to available-resources list
+    try:
+        resources = ethos.get_available_resources()
+        schema = _schema_from_resources(resources)
         _schema_cache = schema
         _schema_cache_time = time.time()
         return jsonify(schema)
