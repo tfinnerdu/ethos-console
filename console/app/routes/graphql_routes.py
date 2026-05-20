@@ -5,6 +5,15 @@ from app.database import db, EthosErrorLog, SavedQuery
 
 graphql_bp = Blueprint("graphql", __name__)
 
+
+def _get_graphql_ethos():
+    """Return an EthosClient using ETHOS_GRAPHQL_API_KEY if set, else the default client."""
+    from app.ethos_client import EthosClient
+    key = current_app.config.get("ETHOS_GRAPHQL_API_KEY", "")
+    if key:
+        return EthosClient(api_key=key, base_url=current_app.config["ETHOS_BASE_URL"])
+    return get_ethos(current_app._get_current_object())
+
 INTROSPECTION_QUERY = """
 query IntrospectionQuery {
   __schema {
@@ -70,7 +79,7 @@ def get_schema():
     if _schema_cache is not None and age < SCHEMA_CACHE_TTL:
         return jsonify(_schema_cache)
 
-    ethos = get_ethos(current_app._get_current_object())
+    ethos = _get_graphql_ethos()
     if not ethos.is_configured():
         return jsonify({"error": "Ethos API key not configured"}), 503
 
@@ -99,7 +108,7 @@ def get_schema():
 @graphql_bp.get("/schema/raw")
 def get_schema_raw():
     """Return the raw Ethos introspection response — useful for diagnosing errors."""
-    ethos = get_ethos(current_app._get_current_object())
+    ethos = _get_graphql_ethos()
     if not ethos.is_configured():
         return jsonify({"error": "Ethos API key not configured"}), 503
     try:
@@ -120,7 +129,7 @@ def invalidate_schema_cache():
 
 @graphql_bp.post("/execute")
 def execute_query():
-    ethos = get_ethos(current_app._get_current_object())
+    ethos = _get_graphql_ethos()
     if not ethos.is_configured():
         return jsonify({"error": "Ethos API key not configured"}), 503
 

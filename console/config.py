@@ -3,6 +3,7 @@ import os
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
     ETHOS_API_KEY = os.environ.get("ETHOS_API_KEY", "")
+    ETHOS_GRAPHQL_API_KEY = os.environ.get("ETHOS_GRAPHQL_API_KEY", "")
     ETHOS_BASE_URL = os.environ.get("ETHOS_BASE_URL", "https://integrate.elluciancloud.com")
     CONDUCTOR_API_KEY = os.environ.get("CONDUCTOR_API_KEY", "")
     CONDUCTOR_URL = os.environ.get("CONDUCTOR_URL", "")
