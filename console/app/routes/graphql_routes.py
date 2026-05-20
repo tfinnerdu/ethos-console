@@ -39,10 +39,29 @@ def get_schema():
 
     try:
         result = ethos.graphql(INTROSPECTION_QUERY)
-        schema = result.get("data", {}).get("__schema", result)
+        if "errors" in result:
+            errors = result["errors"]
+            msg = errors[0].get("message", "GraphQL error") if errors else "GraphQL error"
+            return jsonify({"error": msg, "graphql_errors": errors}), 502
+        schema = result.get("data", {}).get("__schema")
+        if schema is None:
+            return jsonify({"error": "Ethos returned no schema data", "raw": result}), 502
         _schema_cache = schema
         _schema_cache_time = time.time()
         return jsonify(schema)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
+
+
+@graphql_bp.get("/schema/raw")
+def get_schema_raw():
+    """Return the raw Ethos introspection response — useful for diagnosing errors."""
+    ethos = get_ethos(current_app._get_current_object())
+    if not ethos.is_configured():
+        return jsonify({"error": "Ethos API key not configured"}), 503
+    try:
+        result = ethos.graphql(INTROSPECTION_QUERY)
+        return jsonify(result)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
 
