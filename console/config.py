@@ -19,6 +19,15 @@ class Config:
     SILENCE_THRESHOLD_MINUTES = int(os.environ.get("SILENCE_THRESHOLD_MINUTES", "30"))
     ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "")
     ALERT_ERROR_THRESHOLD = int(os.environ.get("ALERT_ERROR_THRESHOLD", "10"))
+    ETHOS_ENVIRONMENTS = [
+        {
+            "name": os.environ.get(f"ETHOS_ENV_{i}_NAME", ""),
+            "url": os.environ.get(f"ETHOS_ENV_{i}_URL", "https://integrate.elluciancloud.com"),
+            "key": os.environ.get(f"ETHOS_ENV_{i}_KEY", ""),
+        }
+        for i in range(1, 6)
+        if os.environ.get(f"ETHOS_ENV_{i}_NAME") and os.environ.get(f"ETHOS_ENV_{i}_KEY")
+    ]
 
     _db_url = os.environ.get("DATABASE_URL", "")
     if _db_url.startswith("postgres://"):

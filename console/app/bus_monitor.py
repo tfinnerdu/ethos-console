@@ -189,6 +189,16 @@ class BusMonitor:
         elif count < self._error_threshold:
             self._error_spike_alerted = False
 
+    def reset(self):
+        with self._lock:
+            self.event_buffer.clear()
+            self.resource_stats.clear()
+            self.queue_depth = 0
+            self.last_poll = None
+            self._silence_alerted.clear()
+            self._error_timestamps.clear()
+            self._error_spike_alerted = False
+
     def export_events(self, limit: int = 100) -> list:
         with self._lock:
             buf = list(self.event_buffer)

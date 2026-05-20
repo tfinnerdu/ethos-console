@@ -18,6 +18,26 @@
   </a>
   <div class="ms-auto d-flex align-items-center gap-3">
     <span class="badge env-badge">{{ config.get('ENV', 'development')|upper }}</span>
+    {% if ethos_environments|length > 1 %}
+    <div class="dropdown">
+      <button class="btn btn-sm dropdown-toggle text-white-50 border-0 py-0"
+              data-bs-toggle="dropdown" style="font-size:.8rem;background:transparent">
+        <i class="bi bi-database me-1"></i>{{ current_ethos_env or 'Ethos' }}
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><h6 class="dropdown-header">Switch Ethos Environment</h6></li>
+        {% for env in ethos_environments %}
+        <li>
+          <a class="dropdown-item{% if env.name == current_ethos_env %} active{% endif %}"
+             href="#" onclick="switchEthosEnv('{{ env.name }}'); return false;">
+            {{ env.name }}
+            <small class="text-muted ms-1">{{ env.url | replace('https://','') | truncate(30, True, '…') }}</small>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
     <a href="/health" class="nav-link text-white-50 small">
       <i class="bi bi-heart-pulse me-1"></i>Health
     </a>
@@ -52,6 +72,17 @@
   checkToken();
   setInterval(checkToken, 60000);
 }());
+
+function switchEthosEnv(name) {
+  fetch('/api/env/switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.error) { alert(d.error); return; }
+    location.reload();
+  }).catch(function(e) { alert('Switch failed: ' + e.message); });
+}
 </script>
 
 <!-- Tab bar -->

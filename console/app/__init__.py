@@ -46,6 +46,15 @@ def create_app(config_name: str | None = None) -> Flask:
     app.extensions["bus_monitor"] = monitor
     app.extensions["health_monitor"] = health_monitor
 
+    envs = app.config.get("ETHOS_ENVIRONMENTS", [])
+    app.extensions["current_env_name"] = envs[0]["name"] if envs else ""
+
+    @app.context_processor
+    def _inject_env():
+        current = app.extensions.get("current_env_name", "")
+        environments = app.config.get("ETHOS_ENVIRONMENTS", [])
+        return {"ethos_environments": environments, "current_ethos_env": current}
+
     from .routes.auth import auth_bp
     from .routes.main import main_bp
     from .routes.bus import bus_bp
@@ -58,6 +67,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from .routes.schema_browser import schema_browser_bp
     from .routes.phase3 import phase3_bp
     from .routes.cn_monitor import cn_bp
+    from .routes.env import env_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -71,6 +81,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(schema_browser_bp, url_prefix="/api/schema-browser")
     app.register_blueprint(phase3_bp, url_prefix="/api/phase3")
     app.register_blueprint(cn_bp, url_prefix="/api/cn")
+    app.register_blueprint(env_bp, url_prefix="/api/env")
 
     return app
 
