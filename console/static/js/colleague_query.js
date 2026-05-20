@@ -3,6 +3,10 @@
 let allFiles = [];
 let queryResults = [];
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 async function loadFiles() {
   const list = document.getElementById('cq-file-list');
   if (!list) return;
@@ -69,9 +73,18 @@ async function runQuery() {
     const data = await r.json();
     const elapsed = Date.now() - t0;
 
-    if (data.error) { results.innerHTML = `<div class="text-danger small">${data.error}<br><small class="text-muted">${data.setup || ''}</small></div>`; return; }
+    if (data.error) { results.innerHTML = `<div class="text-danger small">${escapeHtml(data.error)}<br><small class="text-muted">${escapeHtml(data.setup || '')}</small></div>`; return; }
 
-    if (data.note) { results.innerHTML = `<div class="alert alert-info small py-2">${data.note}</div>`; return; }
+    if (data.note) { results.innerHTML = `<div class="alert alert-info small py-2">${escapeHtml(data.note)}</div>`; return; }
+
+    // Raw TCL output (uopy command response)
+    if (data.output !== undefined) {
+      meta.textContent = `${elapsed}ms`;
+      results.innerHTML = data.output
+        ? `<pre class="small font-monospace mb-0" style="max-height:420px;overflow:auto;white-space:pre-wrap">${escapeHtml(data.output)}</pre>`
+        : '<div class="text-muted small text-center py-2">No output.</div>';
+      return;
+    }
 
     queryResults = data.rows || [];
     meta.textContent = `${data.row_count} rows · ${elapsed}ms`;
@@ -85,10 +98,10 @@ async function runQuery() {
     results.innerHTML = `
       <div class="table-responsive" style="max-height:400px;overflow-y:auto">
         <table class="table table-sm resource-table mb-0">
-          <thead><tr>${data.columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+          <thead><tr>${data.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
           <tbody>
             ${data.rows.map(row =>
-              `<tr>${data.columns.map(c => `<td class="small font-monospace">${row[c] ?? ''}</td>`).join('')}</tr>`
+              `<tr>${data.columns.map(c => `<td class="small font-monospace">${escapeHtml(row[c] ?? '')}</td>`).join('')}</tr>`
             ).join('')}
           </tbody>
         </table>

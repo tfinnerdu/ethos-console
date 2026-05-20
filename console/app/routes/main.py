@@ -56,7 +56,7 @@ def schema_browser():
 @main_bp.get("/field-diff")
 @login_required
 def field_diff():
-    unidata_configured = bool(current_app.config.get("UNIDATA_CONN_STR"))
+    unidata_configured = bool(current_app.config.get("UNIDATA_HOST"))
     return render_template("field_diff.html", active_tab="field_diff",
                            unidata_configured=unidata_configured)
 
@@ -64,7 +64,7 @@ def field_diff():
 @main_bp.get("/colleague-query")
 @login_required
 def colleague_query():
-    unidata_configured = bool(current_app.config.get("UNIDATA_CONN_STR"))
+    unidata_configured = bool(current_app.config.get("UNIDATA_HOST"))
     return render_template("colleague_query.html", active_tab="colleague_query",
                            unidata_configured=unidata_configured)
 

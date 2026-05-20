@@ -21,15 +21,20 @@
       <div class="console-card text-start" style="background:#f8f9fa">
         <div class="small fw-bold mb-2">Setup steps</div>
         <ol class="small mb-2 ps-3">
-          <li>Install the UniData ODBC driver on the host running the console.</li>
-          <li>Create a DSN in <code>odbcinst.ini</code> / <code>odbc.ini</code> pointing at Colleague.</li>
-          <li>Add <code>UNIDATA_CONN_STR=DSN=ColleagueDS;UID=svc-console;PWD=…</code> to <code>.env</code>.</li>
-          <li>Add <code>pyodbc==5.2.0</code> to <code>requirements.txt</code> and reinstall.</li>
+          <li>Add the following to <code>.env</code>:</li>
+        </ol>
+        <pre class="small mb-2 ms-3" style="font-size:.72rem">UNIDATA_HOST=your-unidata-server
+UNIDATA_PORT=31438
+UNIDATA_USER=your-service-account
+UNIDATA_PASSWORD=your-password
+UNIDATA_ACCOUNT=D:\Ellucian\coll18\test\apphome</pre>
+        <ol class="small mb-2 ps-3" start="2">
+          <li>Ensure <code>uopy==1.4.0</code> is in <code>requirements.txt</code> and reinstall.</li>
           <li>Restart the console — this page will activate automatically.</li>
         </ol>
         <div class="text-muted" style="font-size:.72rem">
-          The service account needs <code>SELECT</code> access to Colleague files.
-          <strong>Read-only</strong> — INSERT/UPDATE/DELETE are not supported.
+          Uses Rocket Software's uopy API over port 31438 (U2 OIPC).
+          <strong>Read-only</strong> — run TCL commands like <code>LIST VOC</code> or <code>LIST PERSON SAMPLE 5</code>.
         </div>
       </div>
     </div>
