@@ -15,16 +15,14 @@
         mismatches, and fields present in Colleague but missing from the EEDM spec.
       </p>
       <div class="alert alert-warning text-start small py-2 mb-3">
-        <strong>Connection required.</strong> Add <code>UNIDATA_CONN_STR</code> to
+        <strong>Connection required.</strong> Add <code>UNIDATA_HOST</code> and related vars to
         <code>.env</code> to enable this feature.
       </div>
       <div class="console-card text-start" style="background:#f8f9fa">
         <div class="small fw-bold mb-2">Setup steps</div>
         <ol class="small mb-2 ps-3">
-          <li>Install the UniData ODBC driver on the host running the console.</li>
-          <li>Create a DSN in <code>odbcinst.ini</code> / <code>odbc.ini</code> pointing at Colleague.</li>
-          <li>Add <code>UNIDATA_CONN_STR=DSN=ColleagueDS;UID=svc-console;PWD=…</code> to <code>.env</code>.</li>
-          <li>Add <code>pyodbc==5.2.0</code> to <code>requirements.txt</code> and reinstall.</li>
+          <li>Add to <code>.env</code>: <code>UNIDATA_HOST</code>, <code>UNIDATA_USER</code>, <code>UNIDATA_PASSWORD</code>, <code>UNIDATA_ACCOUNT</code>.</li>
+          <li>Ensure <code>uopy==1.4.0</code> is in <code>requirements.txt</code> and reinstall.</li>
           <li>Restart the console — this page will activate automatically.</li>
         </ol>
         <div class="text-muted" style="font-size:.72rem">

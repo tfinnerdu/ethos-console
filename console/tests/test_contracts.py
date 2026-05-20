@@ -236,7 +236,7 @@ def test_phase3_field_diff_503_shape(client):
     data = r.get_json()
     assert "error" in data
     assert "setup" in data
-    assert "UNIDATA_CONN_STR" in data["setup"]
+    assert "UNIDATA_HOST" in data["setup"]
 
 
 def test_phase3_colleague_query_503_shape(client):
