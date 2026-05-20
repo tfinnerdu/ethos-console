@@ -53,3 +53,4 @@ Thumbs.db
 /.env
 .env
 /console/.hub-logs
+/console/test.py
