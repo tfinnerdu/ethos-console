@@ -27,7 +27,7 @@ async function loadSchema(forceRefresh = false) {
   } catch (e) {
     status.textContent = '✗ ' + e.message;
     document.getElementById('schema-tree').innerHTML =
-      `<div class="text-danger small p-2">Schema load failed: ${e.message}<br>Requires ETHOS_API_KEY.</div>`;
+      `<div class="text-danger small p-2">Schema load failed: ${e.message}</div>`;
   } finally {
     btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
   }

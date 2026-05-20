@@ -6,14 +6,22 @@ from app.database import db, EthosErrorLog, SavedQuery
 graphql_bp = Blueprint("graphql", __name__)
 
 INTROSPECTION_QUERY = """
-{
+query IntrospectionQuery {
   __schema {
     queryType { name }
     types {
-      name kind
-      fields(includeDeprecated: false) {
+      name
+      kind
+      fields {
         name
-        type { name kind ofType { name kind ofType { name kind ofType { name kind } } } }
+        type {
+          name
+          kind
+          ofType {
+            name
+            kind
+          }
+        }
       }
     }
   }
