@@ -90,33 +90,42 @@ function switchEthosEnv(name) {
   <div class="container-fluid px-3 d-flex gap-1 flex-wrap">
     <a href="/"                 class="tab-item {% if active_tab == 'bus' %}active{% endif %}">
       <i class="bi bi-broadcast me-1"></i>Bus Monitor
+      {% if not configured_features.ethos %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/replay"           class="tab-item {% if active_tab == 'replay' %}active{% endif %}">
       <i class="bi bi-arrow-counterclockwise me-1"></i>Replay
+      {% if not configured_features.conductor %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/graphql"          class="tab-item {% if active_tab == 'graphql' %}active{% endif %}">
       <i class="bi bi-braces me-1"></i>GraphQL
+      {% if not configured_features.ethos %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/schema-browser"   class="tab-item {% if active_tab == 'schema_browser' %}active{% endif %}">
       <i class="bi bi-diagram-3 me-1"></i>Schema
+      {% if not configured_features.ethos %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/resources"        class="tab-item {% if active_tab == 'resources' %}active{% endif %}">
       <i class="bi bi-grid-3x3-gap me-1"></i>Resources
+      {% if not configured_features.ethos %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/mnemonics"        class="tab-item {% if active_tab == 'mnemonics' %}active{% endif %}">
       <i class="bi bi-book me-1"></i>Mnemonics
     </a>
     <a href="/field-diff"       class="tab-item {% if active_tab == 'field_diff' %}active{% endif %}">
       <i class="bi bi-arrow-left-right me-1"></i>Field Diff
+      {% if not configured_features.unidata %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/colleague-query"  class="tab-item {% if active_tab == 'colleague_query' %}active{% endif %}">
       <i class="bi bi-terminal me-1"></i>Direct Query
+      {% if not configured_features.unidata %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/colleague-api"   class="tab-item {% if active_tab == 'colleague_api' %}active{% endif %}">
+    <a href="/colleague-api"    class="tab-item {% if active_tab == 'colleague_api' %}active{% endif %}">
       <i class="bi bi-cpu me-1"></i>Colleague API
+      {% if not configured_features.colleague_api %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/cn-monitor"       class="tab-item {% if active_tab == 'cn_monitor' %}active{% endif %}">
       <i class="bi bi-bell me-1"></i>Change Notifications
+      {% if not configured_features.cnm %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/health"           class="tab-item {% if active_tab == 'health' %}active{% endif %}">
       <i class="bi bi-activity me-1"></i>Health

@@ -53,7 +53,19 @@ def create_app(config_name: str | None = None) -> Flask:
     def _inject_env():
         current = app.extensions.get("current_env_name", "")
         environments = app.config.get("ETHOS_ENVIRONMENTS", [])
-        return {"ethos_environments": environments, "current_ethos_env": current}
+        configured_features = {
+            "ethos":         bool(app.config.get("ETHOS_API_KEY")),
+            "conductor":     bool(app.config.get("CONDUCTOR_URL")),
+            "cnm":           bool(app.config.get("CNM_BASE_URL")),
+            "unidata":       bool(app.config.get("UNIDATA_HOST")),
+            "colleague_api": bool(app.config.get("COLLEAGUE_WEB_API_URL")),
+            "alerting":      bool(app.config.get("ALERT_WEBHOOK_URL")),
+        }
+        return {
+            "ethos_environments": environments,
+            "current_ethos_env": current,
+            "configured_features": configured_features,
+        }
 
     from .routes.auth import auth_bp
     from .routes.main import main_bp
