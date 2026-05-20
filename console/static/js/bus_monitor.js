@@ -4,6 +4,8 @@ let totalEvents = 0;
 let paused = false;
 let evtSource = null;
 let resourceStats = {};
+let activeFilters = { resource: '', operation: 'all' };
+let filteredCount = 0;
 
 function connectStream() {
   if (evtSource) evtSource.close();
@@ -23,8 +25,13 @@ function connectStream() {
     }
     if (data.type === 'event') {
       totalEvents++;
-      appendFeedRow(data, opClass(data.operation));
       updateResourceStats(data);
+      if (eventMatchesFilter(data)) {
+        appendFeedRow(data, opClass(data.operation));
+      } else {
+        filteredCount++;
+        updateFilterStatus();
+      }
     }
   };
 
@@ -149,7 +156,76 @@ function renderResourceTable() {
   document.getElementById('tile-rate').textContent = Math.round(total / Math.max(durationHours, 1/60));
 }
 
-// Controls
+// ── Filters & Presets ─────────────────────────────────────────────────────────
+
+function eventMatchesFilter(data) {
+  const res = activeFilters.resource.toLowerCase();
+  const op = activeFilters.operation;
+  if (res && !(data.resource || '').toLowerCase().includes(res)) return false;
+  if (op !== 'all' && (data.operation || '').toLowerCase() !== op) return false;
+  return true;
+}
+
+function applyFilters() {
+  activeFilters.resource = (document.getElementById('filter-resource').value || '').trim();
+  activeFilters.operation = document.getElementById('filter-operation').value || 'all';
+  filteredCount = 0;
+  updateFilterStatus();
+}
+
+function updateFilterStatus() {
+  const status = document.getElementById('filter-status');
+  const active = activeFilters.resource || activeFilters.operation !== 'all';
+  status.textContent = active && filteredCount > 0 ? `${filteredCount} hidden by filter` : '';
+}
+
+async function savePresetPrompt() {
+  const name = prompt('Preset name:');
+  if (!name || !name.trim()) return;
+  const r = await fetch('/api/bus/presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: name.trim(),
+      resource_filter: activeFilters.resource,
+      operation_filter: activeFilters.operation,
+    }),
+  });
+  if (r.ok) loadPresets();
+}
+
+async function loadPresets() {
+  const r = await fetch('/api/bus/presets');
+  const data = await r.json();
+  const items = data.items || [];
+  const dropdown = document.getElementById('presets-dropdown');
+  const menu = document.getElementById('presets-menu');
+
+  dropdown.style.display = items.length ? '' : 'none';
+  menu.innerHTML = items.map(p => `
+    <li class="d-flex align-items-center px-2 py-1 gap-2">
+      <a class="dropdown-item py-0 px-0 flex-grow-1" href="#"
+         onclick="applyPreset(${p.id}, '${p.resource_filter}', '${p.operation_filter}'); return false;">
+        ${p.name}
+        <small class="text-muted ms-1">${p.resource_filter || ''}${p.operation_filter !== 'all' ? ' · ' + p.operation_filter : ''}</small>
+      </a>
+      <button class="btn btn-xs text-danger border-0 py-0 px-1" onclick="deletePreset(${p.id})" title="Delete">×</button>
+    </li>`).join('');
+}
+
+function applyPreset(id, resource, operation) {
+  document.getElementById('filter-resource').value = resource;
+  document.getElementById('filter-operation').value = operation;
+  applyFilters();
+}
+
+async function deletePreset(id) {
+  await fetch(`/api/bus/presets/${id}`, { method: 'DELETE' });
+  loadPresets();
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+
 document.getElementById('btn-pause').addEventListener('click', function () {
   paused = !paused;
   const label = paused ? '<i class="bi bi-play-fill"></i> Resume' : '<i class="bi bi-pause-fill"></i> Pause';
@@ -171,3 +247,4 @@ document.getElementById('btn-clear').addEventListener('click', function () {
 });
 
 connectStream();
+loadPresets();

@@ -52,6 +52,31 @@
           </a>
         </div>
       </div>
+
+      <!-- Filter controls -->
+      <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
+        <input type="text" id="filter-resource" class="form-control form-control-sm"
+               style="max-width:180px" placeholder="Resource filter…"
+               oninput="applyFilters()" />
+        <select id="filter-operation" class="form-select form-select-sm" style="max-width:130px"
+                onchange="applyFilters()">
+          <option value="all">All operations</option>
+          <option value="created">Created</option>
+          <option value="updated">Updated</option>
+          <option value="deleted">Deleted</option>
+        </select>
+        <button class="btn btn-sm btn-outline-secondary" onclick="savePresetPrompt()" title="Save current filter as preset">
+          <i class="bi bi-bookmark-plus"></i>
+        </button>
+        <div class="dropdown" id="presets-dropdown" style="display:none">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="bi bi-bookmarks"></i>
+          </button>
+          <ul class="dropdown-menu" id="presets-menu"></ul>
+        </div>
+        <span class="small text-muted ms-1" id="filter-status"></span>
+      </div>
+
       <div id="event-feed">
         <div class="feed-row text-muted">Connecting to event stream...</div>
       </div>

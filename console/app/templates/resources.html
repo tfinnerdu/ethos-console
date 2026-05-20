@@ -9,9 +9,14 @@
     <div class="console-card">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="console-card-header mb-0">EEDM Resource Coverage Map</div>
-        <button class="btn btn-sm btn-outline-secondary" onclick="refreshResources()" id="btn-refresh">
-          <i class="bi bi-arrow-clockwise"></i>
-        </button>
+        <div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-secondary" onclick="refreshResources()" id="btn-refresh" title="Refresh resource list">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="exportPostmanCollection()" title="Export Postman collection">
+            <i class="bi bi-box-arrow-up-right"></i> Postman
+          </button>
+        </div>
       </div>
 
       <div class="input-group input-group-sm mb-2">

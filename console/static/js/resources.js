@@ -140,6 +140,78 @@ async function loadMnemonicMatches(resourceName) {
   }
 }
 
+// ── Postman Export ────────────────────────────────────────────────────────────
+
+function exportPostmanCollection() {
+  if (!allResources.length) {
+    alert('No resources loaded — click the refresh button first.');
+    return;
+  }
+
+  const items = allResources.map(r => {
+    const name = resourceName(r);
+    const ver = r.latestVersion || r.version || '';
+    const accept = ver
+      ? `application/vnd.hedtech.integration.v${ver}+json`
+      : 'application/json';
+
+    return {
+      name,
+      item: [
+        {
+          name: `List ${name}`,
+          request: {
+            method: 'GET',
+            header: [{ key: 'Accept', value: accept }],
+            url: {
+              raw: `{{base_url}}/api/${name}?offset=0&limit=100`,
+              host: ['{{base_url}}'],
+              path: ['api', name],
+              query: [{ key: 'offset', value: '0' }, { key: 'limit', value: '100' }],
+            },
+          },
+        },
+        {
+          name: `Get ${name} by ID`,
+          request: {
+            method: 'GET',
+            header: [{ key: 'Accept', value: accept }],
+            url: {
+              raw: `{{base_url}}/api/${name}/:id`,
+              host: ['{{base_url}}'],
+              path: ['api', name, ':id'],
+              variable: [{ key: 'id', value: '', description: 'GUID' }],
+            },
+          },
+        },
+      ],
+    };
+  });
+
+  const collection = {
+    info: {
+      name: 'Doane Ethos API',
+      schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+    },
+    auth: {
+      type: 'bearer',
+      bearer: [{ key: 'token', value: '{{ethos_token}}', type: 'string' }],
+    },
+    variable: [
+      { key: 'base_url', value: 'https://integrate.elluciancloud.com' },
+      { key: 'ethos_token', value: '', description: 'JWT from POST /auth with your Ethos API key' },
+    ],
+    item: items,
+  };
+
+  const blob = new Blob([JSON.stringify(collection, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'doane-ethos-api.postman_collection.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 async function saveAnnotation() {
   if (!selectedResource) return;
   const btn = document.querySelector('[onclick="saveAnnotation()"]');

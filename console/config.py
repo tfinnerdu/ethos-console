@@ -17,6 +17,8 @@ class Config:
     CONSOLE_KEY = os.environ.get("CONSOLE_KEY", "")
     BUS_POLL_INTERVAL = int(os.environ.get("BUS_POLL_INTERVAL", "2"))
     SILENCE_THRESHOLD_MINUTES = int(os.environ.get("SILENCE_THRESHOLD_MINUTES", "30"))
+    ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "")
+    ALERT_ERROR_THRESHOLD = int(os.environ.get("ALERT_ERROR_THRESHOLD", "10"))
 
     _db_url = os.environ.get("DATABASE_URL", "")
     if _db_url.startswith("postgres://"):

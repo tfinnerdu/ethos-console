@@ -2,6 +2,7 @@ import json
 import time
 from flask import Blueprint, Response, jsonify, request, current_app, stream_with_context
 from app import get_monitor
+from app.database import db, FilterPreset
 
 bus_bp = Blueprint("bus", __name__)
 
@@ -70,6 +71,36 @@ def clear():
     monitor = get_monitor(current_app._get_current_object())
     monitor.clear()
     return jsonify({"cleared": True})
+
+
+@bus_bp.get("/presets")
+def list_presets():
+    presets = FilterPreset.query.order_by(FilterPreset.created_at).all()
+    return jsonify({"items": [p.to_dict() for p in presets]})
+
+
+@bus_bp.post("/presets")
+def create_preset():
+    data = request.get_json(force=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    p = FilterPreset(
+        name=name,
+        resource_filter=data.get("resource_filter", ""),
+        operation_filter=data.get("operation_filter", "all"),
+    )
+    db.session.add(p)
+    db.session.commit()
+    return jsonify(p.to_dict()), 201
+
+
+@bus_bp.delete("/presets/<int:preset_id>")
+def delete_preset(preset_id):
+    p = db.get_or_404(FilterPreset, preset_id)
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({"deleted": preset_id})
 
 
 @bus_bp.get("/export")

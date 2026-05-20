@@ -89,6 +89,25 @@ class EthosErrorLog(db.Model):
         }
 
 
+class FilterPreset(db.Model):
+    __tablename__ = "filter_presets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    resource_filter = db.Column(db.String(200), default="")
+    operation_filter = db.Column(db.String(50), default="all")
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "resource_filter": self.resource_filter or "",
+            "operation_filter": self.operation_filter or "all",
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 SEED_MNEMONICS = [
     {"mnemonic": "PERSON", "colleague_file": "PERSON", "eedm_resource": "persons", "eedm_version": "16",
      "cn_supported": True, "cn_notes": "Core person record — fires on most demographic changes",

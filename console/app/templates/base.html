@@ -29,6 +29,31 @@
   </div>
 </nav>
 
+<!-- Token expiry warning banner -->
+<div id="token-warn" class="alert alert-warning rounded-0 mb-0 py-2 px-3 d-flex align-items-center gap-2" style="display:none!important;font-size:.85rem">
+  <i class="bi bi-key-fill"></i>
+  <span><strong>Ethos token expiring</strong> — <span id="token-warn-mins"></span> minutes remaining. Will auto-renew on next API call.</span>
+  <button type="button" class="btn-close btn-sm ms-auto" onclick="document.getElementById('token-warn').style.setProperty('display','none','important')"></button>
+</div>
+<script>
+(function () {
+  function checkToken() {
+    fetch('/api/health/token').then(function(r){ return r.json(); }).then(function(d) {
+      var banner = document.getElementById('token-warn');
+      var mins = d.expires_in_minutes;
+      if (d.valid && mins <= 10 && mins > 0) {
+        document.getElementById('token-warn-mins').textContent = mins;
+        banner.style.setProperty('display', 'flex', 'important');
+      } else {
+        banner.style.setProperty('display', 'none', 'important');
+      }
+    }).catch(function(){});
+  }
+  checkToken();
+  setInterval(checkToken, 60000);
+}());
+</script>
+
 <!-- Tab bar -->
 <div class="tab-bar">
   <div class="container-fluid px-3 d-flex gap-1 flex-wrap">

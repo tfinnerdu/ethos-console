@@ -22,12 +22,22 @@ class BusMonitor:
         self._lock = threading.Lock()
         self._poll_interval: int = 2
         self._app = None
+        self._webhook_url: str = ""
+        self._silence_threshold_minutes: int = 30
+        self._error_threshold: int = 10
+        self._silence_alerted: set = set()
+        self._error_timestamps: list = []
+        self._error_spike_alerted: bool = False
 
     def start(self, poll_interval: int = 2, app=None):
         if self.running:
             return
         self._poll_interval = poll_interval
         self._app = app
+        if app:
+            self._webhook_url = app.config.get("ALERT_WEBHOOK_URL", "")
+            self._silence_threshold_minutes = app.config.get("SILENCE_THRESHOLD_MINUTES", 30)
+            self._error_threshold = app.config.get("ALERT_ERROR_THRESHOLD", 10)
         self.running = True
         self._thread = threading.Thread(target=self._poll_loop, daemon=True, name="bus-monitor")
         self._thread.start()
@@ -70,6 +80,7 @@ class BusMonitor:
                             "timestamp": datetime.now(timezone.utc).strftime("%H:%M:%S"),
                             "message": str(exc),
                         })
+                        self._error_timestamps.append(time.time())
                     log.warning("BusMonitor poll error: %s", exc)
                     if self._app:
                         try:
@@ -80,6 +91,10 @@ class BusMonitor:
                                 db.session.commit()
                         except Exception:
                             pass
+
+                if self._webhook_url:
+                    self._check_silence_alerts()
+                    self._check_error_spike_alerts()
 
             time.sleep(self._poll_interval)
 
@@ -144,6 +159,35 @@ class BusMonitor:
             for r, s in stats.items()
             if s["last_seen"] and (now - s["last_seen"]) > threshold_minutes * 60
         ]
+
+    def _check_silence_alerts(self):
+        from app.alerts import send_alert
+        now_silent = set(self.get_silent_resources(self._silence_threshold_minutes))
+        newly_silent = now_silent - self._silence_alerted
+        for resource in newly_silent:
+            send_alert(
+                self._webhook_url,
+                f"Bus Silence: {resource}",
+                f"No events received for **{resource}** in the last "
+                f"{self._silence_threshold_minutes} minutes.",
+            )
+        self._silence_alerted = now_silent
+
+    def _check_error_spike_alerts(self):
+        from app.alerts import send_alert
+        cutoff = time.time() - 3600
+        with self._lock:
+            self._error_timestamps = [t for t in self._error_timestamps if t > cutoff]
+            count = len(self._error_timestamps)
+        if count >= self._error_threshold and not self._error_spike_alerted:
+            send_alert(
+                self._webhook_url,
+                "Ethos Error Spike",
+                f"{count} bus poll errors in the last hour. Check the Errors tab for details.",
+            )
+            self._error_spike_alerted = True
+        elif count < self._error_threshold:
+            self._error_spike_alerted = False
 
     def export_events(self, limit: int = 100) -> list:
         with self._lock:
