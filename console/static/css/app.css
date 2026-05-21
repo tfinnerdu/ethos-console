@@ -1,18 +1,36 @@
+/* ── Doane Ethos Dev Console — app.css ──────────────────────────────────────
+ *
+ * Palette sourced from doane.edu live marketing CSS. The design language is
+ * orange + grayscale. There is no navy — the correct dark chrome is near-black
+ * ink (#161C21) with a slate mid-tone accent (#47545D).
+ */
+
 :root {
-  --doane-orange: #FF7900;
-  --doane-navy: #1F3864;
-  --doane-navy-dark: #152648;
-  --doane-orange-light: #FFA54D;
+  --doane-orange:       #FF7900;
+  --doane-orange-dark:  #D86600;
+  --doane-orange-light: #FF9A40;
+
+  --doane-ink:          #161C21;   /* near-black — navbar, chrome */
+  --doane-slate:        #47545D;   /* slate — card headers, section titles */
+  --doane-muted:        #67737A;   /* secondary / muted text */
+
+  --doane-page:         #F4F5F5;   /* body background */
+  --doane-section:      #E5EBED;   /* subtle section fill */
+  --doane-border:       #C4C8C9;   /* hairline borders */
+
+  --doane-link:         #0063B0;   /* the only blue */
 }
 
 body {
-  background-color: #f4f5f7;
+  background-color: var(--doane-page);
   font-size: 0.875rem;
+  color: var(--doane-ink);
 }
 
 /* ── Navbar ── */
 .doane-nav {
-  background-color: var(--doane-navy);
+  background-color: var(--doane-ink);
+  border-bottom: 3px solid var(--doane-orange);
   height: 52px;
 }
 
@@ -35,41 +53,41 @@ body {
 
 /* ── Tab bar ── */
 .tab-bar {
-  background-color: var(--doane-navy-dark);
-  padding: 0 0 0 0;
-  border-bottom: 2px solid var(--doane-navy);
+  background-color: var(--doane-ink);
+  padding: 0;
 }
 
 .tab-item {
   display: inline-flex;
   align-items: center;
   padding: 10px 16px;
-  color: rgba(255,255,255,0.65);
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
   font-size: 0.8125rem;
   font-weight: 500;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  border-bottom: 3px solid transparent;
+  margin-bottom: 0;
   transition: color 0.15s, border-color 0.15s;
 }
 
 .tab-item:hover {
-  color: #fff;
+  color: var(--doane-orange);
 }
 
 .tab-item.active {
   color: var(--doane-orange);
   border-bottom-color: var(--doane-orange);
+  padding-bottom: calc(10px - 3px);
 }
 
 .tab-off-badge {
-  font-size: .55rem;
+  font-size: 0.55rem;
   font-weight: 600;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   padding: 1px 5px;
   border-radius: 3px;
-  background: rgba(255,255,255,.12);
-  color: rgba(255,255,255,.4);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.4);
   margin-left: 5px;
   vertical-align: middle;
   text-transform: uppercase;
@@ -78,7 +96,7 @@ body {
 /* ── Cards ── */
 .console-card {
   background: #fff;
-  border: 1px solid #e2e4e8;
+  border: 1px solid var(--doane-border);
   border-radius: 6px;
   padding: 16px;
 }
@@ -88,10 +106,10 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--doane-navy);
+  color: var(--doane-slate);
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e8eaed;
+  border-bottom: 1px solid var(--doane-section);
 }
 
 /* ── Event feed ── */
@@ -116,16 +134,16 @@ body {
   text-overflow: ellipsis;
 }
 
-.feed-row.feed-error { color: #f85149; }
+.feed-row.feed-error   { color: #f85149; }
 .feed-row.feed-created { color: #56d364; }
 .feed-row.feed-updated { color: #79c0ff; }
 .feed-row.feed-deleted { color: #f0883e; }
-.feed-row.feed-silent { color: #d29922; }
+.feed-row.feed-silent  { color: #d29922; }
 
-.feed-ts { color: #8b949e; margin-right: 6px; }
+.feed-ts       { color: #8b949e; margin-right: 6px; }
 .feed-resource { color: #cae8ff; margin-right: 6px; min-width: 220px; display: inline-block; }
-.feed-op { min-width: 80px; display: inline-block; }
-.feed-guid { color: #8b949e; font-size: 0.72rem; }
+.feed-op       { min-width: 80px; display: inline-block; }
+.feed-guid     { color: #8b949e; font-size: 0.72rem; }
 
 /* ── Status dots ── */
 .status-dot {
@@ -135,29 +153,30 @@ body {
   border-radius: 50%;
   margin-right: 6px;
 }
-.status-dot.green  { background: #28a745; }
-.status-dot.amber  { background: #ffc107; }
-.status-dot.red    { background: #dc3545; }
-.status-dot.gray   { background: #6c757d; }
+.status-dot.green { background: #28a745; }
+.status-dot.amber { background: #ffc107; }
+.status-dot.red   { background: #dc3545; }
+.status-dot.gray  { background: #6c757d; }
 
 /* ── Metric tiles ── */
 .metric-tile {
   background: #fff;
-  border: 1px solid #e2e4e8;
+  border: 1px solid var(--doane-border);
   border-radius: 6px;
   padding: 14px 18px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 .metric-tile .metric-value {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--doane-navy);
+  color: var(--doane-orange);
   line-height: 1;
 }
 .metric-tile .metric-label {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6c757d;
+  color: var(--doane-muted);
   margin-top: 4px;
 }
 .metric-tile .metric-sub {
@@ -171,9 +190,9 @@ body {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #6c757d;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
+  color: #fff;
+  background: var(--doane-slate);
+  border-bottom: 2px solid var(--doane-border);
   white-space: nowrap;
 }
 
@@ -182,14 +201,52 @@ body {
   font-size: 0.82rem;
 }
 
-.badge-active   { background: #d4edda; color: #155724; }
-.badge-silent   { background: #fff3cd; color: #856404; }
-.badge-unknown  { background: #e2e3e5; color: #383d41; }
-.badge-error    { background: #f8d7da; color: #721c24; }
+.resource-table tbody tr:hover {
+  background-color: #fff3e0;
+}
+
+/* ── Status badges ── */
+.badge-active  { background: #d4edda; color: #155724; }
+.badge-silent  { background: #fff3cd; color: #856404; }
+.badge-unknown { background: #e2e3e5; color: #383d41; }
+.badge-error   { background: #f8d7da; color: #721c24; }
+
+.badge-green {
+  background-color: #28a745;
+  color: #fff;
+  padding: 0.3em 0.65em;
+  border-radius: 0.375rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.badge-amber {
+  background-color: #ffc107;
+  color: #212529;
+  padding: 0.3em 0.65em;
+  border-radius: 0.375rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.badge-red {
+  background-color: #dc3545;
+  color: #fff;
+  padding: 0.3em 0.65em;
+  border-radius: 0.375rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.badge-slate {
+  background-color: var(--doane-slate);
+  color: #fff;
+  padding: 0.3em 0.65em;
+  border-radius: 0.375rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
 
 /* ── Mnemonic cards ── */
 .mnemonic-card {
-  border: 1px solid #e2e4e8;
+  border: 1px solid var(--doane-border);
   border-radius: 6px;
   padding: 14px;
   background: #fff;
@@ -197,12 +254,12 @@ body {
   transition: box-shadow 0.15s, border-color 0.15s;
 }
 .mnemonic-card:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-color: var(--doane-orange);
 }
 .mnemonic-title {
   font-weight: 700;
-  color: var(--doane-navy);
+  color: var(--doane-slate);
   font-size: 0.95rem;
 }
 .mnemonic-resource {
@@ -210,7 +267,7 @@ body {
   font-size: 0.78rem;
 }
 .mnemonic-file {
-  color: #6c757d;
+  color: var(--doane-muted);
   font-size: 0.75rem;
 }
 .mnemonic-gotcha {
@@ -234,11 +291,12 @@ body {
   word-break: break-all;
   max-height: 320px;
   overflow-y: auto;
+  border: 2px solid var(--doane-slate);
 }
 
 /* ── Replay ── */
 .replay-source-btn {
-  border: 2px solid #dee2e6;
+  border: 2px solid var(--doane-border);
   border-radius: 6px;
   padding: 8px 16px;
   cursor: pointer;
@@ -251,7 +309,7 @@ body {
   background: #fff8f2;
 }
 
-/* ── GraphQL ── */
+/* ── GraphQL / Schema explorer ── */
 .schema-tree {
   font-family: 'SFMono-Regular', Consolas, monospace;
   font-size: 0.78rem;
@@ -266,30 +324,10 @@ body {
   cursor: pointer;
   border-radius: 3px;
 }
-.schema-field:hover { background: #f0f4ff; }
-.schema-field-name { color: var(--doane-navy); }
-.schema-field-type { color: #6c757d; font-size: 0.72rem; }
+.schema-field:hover      { background: #fff3e0; }
+.schema-field-name       { color: var(--doane-slate); }
+.schema-field-type       { color: var(--doane-muted); font-size: 0.72rem; }
 
-/* ── Utilities ── */
-.text-orange { color: var(--doane-orange); }
-.border-orange { border-color: var(--doane-orange) !important; }
-
-.btn-doane {
-  background-color: var(--doane-orange);
-  color: #fff;
-  border: none;
-}
-.btn-doane:hover {
-  background-color: var(--doane-orange-light);
-  color: #fff;
-}
-.btn-doane:disabled {
-  background-color: #ccc;
-}
-
-.scrollable { overflow-y: auto; }
-
-/* ── Schema explorer (GraphQL builder) ── */
 .schema-resource-header {
   display: flex;
   align-items: center;
@@ -299,10 +337,10 @@ body {
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 500;
-  color: var(--doane-navy);
+  color: var(--doane-slate);
   user-select: none;
 }
-.schema-resource-header:hover { background: #f0f4ff; }
+.schema-resource-header:hover { background: #fff3e0; }
 
 .schema-field-row {
   display: flex;
@@ -312,16 +350,19 @@ body {
   border-radius: 3px;
   font-size: 0.78rem;
 }
-.schema-field-row:hover { background: #f8f9ff; }
+.schema-field-row:hover { background: #fff8f2; }
 
 .field-type-badge {
   font-size: 0.65rem;
-  color: #6c757d;
-  background: #f0f0f0;
+  color: var(--doane-muted);
+  background: var(--doane-section);
   border-radius: 3px;
   padding: 1px 4px;
   margin-left: auto;
 }
+
+/* ── Active type highlight ── */
+.active-type { background: #fff3e0; color: var(--doane-orange); }
 
 /* ── Saved query chips ── */
 .chip-saved {
@@ -345,7 +386,32 @@ body {
 }
 .chip-saved.preloaded:hover { background: #ffe69c; }
 
-/* ── Inline link button ── */
+/* ── Buttons ── */
+.btn-doane {
+  background-color: var(--doane-orange);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+.btn-doane:hover {
+  background-color: var(--doane-orange-dark);
+  color: #fff;
+}
+.btn-doane:disabled {
+  background-color: #ccc;
+}
+
+.btn-slate {
+  background-color: var(--doane-slate);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+.btn-slate:hover {
+  background-color: var(--doane-ink);
+  color: #fff;
+}
+
 .btn-xs-link {
   padding: 0;
   font-size: 0.78rem;
@@ -354,17 +420,168 @@ body {
   background: none;
   border: none;
 }
-.btn-xs-link:hover { color: var(--doane-navy); }
+.btn-xs-link:hover { color: var(--doane-slate); }
 
 .btn-xs-icon {
   padding: 2px 6px;
   font-size: 0.78rem;
-  color: #6c757d;
+  color: var(--doane-muted);
   background: none;
   border: none;
   line-height: 1;
 }
-.btn-xs-icon:hover { color: var(--doane-navy); }
+.btn-xs-icon:hover { color: var(--doane-slate); }
 
-/* ── Active type highlight in schema browser ── */
-.active-type { background: #fff3e0; color: var(--doane-orange); }
+/* ── Scorecard / data tables ── */
+.scorecard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.scorecard-table th {
+  background-color: var(--doane-slate);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  text-align: left;
+  font-weight: 600;
+}
+.scorecard-table td {
+  padding: 0.55rem 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #dee2e6;
+}
+.scorecard-table tbody tr:nth-child(even) { background-color: #f8f9fa; }
+.scorecard-table tbody tr:hover           { background-color: #fff3e0; }
+.scorecard-table .status-green td:first-child { border-left: 4px solid #28a745; }
+.scorecard-table .status-amber td:first-child { border-left: 4px solid #ffc107; }
+.scorecard-table .status-red   td:first-child { border-left: 4px solid #dc3545; }
+
+/* ── Metric cards (larger display variant) ── */
+.metric-card {
+  background: #fff;
+  border: 1px solid var(--doane-border);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.metric-number {
+  font-size: 2.5rem;
+  color: var(--doane-orange);
+  font-weight: 700;
+  line-height: 1.1;
+  display: block;
+}
+.metric-label {
+  font-size: 0.8rem;
+  color: var(--doane-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+/* ── Page headers ── */
+.console-page-header {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--doane-border);
+}
+.console-page-title {
+  color: var(--doane-slate);
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ── Code blocks ── */
+.code-block {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85rem;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  min-height: 80px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  border: 2px solid var(--doane-slate);
+}
+
+/* ── Info box ── */
+.info-box {
+  background-color: #e7f3ff;
+  border: 1px solid #bee3f8;
+  border-left: 4px solid #3182ce;
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #1a365d;
+}
+
+/* ── Diff highlighting ── */
+.diff-left-only  { background-color: #e7f3ff; color: #1565c0; }
+.diff-right-only { background-color: #fff3e0; color: #e65100; }
+.diff-mismatch   { background-color: #fdecea; color: #b71c1c; }
+.diff-section-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #495057;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.4rem 0 0.2rem;
+  border-top: 1px solid var(--doane-border);
+  margin-top: 0.75rem;
+}
+
+/* ── Object explorer sidebar ── */
+.object-explorer {
+  height: calc(100vh - 120px);
+  overflow-y: auto;
+  border-right: 1px solid var(--doane-border);
+  padding-right: 0.5rem;
+}
+.object-explorer-item {
+  cursor: pointer;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  color: #212529;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 0.12s;
+}
+.object-explorer-item:hover    { background-color: #fff3e0; color: var(--doane-orange); }
+.object-explorer-item.selected { background-color: var(--doane-slate); color: #fff; }
+
+/* ── Utilities ── */
+.text-orange    { color: var(--doane-orange); }
+.text-slate     { color: var(--doane-slate); }
+.border-orange  { border-color: var(--doane-orange) !important; }
+.scrollable     { overflow-y: auto; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .doane-nav { flex-wrap: wrap; }
+  .tab-item  { font-size: 0.82rem; padding: 0.4rem 0.5rem; }
+  .metric-card { width: 100%; margin-bottom: 0.75rem; }
+  .object-explorer {
+    height: auto;
+    max-height: 220px;
+    border-right: none;
+    border-bottom: 1px solid var(--doane-border);
+    margin-bottom: 1rem;
+  }
+}
+
+/* ── Print ── */
+@media print {
+  .doane-nav,
+  .tab-bar,
+  .btn,
+  .no-print {
+    display: none !important;
+  }
+  body { background: #fff; font-size: 11pt; }
+  .scorecard-table { page-break-inside: auto; }
+  .scorecard-table tr { page-break-inside: avoid; page-break-after: auto; }
+}
