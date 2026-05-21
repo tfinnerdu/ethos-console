@@ -25,6 +25,8 @@
   </PropertyGroup>
   <!-- ── Application source ─────────────────────────────────────────────── -->
   <ItemGroup>
+    <Compile Include="app\alerts.py" />
+    <Compile Include="app\colleague_api_client.py" />
     <Compile Include="run.py" />
     <Compile Include="config.py" />
     <Compile Include="app\__init__.py" />
@@ -50,6 +52,7 @@
   </ItemGroup>
   <!-- ── Tests ──────────────────────────────────────────────────────────── -->
   <ItemGroup>
+    <Compile Include="test.py" />
     <Compile Include="tests\test_cn_monitor_api.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
@@ -74,6 +77,7 @@
     <Content Include="app\templates\base.html" />
     <Content Include="app\templates\bus_monitor.html" />
     <Content Include="app\templates\cn_monitor.html" />
+    <Content Include="app\templates\colleague_api.html" />
     <Content Include="app\templates\colleague_query.html" />
     <Content Include="app\templates\errors.html" />
     <Content Include="app\templates\field_diff.html" />
@@ -90,6 +94,7 @@
     <Content Include="static\css\app.css" />
     <Content Include="static\js\bus_monitor.js" />
     <Content Include="static\js\cn_monitor.js" />
+    <Content Include="static\js\colleague_api.js" />
     <Content Include="static\js\colleague_query.js" />
     <Content Include="static\js\errors.js" />
     <Content Include="static\js\field_diff.js" />

@@ -2,7 +2,6 @@ using EthosCn.Infrastructure.Colleague.WebApi;
 using FluentAssertions;
 using NSubstitute;
 using EthosCn.Application.Common.Interfaces;
-using EthosCn.Infrastructure.Colleague.WebApi;
 using Xunit;
 
 namespace EthosCn.Infrastructure.Tests.Repositories;
