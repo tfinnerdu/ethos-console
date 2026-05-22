@@ -5,6 +5,13 @@ let cnSet = new Set();
 let annotationMap = {};
 let currentFilter = 'all';
 let selectedResource = null;
+let resourceError = null;
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
 
 async function loadResources() {
   document.getElementById('resource-status').textContent = 'Fetching from Ethos...';
@@ -14,8 +21,12 @@ async function loadResources() {
     fetch('/api/resources/annotations').then(r => r.json()),
   ]);
 
-  if (resR.status === 'fulfilled' && resR.value.items) {
-    allResources = resR.value.items;
+  if (resR.status === 'fulfilled') {
+    allResources = resR.value.items || [];
+    resourceError = resR.value.error || null;
+  } else {
+    allResources = [];
+    resourceError = (resR.reason && resR.reason.message) || 'Failed to reach the console API';
   }
   if (cnR.status === 'fulfilled' && cnR.value.items) {
     cnSet = new Set((cnR.value.items || []).map(i => i.resourceName || i.name || i));
@@ -39,12 +50,21 @@ function renderTable() {
   });
 
   const total = allResources.length;
-  document.getElementById('resource-status').textContent =
-    total ? `Showing ${rows.length} of ${total} resources` : 'No resources — check ETHOS_API_KEY';
+  const statusEl = document.getElementById('resource-status');
+  if (!total && resourceError) {
+    statusEl.className = 'small mb-2 text-danger';
+    statusEl.textContent = `Could not load resources — ${resourceError}`;
+  } else {
+    statusEl.className = 'text-muted small mb-2';
+    statusEl.textContent =
+      total ? `Showing ${rows.length} of ${total} resources` : 'No resources — check ETHOS_API_KEY';
+  }
 
   const tbody = document.getElementById('resource-list-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No matches</td></tr>';
+    tbody.innerHTML = (!total && resourceError)
+      ? `<tr><td colspan="4" class="text-danger text-center py-3">${esc(resourceError)}</td></tr>`
+      : '<tr><td colspan="4" class="text-muted text-center py-3">No matches</td></tr>';
     return;
   }
 

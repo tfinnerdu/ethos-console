@@ -167,6 +167,64 @@ def test_get_type_503_when_not_configured(unconfigured_client):
     assert r.status_code == 503
 
 
+# The type list in the Schema Browser shows Query *field* (resource) names.
+# A field name is not always also a type name, so get_type must resolve the
+# field to its return type before giving up — otherwise every resource click
+# returns a misleading "Type 'X' not found".
+FIELD_RESOLUTION_SCHEMA = {
+    "queryType": {"name": "Query"},
+    "types": [
+        {
+            "name": "Query",
+            "kind": "OBJECT",
+            "fields": [
+                {
+                    "name": "advancementAppointments0",
+                    "type": {"kind": "OBJECT", "name": "AdvancementAppointment", "ofType": None},
+                },
+            ],
+        },
+        {
+            "name": "AdvancementAppointment",
+            "kind": "OBJECT",
+            "fields": [
+                {"name": "id", "type": {"kind": "SCALAR", "name": "String", "ofType": None}},
+            ],
+        },
+    ],
+}
+
+
+def test_get_type_resolves_query_field_name_to_return_type(app, mock_ethos):
+    """A type-list entry is a Query field name; get_type resolves it to the type."""
+    import app.routes.graphql_routes as gr
+    orig_cache, orig_time = gr._schema_cache, gr._schema_cache_time
+    gr._schema_cache = FIELD_RESOLUTION_SCHEMA
+    gr._schema_cache_time = time.time()
+    try:
+        r = app.test_client().get("/api/schema-browser/type/advancementAppointments0")
+        assert r.status_code == 200
+        assert r.get_json()["name"] == "AdvancementAppointment"
+    finally:
+        gr._schema_cache, gr._schema_cache_time = orig_cache, orig_time
+
+
+def test_get_type_502_when_introspection_returns_no_schema(app, mock_ethos):
+    """Empty/failed introspection must surface an honest error, not 'type not found'."""
+    import app.routes.graphql_routes as gr
+    orig_cache, orig_time = gr._schema_cache, gr._schema_cache_time
+    gr._schema_cache = None
+    gr._schema_cache_time = 0.0
+    mock_ethos.graphql.return_value = {"errors": [{"message": "introspection disabled"}]}
+    try:
+        r = app.test_client().get("/api/schema-browser/type/persons16")
+        assert r.status_code == 502
+        assert "introspection" in r.get_json()["error"].lower()
+    finally:
+        mock_ethos.graphql.return_value = {"data": {}}
+        gr._schema_cache, gr._schema_cache_time = orig_cache, orig_time
+
+
 # ── get_resource_schema ───────────────────────────────────────────────────────
 
 SAMPLE_JSON_SCHEMA = {

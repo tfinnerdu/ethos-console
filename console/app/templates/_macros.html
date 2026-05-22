@@ -1,0 +1,16 @@
+{#  Shared UI macros for the Ethos Dev Console.  #}
+
+{#  caustic_banner — a standing warning placed at the top of any tab whose
+    primary action has real-world, hard-to-undo side effects (publishing to the
+    Ethos bus, starting a Conductor workflow, writing to Colleague). It is shown
+    in every environment on purpose: a caustic action is most dangerous in
+    production, so the warning must not be dev-only.  #}
+{% macro caustic_banner(title, body) %}
+<div class="alert caustic-banner d-flex align-items-start gap-2 mb-3" role="alert">
+  <i class="bi bi-exclamation-octagon-fill flex-shrink-0"></i>
+  <div>
+    <div class="fw-semibold">{{ title }}</div>
+    <div class="small mb-0">{{ body }}</div>
+  </div>
+</div>
+{% endmacro %}

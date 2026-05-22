@@ -2,6 +2,13 @@
 {% block title_suffix %} — Replay{% endblock %}
 
 {% block content %}
+{% from "_macros.html" import caustic_banner %}
+{{ caustic_banner(
+   "Replaying starts a live Conductor workflow.",
+   "“Replay to Conductor” submits a real workflow execution to the Conductor URL below.
+    That workflow runs its full pipeline — downstream Salesforce upserts, Colleague writes,
+    and notifications included — and cannot be recalled once started. Confirm the Conductor
+    URL and the payload target the environment you intend before replaying.") }}
 <div class="row g-3">
   <!-- Source selector + fetch -->
   <div class="col-12 col-xl-6">

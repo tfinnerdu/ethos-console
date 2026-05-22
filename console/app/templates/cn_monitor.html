@@ -2,6 +2,7 @@
 {% block title_suffix %} - Change Notifications{% endblock %}
 
 {% block content %}
+{% from "_macros.html" import caustic_banner %}
 
 <!-- Section switcher -->
 <ul class="nav nav-pills mb-3">
@@ -291,6 +292,12 @@
 </div>
 
 {% else %}
+{{ caustic_banner(
+   "Publishing fans out to the entire Ethos integration bus.",
+   "“Publish Change Notifications” posts real change notifications to Ethos. Every subscriber —
+    every Conductor workflow and downstream consumer registered for that resource — receives
+    and acts on them. There is no dry-run and no recall. Verify the resource, operation, and
+    GUIDs against the Ethos environment your API key points at before publishing.") }}
 <div class="row g-3" style="min-height:calc(100vh - 180px)">
 
   <!-- Config panel -->

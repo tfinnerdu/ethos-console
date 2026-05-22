@@ -3,6 +3,12 @@
 let diffResources = [];
 let selectedDiffResource = null;
 
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
 async function loadDiffResources() {
   const list = document.getElementById('diff-resource-list');
   if (!list) return;
@@ -12,9 +18,13 @@ async function loadDiffResources() {
     const r = await fetch('/api/resources/');
     const data = await r.json();
     diffResources = (data.items || []).map(r => r.name || r.resourceName).filter(Boolean).sort();
+    if (!diffResources.length && data.error) {
+      list.innerHTML = `<div class="text-danger small px-2">Could not load resources — ${esc(data.error)}</div>`;
+      return;
+    }
     renderDiffList(diffResources);
   } catch (e) {
-    list.innerHTML = `<div class="text-danger small px-2">${e.message}</div>`;
+    list.innerHTML = `<div class="text-danger small px-2">${esc(e.message)}</div>`;
   }
 }
 

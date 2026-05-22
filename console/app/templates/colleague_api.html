@@ -2,6 +2,7 @@
 {% block title_suffix %} — Colleague API{% endblock %}
 
 {% block content %}
+{% from "_macros.html" import caustic_banner %}
 {% if not colleague_configured %}
 <!-- Not configured -->
 <div class="row justify-content-center mt-4">
@@ -39,6 +40,11 @@ COLLEAGUE_WEB_API_PASS=your-password</pre>
 
 {% else %}
 <!-- Configured UI -->
+{{ caustic_banner(
+   "CTX transactions can write directly to Colleague.",
+   "The Transaction Caller executes ENVISION processes by name. Read processes (GET.*) are
+    safe, but write processes (SAVE.*, UPDATE.*, DELETE.*) mutate Colleague data immediately,
+    with no undo. Confirm the transaction ID is a read process unless you intend to write.") }}
 <div class="row g-3">
 
   <!-- Connection Status Bar -->

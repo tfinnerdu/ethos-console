@@ -85,6 +85,41 @@ function switchEthosEnv(name) {
 }
 </script>
 
+<!-- Local-development environment notice -->
+{% if config.get('ENV') == 'development' %}
+<div id="local-dev-banner"
+     class="local-dev-banner rounded-0 mb-0 py-2 px-3 d-flex align-items-start gap-2"
+     style="font-size:.85rem">
+  <i class="bi bi-hdd-network mt-1"></i>
+  <div class="flex-grow-1">
+    <strong>Local development environment.</strong>
+    Tabs that depend on separately-hosted services — Change Notifications (CNM API),
+    Colleague API, Direct Query, and Replay (Conductor) — can show
+    <em>connection refused / reset</em> errors because those services are not running on,
+    or not reachable from, this workstation. That is expected here, not a console fault.
+    Actions with real-world side effects are flagged per-tab. See
+    <code>docs/warning.md</code> in the repository.
+  </div>
+  <button type="button" class="btn-close btn-sm flex-shrink-0"
+          onclick="dismissLocalDevBanner()" aria-label="Dismiss"></button>
+</div>
+<script>
+function dismissLocalDevBanner() {
+  var b = document.getElementById('local-dev-banner');
+  if (b) b.style.display = 'none';
+  try { sessionStorage.setItem('localDevBannerDismissed', '1'); } catch (e) {}
+}
+(function () {
+  try {
+    if (sessionStorage.getItem('localDevBannerDismissed') === '1') {
+      var b = document.getElementById('local-dev-banner');
+      if (b) b.style.display = 'none';
+    }
+  } catch (e) {}
+}());
+</script>
+{% endif %}
+
 <!-- Tab bar -->
 <div class="tab-bar">
   <div class="container-fluid px-3 d-flex gap-1 flex-wrap">

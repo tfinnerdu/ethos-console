@@ -16,13 +16,32 @@ schema_browser_bp = Blueprint("schema_browser", __name__)
 
 
 def _get_schema(ethos):
-    """Return the cached (unwrapped) introspection schema, fetching if needed."""
+    """Return the cached (unwrapped) introspection schema, fetching if needed.
+
+    Raises RuntimeError when introspection returns no usable __schema, so callers
+    surface an honest error instead of a misleading 'type not found'. A cached
+    available-resources fallback (written by the GraphQL tab) is ignored here —
+    the Schema Browser needs a real introspection schema, not the fallback shape.
+    """
     import app.routes.graphql_routes as gr
+    cached = gr._schema_cache
     age = time.time() - gr._schema_cache_time
-    if gr._schema_cache is not None and age < SCHEMA_CACHE_TTL:
-        return gr._schema_cache
+    if (
+        cached is not None
+        and age < SCHEMA_CACHE_TTL
+        and cached.get("_source") != "available-resources"
+    ):
+        return cached
     result = ethos.graphql(INTROSPECTION_QUERY)
-    schema = result.get("data", {}).get("__schema", result)
+    schema = (result.get("data") or {}).get("__schema")
+    if not schema:
+        errors = result.get("errors") or []
+        detail = (
+            errors[0].get("message")
+            if errors and isinstance(errors[0], dict)
+            else "introspection returned no __schema"
+        )
+        raise RuntimeError(f"GraphQL introspection unavailable — {detail}")
     gr._schema_cache = schema
     gr._schema_cache_time = time.time()
     return schema
@@ -65,7 +84,20 @@ def get_type(type_name: str):
         type_map = _build_type_map(schema)
         t = type_map.get(type_name)
         if not t:
-            return jsonify({"error": f"Type '{type_name}' not found"}), 404
+            # The Schema Browser type list shows Query *field* (resource) names.
+            # A field name is not always also a type name, so when the direct
+            # lookup misses, resolve the field to its return type and retry.
+            query_type = type_map.get(
+                schema.get("queryType", {}).get("name", "Query"), {}
+            )
+            for field in (query_type.get("fields") or []):
+                if field.get("name") == type_name:
+                    t = type_map.get(_resolve_type_name(field.get("type")))
+                    break
+        if not t:
+            return jsonify({
+                "error": f"Type '{type_name}' not found in the introspected schema"
+            }), 404
         return jsonify({
             "name": t["name"],
             "kind": t.get("kind"),
