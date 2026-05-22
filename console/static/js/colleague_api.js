@@ -115,6 +115,17 @@ async function callTransaction() {
     return;
   }
 
+  const confirmed = await confirmAction({
+    title: 'Call CTX transaction',
+    message: 'This runs ENVISION process "' + txId + '" against Colleague.\n\n'
+      + 'Write processes (SAVE.*, UPDATE.*, DELETE.*) mutate Colleague data immediately, '
+      + 'with no undo. Confirm the transaction ID is what you intend to run.',
+    confirmLabel: 'Call transaction',
+    danger: true,
+    requireText: txId,
+  });
+  if (!confirmed) return;
+
   let payload = {};
   if (payloadText) {
     try { payload = JSON.parse(payloadText); }

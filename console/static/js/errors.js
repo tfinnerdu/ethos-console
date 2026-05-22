@@ -149,6 +149,12 @@ function nextPage() {
 // ── Flush ─────────────────────────────────────────────────────────────────────
 
 async function flushMemory() {
+  const confirmed = await confirmAction({
+    title: 'Flush in-memory errors',
+    message: 'Persist the in-memory error records to the database?',
+    confirmLabel: 'Flush',
+  });
+  if (!confirmed) return;
   const btn = document.querySelector('[onclick="flushMemory()"]');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Flushing...';

@@ -13,17 +13,22 @@ surface in the UI (see section 2).
 
 ## 1. Caustic operations — actions with real side effects
 
-Three actions in this console reach outside the console's own database and
+Five actions in this console reach outside the console's own database and
 cause effects that **cannot be undone from the console**. Each one carries a
-red warning banner in the UI (see `app/templates/_macros.html →
-caustic_banner`). The banner shows in **every environment on purpose** — a
-caustic action is most dangerous in production, so the warning is not dev-only.
+red warning banner on its tab (see `app/templates/_macros.html →
+caustic_banner`) **and** requires **type-to-confirm** before it runs — the
+operator must type the exact target (workflow name, resource, transaction ID,
+command verb, or subroutine name) into the dialog. Both signals show in **every
+environment on purpose** — a caustic action is most dangerous in production, so
+the warning is not dev-only.
 
 | Tab | Action | What it does | Blast radius |
 |---|---|---|---|
 | **Replay** | "Replay to Conductor" | `POST {conductor_url}/api/workflow/{name}` — starts a live Conductor workflow run. | The workflow runs its full pipeline: Salesforce upserts, Colleague writes, emails/notifications. A bad payload or wrong Conductor URL pushes bad data downstream. |
 | **Change Notifications → Push** | "Publish Change Notifications" | `ethos.publish_notification()` — posts real change notifications onto the Ethos integration bus. | **Widest blast radius in the console.** *Every* subscriber for that resource — every Conductor workflow, every downstream consumer — receives and acts on the notification. No dry-run, no recall. |
 | **Colleague API** | "Call" (CTX Transaction Caller) | `POST {colleague_web_api}/api/transactions/{id}` — runs an ENVISION process by name. | Read processes (`GET.*`) are safe. Write processes (`SAVE.*`, `UPDATE.*`, `DELETE.*`) mutate Colleague data immediately, with no undo. |
+| **Direct Query** | "Run" (UniQuery / TCL statement) | `uopy.Command(statement)` — runs an arbitrary statement against Colleague/UniData. | Read verbs (`LIST`, `SELECT`, `COUNT`) are safe. Write verbs (`DELETE`, `CLEAR.FILE`, …) change data immediately. UniData has **no transaction rollback**. |
+| **Direct Query** | "Call" (ENVISION Subroutine Caller) | `uopy.Subroutine(name)` — calls an arbitrary Colleague subroutine. | A subroutine can read or write anything; the console cannot tell which. No rollback. |
 
 ### Before running a caustic action
 
@@ -38,10 +43,24 @@ caustic action is most dangerous in production, so the warning is not dev-only.
 
 ### Non-caustic by comparison
 
-GraphQL queries, schema introspection, the Schema Browser validator, resource
-annotations, mnemonic edits, and saved queries either are read-only against
-Ethos or write only to the console's **local** SQLite/Postgres database. They
-are safe to use freely.
+GraphQL queries, schema introspection, and the Schema Browser validator are
+read-only against Ethos. Resource annotations, mnemonic edits, saved queries,
+and bus filter presets write only to the console's **local** SQLite/Postgres
+database.
+
+### Confirmation dialogs
+
+**Every state-changing action is gated by a confirmation dialog** (shared helper
+`static/js/confirm.js`):
+
+- **Caustic actions** (the five above) use **type-to-confirm** — the confirm
+  button stays disabled until the operator types the exact target.
+- **Local data changes** (create/update/delete of mnemonics, annotations, saved
+  queries, presets; error-log flush; bus-feed clear; Ethos environment switch)
+  use a plain confirm dialog; deletes get a red confirm button.
+- Pure reads and cache refreshes (resource refresh, schema-cache invalidation,
+  read-only GraphQL queries, bus pause/resume) are **not** gated — confirmations
+  on no-consequence actions only train operators to click through.
 
 ---
 

@@ -273,6 +273,18 @@ async function runPush() {
   if (!resourceName) { alert('Enter a resource name.'); return; }
   if (!guids.length) { alert('Enter at least one GUID.'); return; }
 
+  const confirmed = await confirmAction({
+    title: 'Publish change notifications',
+    message: 'This publishes ' + guids.length + ' "' + operation + '" change notification(s) '
+      + 'for "' + resourceName + '" onto the live Ethos integration bus.\n\n'
+      + 'Every subscriber registered for this resource — every Conductor workflow and '
+      + 'downstream consumer — receives and acts on them. There is no dry-run and no recall.',
+    confirmLabel: 'Publish',
+    danger: true,
+    requireText: resourceName,
+  });
+  if (!confirmed) return;
+
   pushRunning = true;
   const btn = document.getElementById('push-run-btn');
   btn.disabled = true;

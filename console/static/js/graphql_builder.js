@@ -360,6 +360,13 @@ async function saveCurrentQuery() {
 
   if (!name) { alert('Name is required'); return; }
 
+  const confirmed = await confirmAction({
+    title: 'Save query',
+    message: 'Save the saved query "' + name + '"?',
+    confirmLabel: 'Save',
+  });
+  if (!confirmed) return;
+
   await fetch('/api/graphql-console/saved', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -370,7 +377,13 @@ async function saveCurrentQuery() {
 }
 
 async function deleteQuery(id) {
-  if (!confirm('Delete this saved query?')) return;
+  const confirmed = await confirmAction({
+    title: 'Delete saved query',
+    message: 'Delete this saved query? This cannot be undone.',
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (!confirmed) return;
   await fetch(`/api/graphql-console/saved/${id}`, { method: 'DELETE' });
   await loadSavedQueries();
 }

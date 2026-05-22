@@ -107,6 +107,17 @@ async function triggerReplay() {
   if (!workflowName) { alert('Workflow name is required'); return; }
   if (!conductorUrl) { alert('Conductor URL is required'); return; }
 
+  const confirmed = await confirmAction({
+    title: 'Replay to Conductor',
+    message: 'This starts a live Conductor workflow run at ' + conductorUrl + '.\n\n'
+      + 'The workflow runs its full pipeline — downstream Salesforce upserts, Colleague '
+      + 'writes, and notifications included. It cannot be recalled once started.',
+    confirmLabel: 'Replay workflow',
+    danger: true,
+    requireText: workflowName,
+  });
+  if (!confirmed) return;
+
   const btn = document.getElementById('btn-trigger');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Triggering...';

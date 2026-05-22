@@ -55,6 +55,19 @@ async function runQuery() {
   const statement = document.getElementById('cq-statement').value.trim();
   if (!statement) return;
 
+  const verb = statement.split(/\s+/)[0].toUpperCase();
+  const confirmed = await confirmAction({
+    title: 'Run direct Colleague statement',
+    message: 'This runs the statement below directly against Colleague (UniData):\n\n'
+      + statement + '\n\n'
+      + 'UniData has no transaction rollback. A write verb (DELETE, CLEAR.FILE, etc.) '
+      + 'changes data immediately. Type the command verb to confirm.',
+    confirmLabel: 'Run statement',
+    danger: true,
+    requireText: verb,
+  });
+  if (!confirmed) return;
+
   const btn = document.getElementById('btn-run-query');
   const meta = document.getElementById('cq-meta');
   const results = document.getElementById('cq-results');
@@ -215,6 +228,17 @@ async function callSubroutine() {
       '<div class="text-warning small">Enter a subroutine name.</div>';
     return;
   }
+
+  const confirmed = await confirmAction({
+    title: 'Call Colleague subroutine',
+    message: 'This calls Colleague subroutine "' + name + '" directly.\n\n'
+      + 'Subroutines can read or write Colleague data and have no rollback. '
+      + 'Type the subroutine name to confirm.',
+    confirmLabel: 'Call subroutine',
+    danger: true,
+    requireText: name,
+  });
+  if (!confirmed) return;
 
   const argRows = document.querySelectorAll('#sub-args [id^="sub-arg-row-"]');
   const args = Array.from(argRows).map(row => ({

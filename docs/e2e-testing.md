@@ -448,8 +448,39 @@ See `docs/warning.md` for the rationale behind these banners.
       (when `ETHOS_API_KEY` is set)
 - [ ] **Colleague API** shows the red caustic-operation banner (when
       `COLLEAGUE_WEB_API_URL` is set)
+- [ ] **Direct Query** shows the red caustic-operation banner (when
+      `UNIDATA_HOST` is set)
 - [ ] Caustic banners appear in **both** development and production — they warn
       about the action, not the environment
+
+### Confirmation dialogs
+
+Every state-changing action opens a confirmation dialog (`static/js/confirm.js`).
+Cancel / Esc / backdrop-click must abort the action with no request sent.
+
+Type-to-confirm (caustic — confirm button stays disabled until the exact target
+is typed):
+
+- [ ] **Replay → Replay to Conductor** — requires typing the workflow name
+- [ ] **CN → Push → Publish** — requires typing the resource name
+- [ ] **Colleague API → Call** — requires typing the transaction ID
+- [ ] **Direct Query → Run** — requires typing the command verb (e.g. `LIST`)
+- [ ] **Direct Query → Subroutine → Call** — requires typing the subroutine name
+
+Plain confirm (data changes; deletes get a red confirm button):
+
+- [ ] Mnemonic create / update / **delete**
+- [ ] Resource annotation save
+- [ ] GraphQL saved-query save / **delete**
+- [ ] Bus filter preset save / **delete**
+- [ ] Bus **Clear** feed
+- [ ] Error log **Flush in-memory**
+- [ ] Ethos environment switch (nav-bar dropdown)
+
+Not gated (pure reads / cache refreshes — confirm dialog must NOT appear):
+
+- [ ] Resource list refresh, schema-cache reload, read-only GraphQL query run,
+      bus pause/resume
 
 ---
 

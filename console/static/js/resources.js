@@ -234,6 +234,14 @@ function exportPostmanCollection() {
 
 async function saveAnnotation() {
   if (!selectedResource) return;
+
+  const confirmed = await confirmAction({
+    title: 'Save annotation',
+    message: 'Save the annotation for "' + selectedResource + '"?',
+    confirmLabel: 'Save',
+  });
+  if (!confirmed) return;
+
   const btn = document.querySelector('[onclick="saveAnnotation()"]');
   btn.disabled = true;
 

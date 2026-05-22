@@ -137,6 +137,14 @@ async function saveMnemonic() {
   const url = editId ? `/api/mnemonics/${editId}` : '/api/mnemonics/';
   const method = editId ? 'PUT' : 'POST';
 
+  const confirmed = await confirmAction({
+    title: editId ? 'Update mnemonic' : 'Create mnemonic',
+    message: (editId ? 'Save changes to mnemonic "' : 'Create new mnemonic "')
+      + body.mnemonic + '"?',
+    confirmLabel: 'Save',
+  });
+  if (!confirmed) return;
+
   const r = await fetch(url, {method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)});
   if (!r.ok) {
     const err = await r.json();
@@ -156,7 +164,14 @@ async function saveMnemonic() {
 async function deleteSelected() {
   if (!selectedId) return;
   const m = allMnemonics.find(x => x.id === selectedId);
-  if (!m || !confirm(`Delete ${m.mnemonic}?`)) return;
+  if (!m) return;
+  const confirmed = await confirmAction({
+    title: 'Delete mnemonic',
+    message: 'Delete mnemonic "' + m.mnemonic + '"? This cannot be undone.',
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (!confirmed) return;
   await fetch(`/api/mnemonics/${selectedId}`, {method: 'DELETE'});
   selectedId = null;
   document.getElementById('detail-panel').style.display = 'none';

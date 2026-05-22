@@ -182,6 +182,12 @@ function updateFilterStatus() {
 async function savePresetPrompt() {
   const name = prompt('Preset name:');
   if (!name || !name.trim()) return;
+  const confirmed = await confirmAction({
+    title: 'Save filter preset',
+    message: 'Save the current filters as preset "' + name.trim() + '"?',
+    confirmLabel: 'Save',
+  });
+  if (!confirmed) return;
   const r = await fetch('/api/bus/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -220,6 +226,13 @@ function applyPreset(id, resource, operation) {
 }
 
 async function deletePreset(id) {
+  const confirmed = await confirmAction({
+    title: 'Delete filter preset',
+    message: 'Delete this filter preset?',
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (!confirmed) return;
   await fetch(`/api/bus/presets/${id}`, { method: 'DELETE' });
   loadPresets();
 }
@@ -234,7 +247,15 @@ document.getElementById('btn-pause').addEventListener('click', function () {
   fetch(`/api/bus/${paused ? 'pause' : 'resume'}`, { method: 'POST' });
 });
 
-document.getElementById('btn-clear').addEventListener('click', function () {
+document.getElementById('btn-clear').addEventListener('click', async function () {
+  const confirmed = await confirmAction({
+    title: 'Clear event feed',
+    message: 'Clear the event feed and the server-side message buffer? '
+      + 'Displayed events will be discarded.',
+    confirmLabel: 'Clear',
+    danger: true,
+  });
+  if (!confirmed) return;
   document.getElementById('event-feed').innerHTML = '';
   totalEvents = 0;
   resourceStats = {};

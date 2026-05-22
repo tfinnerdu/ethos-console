@@ -73,7 +73,15 @@
   setInterval(checkToken, 60000);
 }());
 
-function switchEthosEnv(name) {
+async function switchEthosEnv(name) {
+  const ok = await confirmAction({
+    title: 'Switch Ethos environment',
+    message: 'Switch the active Ethos environment to "' + name + '"?\n\n'
+      + 'All subsequent API calls — including caustic ones — use the credentials '
+      + 'for this environment until it is switched again.',
+    confirmLabel: 'Switch',
+  });
+  if (!ok) return;
   fetch('/api/env/switch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -139,6 +147,7 @@ function switchEthosEnv(name) {
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/confirm.js"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
