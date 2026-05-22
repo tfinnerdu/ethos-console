@@ -439,22 +439,17 @@ Open `http://localhost:5000` and verify:
 - [ ] "View all →" link from Health navigates to `/errors`
 - [ ] Mnemonics page loads, table renders
 
-### Warning banners
+### Caustic-operation banners
 
 See `docs/warning.md` for the rationale behind these banners.
 
-- [ ] With `FLASK_ENV=development`, the **local-development banner** appears
-      below the nav bar on every tab
-- [ ] Dismissing the local-dev banner (×) hides it for the rest of the browser
-      session; it returns on a new session
-- [ ] With `FLASK_ENV=production`, the local-dev banner does **not** appear
 - [ ] **Replay** tab shows the red caustic-operation banner
 - [ ] **Change Notifications → Push** shows the red caustic-operation banner
       (when `ETHOS_API_KEY` is set)
 - [ ] **Colleague API** shows the red caustic-operation banner (when
       `COLLEAGUE_WEB_API_URL` is set)
-- [ ] Caustic banners appear in **both** development and production — they are
-      not environment-gated
+- [ ] Caustic banners appear in **both** development and production — they warn
+      about the action, not the environment
 
 ---
 

@@ -559,14 +559,6 @@ body {
 .border-orange  { border-color: var(--doane-orange) !important; }
 .scrollable     { overflow-y: auto; }
 
-/* ── Local-dev environment banner ── */
-.local-dev-banner {
-  background: var(--doane-section);
-  border-bottom: 1px solid var(--doane-border);
-  color: var(--doane-slate);
-}
-.local-dev-banner .bi { color: var(--doane-orange); }
-
 /* ── Caustic-operation warning banner ── */
 .caustic-banner {
   background: #FBE8E6;

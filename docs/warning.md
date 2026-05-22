@@ -5,8 +5,9 @@
 hard-to-undo effects, and separate genuine bugs from expected
 local-development behaviour.
 
-This file is the source of truth referenced by the **local-development banner**
-shown in the app when `FLASK_ENV=development`.
+The console itself flags caustic actions inline (see section 1). This file is
+the reference for the dev-vs-production triage that the console does **not**
+surface in the UI (see section 2).
 
 ---
 
@@ -46,9 +47,8 @@ are safe to use freely.
 
 ## 2. Local development vs. production
 
-When `FLASK_ENV=development`, the console shows a dismissible banner explaining
-that **separately-hosted services are usually unreachable from a developer
-workstation**. The errors below are *expected in local dev* and are **not
+Separately-hosted services are usually unreachable from a developer
+workstation. The errors below are *expected in local dev* and are **not
 console bugs**:
 
 | Symptom | Cause | Not a bug because… |
