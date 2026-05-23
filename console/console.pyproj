@@ -27,6 +27,15 @@
   <ItemGroup>
     <Compile Include="app\alerts.py" />
     <Compile Include="app\colleague_api_client.py" />
+    <Compile Include="app\conductor_client.py" />
+    <Compile Include="app\mocks\cnm.py" />
+    <Compile Include="app\mocks\colleague_api.py" />
+    <Compile Include="app\mocks\conductor.py" />
+    <Compile Include="app\mocks\ethos.py" />
+    <Compile Include="app\mocks\fixtures.py" />
+    <Compile Include="app\mocks\unidata.py" />
+    <Compile Include="app\mocks\__init__.py" />
+    <Compile Include="app\unidata_client.py" />
     <Compile Include="run.py" />
     <Compile Include="config.py" />
     <Compile Include="app\__init__.py" />
@@ -54,6 +63,7 @@
   <ItemGroup>
     <Compile Include="test.py" />
     <Compile Include="tests\test_cn_monitor_api.py" />
+    <Compile Include="tests\test_mock_mode.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
     <Compile Include="tests\test_auth.py" />
@@ -96,6 +106,7 @@
     <Content Include="static\js\cn_monitor.js" />
     <Content Include="static\js\colleague_api.js" />
     <Content Include="static\js\colleague_query.js" />
+    <Content Include="static\js\confirm.js" />
     <Content Include="static\js\errors.js" />
     <Content Include="static\js\field_diff.js" />
     <Content Include="static\js\graphql_builder.js" />
@@ -120,6 +131,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
+    <Folder Include="app\mocks\" />
     <Folder Include="app\routes\" />
     <Folder Include="app\templates\" />
     <Folder Include="k8s\" />
