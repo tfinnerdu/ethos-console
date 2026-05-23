@@ -4,7 +4,6 @@ Imported only by app.__init__ when CONSOLE_MOCK_MODE=true. Real-mode code
 paths never touch this package.
 """
 from .ethos import MockEthosClient
-from .cnm import MockCnmClient
 from .colleague_api import MockColleagueApiClient
 from .conductor import MockConductorClient
 from .unidata import MockUnidataClient
@@ -12,7 +11,6 @@ from .cn_repository import MockCnRepository
 
 __all__ = [
     "MockEthosClient",
-    "MockCnmClient",
     "MockColleagueApiClient",
     "MockConductorClient",
     "MockUnidataClient",

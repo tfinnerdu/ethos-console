@@ -149,16 +149,16 @@ def test_ethos_publish_notification_does_not_call_network(mock_app):
 
 # ── Provider characterization: CNM ───────────────────────────────────────────
 
-def test_cnm_health_characterization(mock_app):
-    cnm = mock_app.extensions["cnm_client"]
-    h = cnm.get_health()
-    assert h["status"] == "Healthy"
+def test_cn_repository_health_characterization(mock_app):
+    repo = mock_app.extensions["cn_repository"]
+    h = repo.get_health()
+    assert h["status"] == "ok"
     assert h["mock"] is True
 
 
-def test_cnm_notifications_filterable(mock_app):
-    cnm = mock_app.extensions["cnm_client"]
-    items = cnm.get_notifications(resource="persons")
+def test_cn_repository_notifications_filterable(mock_app):
+    repo = mock_app.extensions["cn_repository"]
+    items = repo.get_notifications(resource="persons")
     assert items and all("persons" in n["resourceName"] for n in items)
 
 

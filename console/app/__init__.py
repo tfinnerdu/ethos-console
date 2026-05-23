@@ -3,7 +3,6 @@ import logging
 from flask import Flask
 from .database import db, seed_mnemonics, seed_saved_queries
 from .ethos_client import EthosClient
-from .cn_client import CnmClient
 from .colleague_api_client import ColleagueApiClient
 from .conductor_client import ConductorClient
 from .unidata_client import UnidataClient
@@ -48,11 +47,10 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             "No real credentials are used."
         )
         from .mocks import (
-            MockEthosClient, MockCnmClient, MockColleagueApiClient,
+            MockEthosClient, MockColleagueApiClient,
             MockConductorClient, MockUnidataClient, MockCnRepository,
         )
         ethos = MockEthosClient()
-        cnm = MockCnmClient()
         colleague_api = MockColleagueApiClient()
         conductor = MockConductorClient()
         unidata = MockUnidataClient()
@@ -61,10 +59,6 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         ethos = EthosClient(
             api_key=app.config["ETHOS_API_KEY"],
             base_url=app.config["ETHOS_BASE_URL"],
-        )
-        cnm = CnmClient(
-            base_url=app.config.get("CNM_BASE_URL", ""),
-            api_key=app.config.get("CNM_API_KEY", ""),
         )
         colleague_api = ColleagueApiClient(
             base_url=app.config.get("COLLEAGUE_WEB_API_URL", ""),
@@ -91,7 +85,6 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         monitor.start(poll_interval=app.config["BUS_POLL_INTERVAL"], app=app)
 
     app.extensions["ethos_client"] = ethos
-    app.extensions["cnm_client"] = cnm
     app.extensions["colleague_api_client"] = colleague_api
     app.extensions["conductor_client"] = conductor
     app.extensions["unidata_client"] = unidata
