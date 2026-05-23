@@ -25,8 +25,6 @@
   </PropertyGroup>
   <!-- ── Application source ─────────────────────────────────────────────── -->
   <ItemGroup>
-    <Compile Include="app\alerts.py" />
-    <Compile Include="app\colleague_api_client.py" />
     <Compile Include="run.py" />
     <Compile Include="config.py" />
     <Compile Include="app\__init__.py" />
@@ -66,8 +64,6 @@
   </ItemGroup>
   <!-- ── Tests ──────────────────────────────────────────────────────────── -->
   <ItemGroup>
-    <Compile Include="test.py" />
-    <Compile Include="tests\test_cn_monitor_api.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
     <Compile Include="tests\test_audit.py" />
