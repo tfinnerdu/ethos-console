@@ -115,3 +115,51 @@ Two consequences worth knowing:
   mnemonic→EEDM-resource mappings are standard Colleague, but any
   Doane-specific assumptions should stay in this swappable seed, never in
   executable code.
+
+---
+
+## 5. `CONSOLE_MOCK_MODE` — all-or-nothing fixture mode
+
+The console can be run with **every** upstream call returning fixture data
+instead of touching a real service. Use this to develop against the UI, demo
+to a peer institution, or exercise CI without credentials.
+
+**Enable** by setting in `.env`:
+
+```
+CONSOLE_MOCK_MODE=true
+```
+
+When on:
+
+- Every tab is exercisable. The "off" badges disappear because every feature
+  flag is forced true.
+- `MockEthosClient`, `MockCnmClient`, `MockColleagueApiClient`,
+  `MockConductorClient`, and `MockUnidataClient` (under `app/mocks/`) replace
+  the real clients at app-creation time. Shared fixtures live in
+  `app/mocks/fixtures.py` and are pinned by `tests/test_mock_mode.py` so a
+  shape change cannot slip through silently.
+- The bus monitor sees a deterministic trickle of one mock change
+  notification per poll. The Replay tab can fetch any message id and replays
+  return a `mock-<workflow>-<ts>` id without calling Conductor. The CN Push
+  tab "publishes" — the mock client echoes the payload and does nothing.
+
+**Hard separation rule.** There is no hybrid path. Either every upstream is
+real or every upstream is mock. A per-call "real-first, mock-on-error"
+fallback is forbidden — that's the silent-mock-fallback failure mode this
+project explicitly rejects.
+
+**Three required signals** (`tests/test_mock_mode.py` pins each one):
+
+1. **MOCK badge** in the nav bar — amber, hard to miss.
+2. **`"mock": true`** in the `/api/health/` response body.
+3. **`X-Mock-Mode: true`** header on every API response.
+
+If any of those three is missing, mock mode is broken and an operator could
+reasonably mistake fixture output for live data. Treat the failing test as a
+P1.
+
+**Production safety.** Never set `CONSOLE_MOCK_MODE=true` in a production
+deployment; the badge / header / health flag are the operator-facing safety
+net but the env flag itself is the authoritative gate. Keep it `false` (or
+unset) in production secrets.

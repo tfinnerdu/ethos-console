@@ -18,6 +18,12 @@
   </a>
   <div class="ms-auto d-flex align-items-center gap-3">
     <span class="badge env-badge">{{ config.get('ENV', 'development')|upper }}</span>
+    {% if mock_mode %}
+    <span class="badge mock-badge"
+          title="CONSOLE_MOCK_MODE — every upstream call returns fixture data; no real services are reached.">
+      <i class="bi bi-shield-exclamation me-1"></i>MOCK
+    </span>
+    {% endif %}
     {% if ethos_environments|length > 1 %}
     <div class="dropdown">
       <button class="btn btn-sm dropdown-toggle text-white-50 border-0 py-0"

@@ -12,11 +12,7 @@ cn_bp = Blueprint("cn_monitor", __name__)
 
 
 def _get_cnm() -> CnmClient:
-    app = current_app._get_current_object()
-    return CnmClient(
-        base_url=app.config.get("CNM_BASE_URL", ""),
-        api_key=app.config.get("CNM_API_KEY", ""),
-    )
+    return current_app.extensions["cnm_client"]
 
 
 def _require_cnm():

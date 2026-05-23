@@ -1,7 +1,6 @@
-import os
-import requests
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
+from app.conductor_client import ConductorClient
 from app.database import db, ReplayHistory
 
 replay_bp = Blueprint("replay", __name__)
@@ -34,7 +33,6 @@ def trigger_replay():
     payload = data.get("payload")
     workflow_name = data.get("workflow_name")
     conductor_url = data.get("conductor_url") or current_app.config.get("CONDUCTOR_URL", "")
-    conductor_key = current_app.config.get("CONDUCTOR_API_KEY", "")
 
     if not payload:
         return jsonify({"error": "payload is required"}), 400
@@ -55,22 +53,14 @@ def trigger_replay():
         conductor_url=conductor_url,
     )
 
-    try:
-        headers = {"Content-Type": "application/json"}
-        if conductor_key:
-            headers["X-Authorization"] = conductor_key
+    conductor: ConductorClient = current_app.extensions["conductor_client"]
+    workflow_payload = {
+        "resource": payload.get("resource"),
+        "content": payload.get("content", {}),
+    }
 
-        r = requests.post(
-            f"{conductor_url.rstrip('/')}/api/workflow/{workflow_name}",
-            headers=headers,
-            json={
-                "resource": payload.get("resource"),
-                "content": payload.get("content", {}),
-            },
-            timeout=30,
-        )
-        r.raise_for_status()
-        workflow_id = r.text.strip().strip('"')
+    try:
+        workflow_id = conductor.trigger_workflow(workflow_name, workflow_payload, base_url=conductor_url)
 
         history_entry.conductor_workflow_id = workflow_id
         history_entry.outcome = "success"
@@ -80,20 +70,16 @@ def trigger_replay():
         return jsonify({
             "workflow_id": workflow_id,
             "outcome": "success",
-            "conductor_workflow_url": f"{conductor_url.rstrip('/')}/api/workflow/{workflow_id}",
+            "conductor_workflow_url": ConductorClient.workflow_url(conductor_url, workflow_id),
         })
-    except requests.HTTPError as exc:
-        history_entry.outcome = "error"
-        history_entry.error_message = str(exc)
-        db.session.add(history_entry)
-        db.session.commit()
-        return jsonify({"error": str(exc), "outcome": "error"}), 502
     except Exception as exc:
         history_entry.outcome = "error"
         history_entry.error_message = str(exc)
         db.session.add(history_entry)
         db.session.commit()
-        return jsonify({"error": str(exc), "outcome": "error"}), 500
+        import requests as _req
+        status = 502 if isinstance(exc, _req.HTTPError) else 500
+        return jsonify({"error": str(exc), "outcome": "error"}), status
 
 
 @replay_bp.get("/history")

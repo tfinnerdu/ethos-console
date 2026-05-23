@@ -52,11 +52,15 @@ def cnm_client(app):
         "totalCount": 1, "page": 1, "pageSize": 50,
     }
 
-    with patch("app.routes.cn_monitor.CnmClient", return_value=mock):
+    original_ext = app.extensions.get("cnm_client")
+    app.extensions["cnm_client"] = mock
+    try:
         yield app.test_client(), mock
-
-    app.config["CNM_BASE_URL"] = original_url
-    app.config["CNM_API_KEY"] = original_key
+    finally:
+        if original_ext is not None:
+            app.extensions["cnm_client"] = original_ext
+        app.config["CNM_BASE_URL"] = original_url
+        app.config["CNM_API_KEY"] = original_key
 
 
 # ── 503 setup guide (no CNM_BASE_URL) ────────────────────────────────────────
@@ -97,15 +101,17 @@ def test_health_200(cnm_client):
 
 
 def test_health_502_on_upstream_error(app):
-    original = app.config.get("CNM_BASE_URL", "")
-    app.config["CNM_BASE_URL"] = "http://cnm-test"
     mock = MagicMock()
     mock.is_configured.return_value = True
     mock.get_health.side_effect = Exception("connection refused")
-    with patch("app.routes.cn_monitor.CnmClient", return_value=mock):
+    original_ext = app.extensions.get("cnm_client")
+    app.extensions["cnm_client"] = mock
+    try:
         r = app.test_client().get("/api/cn/health")
+    finally:
+        if original_ext is not None:
+            app.extensions["cnm_client"] = original_ext
     assert r.status_code == 502
-    app.config["CNM_BASE_URL"] = original
 
 
 # ── Notifications list ────────────────────────────────────────────────────────
@@ -158,15 +164,17 @@ def test_notification_detail_200(cnm_client):
 
 
 def test_notification_detail_404_propagated(app):
-    original = app.config.get("CNM_BASE_URL", "")
-    app.config["CNM_BASE_URL"] = "http://cnm-test"
     mock = MagicMock()
     mock.is_configured.return_value = True
     mock.get_notification.side_effect = Exception("404 Not Found")
-    with patch("app.routes.cn_monitor.CnmClient", return_value=mock):
+    original_ext = app.extensions.get("cnm_client")
+    app.extensions["cnm_client"] = mock
+    try:
         r = app.test_client().get("/api/cn/notifications/bad-id")
+    finally:
+        if original_ext is not None:
+            app.extensions["cnm_client"] = original_ext
     assert r.status_code == 404
-    app.config["CNM_BASE_URL"] = original
 
 
 # ── Paragraph ─────────────────────────────────────────────────────────────────
@@ -210,15 +218,17 @@ def test_diagnostics_shape(cnm_client):
 
 
 def test_diagnostics_502_on_upstream_error(app):
-    original = app.config.get("CNM_BASE_URL", "")
-    app.config["CNM_BASE_URL"] = "http://cnm-test"
     mock = MagicMock()
     mock.is_configured.return_value = True
     mock.get_diagnostics.side_effect = Exception("timeout")
-    with patch("app.routes.cn_monitor.CnmClient", return_value=mock):
+    original_ext = app.extensions.get("cnm_client")
+    app.extensions["cnm_client"] = mock
+    try:
         r = app.test_client().get("/api/cn/diagnostics")
+    finally:
+        if original_ext is not None:
+            app.extensions["cnm_client"] = original_ext
     assert r.status_code == 502
-    app.config["CNM_BASE_URL"] = original
 
 
 # ── Audit log ─────────────────────────────────────────────────────────────────

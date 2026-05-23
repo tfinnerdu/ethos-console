@@ -5,12 +5,7 @@ colleague_api_bp = Blueprint("colleague_api", __name__)
 
 
 def _get_client():
-    from app.colleague_api_client import ColleagueApiClient
-    return ColleagueApiClient(
-        base_url=current_app.config.get("COLLEAGUE_WEB_API_URL", ""),
-        username=current_app.config.get("COLLEAGUE_WEB_API_USER", ""),
-        password=current_app.config.get("COLLEAGUE_WEB_API_PASS", ""),
-    )
+    return current_app.extensions["colleague_api_client"]
 
 
 def _require_configured():

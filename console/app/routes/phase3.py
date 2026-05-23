@@ -1,61 +1,25 @@
 """Phase 3: UniData Field Diff and Colleague Direct Query via uopy."""
 from flask import Blueprint, jsonify, request, current_app
 
-try:
-    import uopy as _uopy
-    _UOPY_AVAILABLE = True
-except ImportError:
-    _UOPY_AVAILABLE = False
-
 phase3_bp = Blueprint("phase3", __name__)
 
-_PARSE_SKIP = {"LIST", "VOC", "records listed", "@ID", "....."}
 
-
-def _is_configured() -> bool:
-    return bool(
-        current_app.config.get("UNIDATA_HOST")
-        and current_app.config.get("UNIDATA_ACCOUNT")
-    )
+def _get_unidata():
+    return current_app.extensions["unidata_client"]
 
 
 def _require_unidata():
-    if not _UOPY_AVAILABLE:
-        return jsonify({
-            "error": "uopy not installed",
-            "setup": "Add uopy to requirements.txt and reinstall.",
-        }), 503
-    if not _is_configured():
+    unidata = _get_unidata()
+    if not unidata.is_configured():
         return jsonify({
             "error": "UniData connection not configured",
             "setup": (
                 "Set UNIDATA_HOST, UNIDATA_USER, UNIDATA_PASSWORD, and "
-                "UNIDATA_ACCOUNT in .env to enable this feature."
+                "UNIDATA_ACCOUNT in .env to enable this feature (and ensure "
+                "uopy is installed)."
             ),
         }), 503
     return None
-
-
-def _connect():
-    return _uopy.connect(
-        host=current_app.config["UNIDATA_HOST"],
-        port=current_app.config.get("UNIDATA_PORT", 31438),
-        user=current_app.config.get("UNIDATA_USER", ""),
-        password=current_app.config.get("UNIDATA_PASSWORD", ""),
-        account=current_app.config["UNIDATA_ACCOUNT"],
-    )
-
-
-def _parse_list_ids(response: str) -> list[str]:
-    ids = []
-    for line in response.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if any(skip in line for skip in _PARSE_SKIP):
-            continue
-        ids.append(line)
-    return ids
 
 
 # ── Field Diff ────────────────────────────────────────────────────────────────
@@ -87,13 +51,8 @@ def list_unidata_files():
     err = _require_unidata()
     if err:
         return err
-
     try:
-        with _connect() as conn:  # noqa: F841
-            cmd = _uopy.Command("LIST VOC WITH F1 = 'F' BY @ID")
-            cmd.run()
-            items = _parse_list_ids(cmd.response)
-        return jsonify({"items": items})
+        return jsonify({"items": _get_unidata().list_files()})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
@@ -112,11 +71,7 @@ def run_colleague_query():
         return jsonify({"error": "statement is required"}), 400
 
     try:
-        with _connect() as conn:  # noqa: F841
-            cmd = _uopy.Command(statement)
-            cmd.run()
-            output = cmd.response
-        return jsonify({"output": output})
+        return jsonify({"output": _get_unidata().run_command(statement)})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
@@ -134,25 +89,8 @@ def call_subroutine():
     if not sub_name:
         return jsonify({"error": "name is required"}), 400
 
-    n_args = len(args)
-
     try:
-        with _connect() as conn:  # noqa: F841
-            sub = _uopy.Subroutine(sub_name, n_args)
-            for i, arg in enumerate(args):
-                if arg.get("direction", "in").lower() in ("in", "inout"):
-                    sub.args[i] = str(arg.get("value", ""))
-            sub.call()
-            result_args = [
-                {
-                    "index": i,
-                    "label": arg.get("label", f"ARG{i + 1}"),
-                    "direction": arg.get("direction", "in"),
-                    "value": str(sub.args[i]),
-                }
-                for i, arg in enumerate(args)
-            ]
-        return jsonify({"subroutine": sub_name, "args": result_args})
+        return jsonify(_get_unidata().call_subroutine(sub_name, args))
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
@@ -162,12 +100,7 @@ def list_colleague_files():
     err = _require_unidata()
     if err:
         return err
-
     try:
-        with _connect() as conn:  # noqa: F841
-            cmd = _uopy.Command("LIST VOC WITH F1 = 'F' BY @ID")
-            cmd.run()
-            items = _parse_list_ids(cmd.response)
-        return jsonify({"items": items})
+        return jsonify({"items": _get_unidata().list_files()})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500

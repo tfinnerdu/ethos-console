@@ -23,6 +23,9 @@ class Config:
     SILENCE_THRESHOLD_MINUTES = int(os.environ.get("SILENCE_THRESHOLD_MINUTES", "30"))
     ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "")
     ALERT_ERROR_THRESHOLD = int(os.environ.get("ALERT_ERROR_THRESHOLD", "10"))
+    CONSOLE_MOCK_MODE = os.environ.get("CONSOLE_MOCK_MODE", "").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
     ETHOS_ENVIRONMENTS = [
         {
             "name": os.environ.get(f"ETHOS_ENV_{i}_NAME", ""),

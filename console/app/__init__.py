@@ -3,12 +3,16 @@ import logging
 from flask import Flask
 from .database import db, seed_mnemonics, seed_saved_queries
 from .ethos_client import EthosClient
+from .cn_client import CnmClient
+from .colleague_api_client import ColleagueApiClient
+from .conductor_client import ConductorClient
+from .unidata_client import UnidataClient
 from .bus_monitor import BusMonitor
 from .health_monitor import EthosHealthMonitor
 from config import config
 
 
-def create_app(config_name: str | None = None) -> Flask:
+def create_app(config_name: str | None = None, overrides: dict | None = None) -> Flask:
     if config_name is None:
         config_name = os.environ.get("FLASK_ENV", "development")
 
@@ -19,6 +23,8 @@ def create_app(config_name: str | None = None) -> Flask:
         static_url_path="/static",
     )
     app.config.from_object(config.get(config_name, config["default"]))
+    if overrides:
+        app.config.update(overrides)
 
     logging.basicConfig(
         level=logging.DEBUG if app.config["DEBUG"] else logging.INFO,
@@ -32,39 +38,99 @@ def create_app(config_name: str | None = None) -> Flask:
         seed_mnemonics(app)
         seed_saved_queries(app)
 
-    ethos = EthosClient(
-        api_key=app.config["ETHOS_API_KEY"],
-        base_url=app.config["ETHOS_BASE_URL"],
-    )
+    mock_mode = bool(app.config.get("CONSOLE_MOCK_MODE"))
+    app.extensions["mock_mode"] = mock_mode
+
+    if mock_mode:
+        logging.getLogger(__name__).warning(
+            "CONSOLE_MOCK_MODE is ON — every upstream call returns fixture data. "
+            "No real credentials are used."
+        )
+        from .mocks import (
+            MockEthosClient, MockCnmClient, MockColleagueApiClient,
+            MockConductorClient, MockUnidataClient,
+        )
+        ethos = MockEthosClient()
+        cnm = MockCnmClient()
+        colleague_api = MockColleagueApiClient()
+        conductor = MockConductorClient()
+        unidata = MockUnidataClient()
+    else:
+        ethos = EthosClient(
+            api_key=app.config["ETHOS_API_KEY"],
+            base_url=app.config["ETHOS_BASE_URL"],
+        )
+        cnm = CnmClient(
+            base_url=app.config.get("CNM_BASE_URL", ""),
+            api_key=app.config.get("CNM_API_KEY", ""),
+        )
+        colleague_api = ColleagueApiClient(
+            base_url=app.config.get("COLLEAGUE_WEB_API_URL", ""),
+            username=app.config.get("COLLEAGUE_WEB_API_USER", ""),
+            password=app.config.get("COLLEAGUE_WEB_API_PASS", ""),
+        )
+        conductor = ConductorClient(
+            base_url=app.config.get("CONDUCTOR_URL", ""),
+            api_key=app.config.get("CONDUCTOR_API_KEY", ""),
+        )
+        unidata = UnidataClient(
+            host=app.config.get("UNIDATA_HOST", ""),
+            port=app.config.get("UNIDATA_PORT", 31438),
+            user=app.config.get("UNIDATA_USER", ""),
+            password=app.config.get("UNIDATA_PASSWORD", ""),
+            account=app.config.get("UNIDATA_ACCOUNT", ""),
+        )
+
     monitor = BusMonitor(ethos)
     health_monitor = EthosHealthMonitor(ethos)
 
-    if ethos.is_configured():
+    if ethos.is_configured() and not app.config.get("TESTING"):
         monitor.start(poll_interval=app.config["BUS_POLL_INTERVAL"], app=app)
 
     app.extensions["ethos_client"] = ethos
+    app.extensions["cnm_client"] = cnm
+    app.extensions["colleague_api_client"] = colleague_api
+    app.extensions["conductor_client"] = conductor
+    app.extensions["unidata_client"] = unidata
     app.extensions["bus_monitor"] = monitor
     app.extensions["health_monitor"] = health_monitor
 
     envs = app.config.get("ETHOS_ENVIRONMENTS", [])
     app.extensions["current_env_name"] = envs[0]["name"] if envs else ""
 
+    # Mock-mode signal #3 (UI badge + health key are the other two): every
+    # API response carries X-Mock-Mode so an operator / consumer can never
+    # mistake mock output for live data.
+    if mock_mode:
+        @app.after_request
+        def _add_mock_header(response):
+            response.headers["X-Mock-Mode"] = "true"
+            return response
+
     @app.context_processor
     def _inject_env():
         current = app.extensions.get("current_env_name", "")
         environments = app.config.get("ETHOS_ENVIRONMENTS", [])
-        configured_features = {
-            "ethos":         bool(app.config.get("ETHOS_API_KEY")),
-            "conductor":     bool(app.config.get("CONDUCTOR_URL")),
-            "cnm":           bool(app.config.get("CNM_BASE_URL")),
-            "unidata":       bool(app.config.get("UNIDATA_HOST")),
-            "colleague_api": bool(app.config.get("COLLEAGUE_WEB_API_URL")),
-            "alerting":      bool(app.config.get("ALERT_WEBHOOK_URL")),
-        }
+        if mock_mode:
+            # Every feature is exercisable in mock mode — clear all "off" badges.
+            configured_features = {
+                k: True for k in
+                ("ethos", "conductor", "cnm", "unidata", "colleague_api", "alerting")
+            }
+        else:
+            configured_features = {
+                "ethos":         bool(app.config.get("ETHOS_API_KEY")),
+                "conductor":     bool(app.config.get("CONDUCTOR_URL")),
+                "cnm":           bool(app.config.get("CNM_BASE_URL")),
+                "unidata":       bool(app.config.get("UNIDATA_HOST")),
+                "colleague_api": bool(app.config.get("COLLEAGUE_WEB_API_URL")),
+                "alerting":      bool(app.config.get("ALERT_WEBHOOK_URL")),
+            }
         return {
             "ethos_environments": environments,
             "current_ethos_env": current,
             "configured_features": configured_features,
+            "mock_mode": mock_mode,
         }
 
     from .routes.auth import auth_bp
@@ -110,3 +176,11 @@ def get_monitor(app: Flask) -> BusMonitor:
 
 def get_health_monitor(app: Flask) -> EthosHealthMonitor:
     return app.extensions["health_monitor"]
+
+
+def get_conductor(app: Flask) -> ConductorClient:
+    return app.extensions["conductor_client"]
+
+
+def get_unidata(app: Flask) -> UnidataClient:
+    return app.extensions["unidata_client"]

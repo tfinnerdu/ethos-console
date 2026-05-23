@@ -15,7 +15,9 @@ def liveness():
 @api_auth_required
 def health_check():
     hm = get_health_monitor(current_app._get_current_object())
-    return jsonify(hm.check_health())
+    data = hm.check_health()
+    data["mock"] = bool(current_app.extensions.get("mock_mode"))
+    return jsonify(data)
 
 
 @health_bp.get("/token")

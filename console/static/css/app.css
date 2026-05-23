@@ -559,6 +559,15 @@ body {
 .border-orange  { border-color: var(--doane-orange) !important; }
 .scrollable     { overflow-y: auto; }
 
+/* ── CONSOLE_MOCK_MODE badge ── */
+.mock-badge {
+  background: #F39C12;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .05em;
+  border: 1px solid #B9740A;
+}
+
 /* ── Caustic-operation warning banner ── */
 .caustic-banner {
   background: #FBE8E6;

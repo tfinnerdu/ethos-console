@@ -1,6 +1,20 @@
 """Tests for /api/replay endpoints."""
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+import pytest
 import requests as req_lib
+
+
+@pytest.fixture()
+def mock_conductor(app):
+    """Replace app.extensions['conductor_client'] with a MagicMock for one test."""
+    original = app.extensions.get("conductor_client")
+    mock = MagicMock()
+    mock.is_configured.return_value = True
+    mock.trigger_workflow.return_value = "wf-id-123"
+    app.extensions["conductor_client"] = mock
+    yield mock
+    if original is not None:
+        app.extensions["conductor_client"] = original
 
 
 # ── fetch ─────────────────────────────────────────────────────────────────────
@@ -70,17 +84,14 @@ def test_trigger_missing_conductor_url_returns_400(client, app):
     assert "conductor_url" in r.get_json()["error"]
 
 
-def test_trigger_success_returns_workflow_id(client, app):
+def test_trigger_success_returns_workflow_id(client, app, mock_conductor):
     app.config["CONDUCTOR_URL"] = "http://conductor/"
-    mock_resp = MagicMock()
-    mock_resp.text = '"wf-id-123"'
-    mock_resp.raise_for_status = MagicMock()
+    mock_conductor.trigger_workflow.return_value = "wf-id-123"
 
-    with patch("app.routes.replay.requests.post", return_value=mock_resp):
-        r = client.post("/api/replay/trigger", json={
-            "payload": _VALID_PAYLOAD,
-            "workflow_name": "my-workflow",
-        })
+    r = client.post("/api/replay/trigger", json={
+        "payload": _VALID_PAYLOAD,
+        "workflow_name": "my-workflow",
+    })
 
     assert r.status_code == 200
     data = r.get_json()
@@ -89,32 +100,27 @@ def test_trigger_success_returns_workflow_id(client, app):
     assert "conductor_workflow_url" in data
 
 
-def test_trigger_http_error_returns_502(client, app):
+def test_trigger_http_error_returns_502(client, app, mock_conductor):
     app.config["CONDUCTOR_URL"] = "http://conductor/"
-    mock_resp = MagicMock()
-    mock_resp.raise_for_status.side_effect = req_lib.HTTPError("503 Server Error")
+    mock_conductor.trigger_workflow.side_effect = req_lib.HTTPError("503 Server Error")
 
-    with patch("app.routes.replay.requests.post", return_value=mock_resp):
-        r = client.post("/api/replay/trigger", json={
-            "payload": _VALID_PAYLOAD,
-            "workflow_name": "my-workflow",
-        })
+    r = client.post("/api/replay/trigger", json={
+        "payload": _VALID_PAYLOAD,
+        "workflow_name": "my-workflow",
+    })
 
     assert r.status_code == 502
     assert r.get_json()["outcome"] == "error"
 
 
-def test_trigger_persists_history_on_success(client, app):
+def test_trigger_persists_history_on_success(client, app, mock_conductor):
     app.config["CONDUCTOR_URL"] = "http://conductor/"
-    mock_resp = MagicMock()
-    mock_resp.text = '"wf-abc"'
-    mock_resp.raise_for_status = MagicMock()
+    mock_conductor.trigger_workflow.return_value = "wf-abc"
 
-    with patch("app.routes.replay.requests.post", return_value=mock_resp):
-        client.post("/api/replay/trigger", json={
-            "payload": _VALID_PAYLOAD,
-            "workflow_name": "my-workflow",
-        })
+    client.post("/api/replay/trigger", json={
+        "payload": _VALID_PAYLOAD,
+        "workflow_name": "my-workflow",
+    })
 
     r = client.get("/api/replay/history")
     assert r.status_code == 200
@@ -123,16 +129,14 @@ def test_trigger_persists_history_on_success(client, app):
                for i in items)
 
 
-def test_trigger_persists_history_on_error(client, app):
+def test_trigger_persists_history_on_error(client, app, mock_conductor):
     app.config["CONDUCTOR_URL"] = "http://conductor/"
-    mock_resp = MagicMock()
-    mock_resp.raise_for_status.side_effect = req_lib.HTTPError("404")
+    mock_conductor.trigger_workflow.side_effect = req_lib.HTTPError("404")
 
-    with patch("app.routes.replay.requests.post", return_value=mock_resp):
-        client.post("/api/replay/trigger", json={
-            "payload": _VALID_PAYLOAD,
-            "workflow_name": "error-workflow",
-        })
+    client.post("/api/replay/trigger", json={
+        "payload": _VALID_PAYLOAD,
+        "workflow_name": "error-workflow",
+    })
 
     r = client.get("/api/replay/history")
     items = r.get_json()["items"]
@@ -154,18 +158,15 @@ def test_history_shape(client):
     assert "pages" in data
 
 
-def test_history_pagination(client, app):
+def test_history_pagination(client, app, mock_conductor):
     app.config["CONDUCTOR_URL"] = "http://conductor/"
-    mock_resp = MagicMock()
-    mock_resp.raise_for_status = MagicMock()
-    mock_resp.text = '"wf-pg"'
+    mock_conductor.trigger_workflow.return_value = "wf-pg"
 
-    with patch("app.routes.replay.requests.post", return_value=mock_resp):
-        for i in range(3):
-            client.post("/api/replay/trigger", json={
-                "payload": {**_VALID_PAYLOAD, "id": f"msg-{i}"},
-                "workflow_name": "wf",
-            })
+    for i in range(3):
+        client.post("/api/replay/trigger", json={
+            "payload": {**_VALID_PAYLOAD, "id": f"msg-{i}"},
+            "workflow_name": "wf",
+        })
 
     data = client.get("/api/replay/history?per_page=2").get_json()
     assert len(data["items"]) <= 2

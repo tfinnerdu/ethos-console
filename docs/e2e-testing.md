@@ -453,6 +453,30 @@ See `docs/warning.md` for the rationale behind these banners.
 - [ ] Caustic banners appear in **both** development and production — they warn
       about the action, not the environment
 
+### CONSOLE_MOCK_MODE
+
+See `docs/warning.md` §5 for rationale. Enable with `CONSOLE_MOCK_MODE=true`
+in `.env` and restart.
+
+- [ ] Nav bar shows an amber **MOCK** badge next to the environment badge
+- [ ] Every API response carries header `X-Mock-Mode: true`
+      (`curl -i http://localhost:5012/api/resources/`)
+- [ ] `GET /api/health/` returns body with `"mock": true`
+- [ ] Every tab loads and renders content — no "off" badges, no empty
+      "check ETHOS_API_KEY" states
+- [ ] Resources tab populates with ~22 mock resources
+- [ ] GraphQL tab introspection shows `persons16`, `sections16`, etc.
+- [ ] Schema Browser left list populates; clicking `persons16` shows fields
+- [ ] CN Monitor → Monitor shows mock notifications
+- [ ] CN Monitor → Push runs, echoes the payload, no real Ethos call
+- [ ] Replay → Fetch by ID returns a mock message; Replay to Conductor
+      returns a `mock-<workflow>-<ts>` id
+- [ ] Colleague API → Call returns a mock CTX result echoing the input
+- [ ] Direct Query → Run for `LIST PERSON SAMPLE 3` returns a mock table
+- [ ] Direct Query → Subroutine Call returns mock arg values
+- [ ] Disable `CONSOLE_MOCK_MODE`, restart, and verify the MOCK badge,
+      `X-Mock-Mode` header, and `"mock": true` health key all disappear
+
 ### Confirmation dialogs
 
 Every state-changing action opens a confirmation dialog (`static/js/confirm.js`).
