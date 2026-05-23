@@ -41,6 +41,32 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     mock_mode = bool(app.config.get("CONSOLE_MOCK_MODE"))
     app.extensions["mock_mode"] = mock_mode
 
+    # Pick the active Ethos environment at startup:
+    #   1. DEFAULT_ENV — case-insensitive match against an ETHOS_ENV_n NAME.
+    #   2. First configured ETHOS_ENV_n.
+    #   3. None — fall back to the top-level ETHOS_API_KEY / ETHOS_BASE_URL.
+    # The selected env's credentials are what the EthosClient uses from the
+    # first request onward (not the top-level vars), so the dropdown selection
+    # and the in-flight key are guaranteed to match.
+    envs = app.config.get("ETHOS_ENVIRONMENTS", [])
+    default_name = (app.config.get("DEFAULT_ENV") or "").strip()
+    active_env = None
+    if default_name and envs:
+        active_env = next(
+            (e for e in envs if e["name"].lower() == default_name.lower()),
+            None,
+        )
+        if not active_env:
+            logging.getLogger(__name__).warning(
+                "DEFAULT_ENV=%r does not match any configured ETHOS_ENV_n "
+                "(have %s); falling back to %r.",
+                default_name,
+                [e["name"] for e in envs],
+                envs[0]["name"],
+            )
+    if not active_env and envs:
+        active_env = envs[0]
+
     if mock_mode:
         logging.getLogger(__name__).warning(
             "CONSOLE_MOCK_MODE is ON — every upstream call returns fixture data. "
@@ -57,8 +83,8 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         cn_repository = MockCnRepository()
     else:
         ethos = EthosClient(
-            api_key=app.config["ETHOS_API_KEY"],
-            base_url=app.config["ETHOS_BASE_URL"],
+            api_key=active_env["key"] if active_env else app.config["ETHOS_API_KEY"],
+            base_url=active_env["url"] if active_env else app.config["ETHOS_BASE_URL"],
         )
         colleague_api = ColleagueApiClient(
             base_url=app.config.get("COLLEAGUE_WEB_API_URL", ""),
@@ -92,8 +118,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     app.extensions["bus_monitor"] = monitor
     app.extensions["health_monitor"] = health_monitor
 
-    envs = app.config.get("ETHOS_ENVIRONMENTS", [])
-    app.extensions["current_env_name"] = envs[0]["name"] if envs else ""
+    app.extensions["current_env_name"] = active_env["name"] if active_env else ""
 
     # Mock-mode signal #3 (UI badge + health key are the other two): every
     # API response carries X-Mock-Mode so an operator / consumer can never

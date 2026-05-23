@@ -33,6 +33,7 @@ class Config:
         for i in range(1, 6)
         if os.environ.get(f"ETHOS_ENV_{i}_NAME") and os.environ.get(f"ETHOS_ENV_{i}_KEY")
     ]
+    DEFAULT_ENV = os.environ.get("DEFAULT_ENV", "").strip()
 
     _db_url = os.environ.get("DATABASE_URL", "")
     if _db_url.startswith("postgres://"):
