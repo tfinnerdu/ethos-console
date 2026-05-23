@@ -22,10 +22,33 @@ public static class ServiceRegistration
         IConfiguration configuration,
         IWebHostEnvironment environment)
     {
-        services.AddDbContext<CnmDbContext>(opts =>
-            opts.UseSqlServer(
-                configuration.GetConnectionString("CnmDb"),
-                sql => sql.MigrationsAssembly(typeof(CnmDbContext).Assembly.FullName)));
+        // Provider routing for CnmDbContext:
+        //   - Cnm:UseSqlite=true  → SQLite (explicit opt-in for tests / non-Windows dev).
+        //   - Development + empty ConnectionStrings:CnmDb → SQLite default at
+        //     <repo>/console/instance/cnm.db so the service runs end-to-end on a fresh
+        //     clone without a SQL Server. Sits next to the Flask console's SQLite.
+        //   - Otherwise → SqlServer with the configured connection string (prod path).
+        var connectionString = configuration.GetConnectionString("CnmDb");
+        var explicitSqlite = configuration.GetValue<bool>("Cnm:UseSqlite");
+        var useSqliteDefault = environment.IsDevelopment() && string.IsNullOrWhiteSpace(connectionString);
+
+        if (explicitSqlite || useSqliteDefault)
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+                connectionString = $"Data Source={ResolveDefaultSqlitePath()}";
+
+            services.AddDbContext<CnmDbContext>(opts =>
+                opts.UseSqlite(
+                    connectionString,
+                    b => b.MigrationsAssembly(typeof(CnmDbContext).Assembly.FullName)));
+        }
+        else
+        {
+            services.AddDbContext<CnmDbContext>(opts =>
+                opts.UseSqlServer(
+                    connectionString,
+                    sql => sql.MigrationsAssembly(typeof(CnmDbContext).Assembly.FullName)));
+        }
 
         if (environment.IsDevelopment())
             services.AddScoped<IAuditRepository, FileAuditRepository>();
@@ -76,5 +99,24 @@ public static class ServiceRegistration
             .AddCheck<ResourcesSeededHealthCheck>("resources-seeded", tags: ["deep"]);
 
         return services;
+    }
+
+    /// <summary>
+    /// Default SQLite path for the dev/local CnmDb. Lives at
+    /// &lt;repo&gt;/console/instance/cnm.db so it sits next to the Flask console's
+    /// SQLite file. The instance directory is created on first call.
+    /// </summary>
+    private static string ResolveDefaultSqlitePath()
+    {
+        // Walk up from the running assembly's directory until we find the
+        // solution file. Falls back to BaseDirectory if the walk fails.
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "ethos-console.sln")))
+            dir = dir.Parent;
+        var slnDir = dir?.FullName ?? AppContext.BaseDirectory;
+
+        var instanceDir = Path.Combine(slnDir, "console", "instance");
+        Directory.CreateDirectory(instanceDir);
+        return Path.Combine(instanceDir, "cnm.db");
     }
 }

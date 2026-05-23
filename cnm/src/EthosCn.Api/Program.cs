@@ -2,9 +2,11 @@ using System.Text.Json;
 using EthosCn.Api.DevAuth;
 using EthosCn.Application;
 using EthosCn.Infrastructure;
+using EthosCn.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 
@@ -67,6 +69,16 @@ try
                   .AllowCredentials()));
 
     var app = builder.Build();
+
+    // Dev/local SQLite has no migration history yet — create the schema from
+    // the model on startup. Only runs for SQLite; SqlServer still expects
+    // migrations applied out-of-band.
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<CnmDbContext>();
+        if (db.Database.IsSqlite())
+            db.Database.EnsureCreated();
+    }
 
     app.UseSerilogRequestLogging();
 

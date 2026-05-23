@@ -30,6 +30,9 @@ Required to run manual E2E without Colleague connectivity:
 - [ ] Repository cloned and on the correct branch
 - [ ] `.\cnm\start-local.ps1 -ForceDeps` run at least once (installs npm packages)
 - [ ] No `.env` required — dev auth bypass and file audit are active
+- [ ] `ConnectionStrings:CnmDb` left unset — the service auto-creates a
+      SQLite database at `console/instance/cnm.db` on first start
+      (`EnsureCreated`, no migrations needed)
 
 ### Local stack (with Colleague)
 
@@ -37,7 +40,8 @@ Additional requirements for Colleague-connected testing:
 
 - [ ] VPN connected to Doane network
 - [ ] `.env` at repo root with `ColleagueWebApi__BaseUrl`, `__Username`, `__Password` populated
-- [ ] `ConnectionStrings__CnmDb` pointing to a local or shared SQL Server instance
+- [ ] `ConnectionStrings__CnmDb` pointing to a local or shared SQL Server
+      instance (overrides the dev SQLite default)
 - [ ] EF migrations applied: `dotnet ef database update --project cnm\src\EthosCn.Infrastructure --startup-project cnm\src\EthosCn.Api`
 
 ### Dev cluster
