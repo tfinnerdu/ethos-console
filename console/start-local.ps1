@@ -70,17 +70,28 @@ if ($ForceDeps -or -not (Test-Path (Join-Path $VenvDir "Scripts\flask.exe"))) {
 
 $env:FLASK_ENV = "development"
 $env:PORT = $Port
+# Force Python to flush stdout/stderr immediately so the live stream isn't
+# buffered behind Flask startup.
+$env:PYTHONUNBUFFERED = "1"
 
 Write-Host "[EthosConsole] Starting Ethos Dev Console on http://localhost:$Port"
 Write-Host "[EthosConsole] Log file: $AppLog"
 Write-Host "[EthosConsole] Press Ctrl+C to stop."
 
-# Run python directly. Output streams to the parent shell (so the hub launcher
-# captures it through its normal pipe) and is tee'd to a log file for
-# after-the-fact debugging. No new window is spawned.
+# Run Python directly so output streams to the parent shell (the hub launcher
+# captures it through its normal pipe) and tees to a log file for after-the-
+# fact debugging.
+#
+# Locally relax ErrorActionPreference for this invocation: under Windows
+# PowerShell 5.1, "Stop" + a native command writing to stderr (e.g. Python's
+# logging module) raises NativeCommandError and aborts the script. Python
+# logging is not an error — it's the normal log stream.
 Push-Location $Root
+$prevErrorAction = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 try {
     & $PythonPath run.py 2>&1 | Tee-Object -FilePath $AppLog
 } finally {
+    $ErrorActionPreference = $prevErrorAction
     Pop-Location
 }
