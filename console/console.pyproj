@@ -27,33 +27,38 @@
   <ItemGroup>
     <Compile Include="app\alerts.py" />
     <Compile Include="app\colleague_api_client.py" />
+    <Compile Include="run.py" />
+    <Compile Include="config.py" />
+    <Compile Include="app\__init__.py" />
+    <Compile Include="app\alerts.py" />
+    <Compile Include="app\audit.py" />
+    <Compile Include="app\auth.py" />
+    <Compile Include="app\bus_monitor.py" />
+    <Compile Include="app\cn_repository.py" />
+    <Compile Include="app\colleague_api_client.py" />
     <Compile Include="app\conductor_client.py" />
-    <Compile Include="app\mocks\cnm.py" />
+    <Compile Include="app\database.py" />
+    <Compile Include="app\ethos_client.py" />
+    <Compile Include="app\health_monitor.py" />
+    <Compile Include="app\unidata_client.py" />
+    <Compile Include="app\mocks\__init__.py" />
+    <Compile Include="app\mocks\cn_repository.py" />
     <Compile Include="app\mocks\colleague_api.py" />
     <Compile Include="app\mocks\conductor.py" />
     <Compile Include="app\mocks\ethos.py" />
     <Compile Include="app\mocks\fixtures.py" />
     <Compile Include="app\mocks\unidata.py" />
-    <Compile Include="app\mocks\__init__.py" />
-    <Compile Include="app\unidata_client.py" />
-    <Compile Include="run.py" />
-    <Compile Include="config.py" />
-    <Compile Include="app\__init__.py" />
-    <Compile Include="app\auth.py" />
-    <Compile Include="app\bus_monitor.py" />
-    <Compile Include="app\database.py" />
-    <Compile Include="app\ethos_client.py" />
-    <Compile Include="app\cn_client.py" />
-    <Compile Include="app\health_monitor.py" />
     <Compile Include="app\routes\__init__.py" />
     <Compile Include="app\routes\auth.py" />
     <Compile Include="app\routes\bus.py" />
+    <Compile Include="app\routes\cn_monitor.py" />
+    <Compile Include="app\routes\colleague_api.py" />
+    <Compile Include="app\routes\env.py" />
     <Compile Include="app\routes\errors.py" />
     <Compile Include="app\routes\graphql_routes.py" />
     <Compile Include="app\routes\health.py" />
     <Compile Include="app\routes\main.py" />
     <Compile Include="app\routes\mnemonics.py" />
-    <Compile Include="app\routes\cn_monitor.py" />
     <Compile Include="app\routes\phase3.py" />
     <Compile Include="app\routes\replay.py" />
     <Compile Include="app\routes\resources.py" />
@@ -63,12 +68,13 @@
   <ItemGroup>
     <Compile Include="test.py" />
     <Compile Include="tests\test_cn_monitor_api.py" />
-    <Compile Include="tests\test_mock_mode.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
+    <Compile Include="tests\test_audit.py" />
     <Compile Include="tests\test_auth.py" />
     <Compile Include="tests\test_bus_api.py" />
     <Compile Include="tests\test_bus_monitor.py" />
+    <Compile Include="tests\test_cn_monitor_api.py" />
     <Compile Include="tests\test_contracts.py" />
     <Compile Include="tests\test_errors_api.py" />
     <Compile Include="tests\test_ethos_client.py" />
@@ -76,14 +82,15 @@
     <Compile Include="tests\test_health.py" />
     <Compile Include="tests\test_health_monitor.py" />
     <Compile Include="tests\test_mnemonics_api.py" />
+    <Compile Include="tests\test_mock_mode.py" />
     <Compile Include="tests\test_replay_api.py" />
     <Compile Include="tests\test_resources_api.py" />
     <Compile Include="tests\test_schema_browser_api.py" />
   </ItemGroup>
   <!-- ── Templates ─────────────────────────────────────────────────────── -->
   <ItemGroup>
-    <Content Include=".env" />
     <Content Include=".gitignore" />
+    <Content Include="app\templates\_macros.html" />
     <Content Include="app\templates\base.html" />
     <Content Include="app\templates\bus_monitor.html" />
     <Content Include="app\templates\cn_monitor.html" />
