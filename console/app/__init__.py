@@ -44,10 +44,11 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     # Pick the active Ethos environment at startup:
     #   1. DEFAULT_ENV — case-insensitive match against an ETHOS_ENV_n NAME.
     #   2. First configured ETHOS_ENV_n.
-    #   3. None — fall back to the top-level ETHOS_API_KEY / ETHOS_BASE_URL.
-    # The selected env's credentials are what the EthosClient uses from the
-    # first request onward (not the top-level vars), so the dropdown selection
-    # and the in-flight key are guaranteed to match.
+    #   3. None — every Ethos-dependent tab will surface its 503 setup state.
+    # The selected env's credentials feed the EthosClient from the first
+    # request onward, so the dropdown selection and the in-flight key always
+    # match. No top-level ETHOS_API_KEY fallback — one config pattern, one
+    # source of truth.
     envs = app.config.get("ETHOS_ENVIRONMENTS", [])
     default_name = (app.config.get("DEFAULT_ENV") or "").strip()
     active_env = None
@@ -66,6 +67,11 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             )
     if not active_env and envs:
         active_env = envs[0]
+    if not active_env and not mock_mode:
+        logging.getLogger(__name__).warning(
+            "No ETHOS_ENV_n configured. Add ETHOS_ENV_1_NAME / _URL / _KEY to "
+            ".env to enable Ethos-dependent tabs."
+        )
 
     if mock_mode:
         logging.getLogger(__name__).warning(
@@ -83,8 +89,8 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         cn_repository = MockCnRepository()
     else:
         ethos = EthosClient(
-            api_key=active_env["key"] if active_env else app.config["ETHOS_API_KEY"],
-            base_url=active_env["url"] if active_env else app.config["ETHOS_BASE_URL"],
+            api_key=active_env["key"] if active_env else "",
+            base_url=active_env["url"] if active_env else "https://integrate.elluciancloud.com",
         )
         colleague_api = ColleagueApiClient(
             base_url=app.config.get("COLLEAGUE_WEB_API_URL", ""),
@@ -141,7 +147,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             }
         else:
             configured_features = {
-                "ethos":         bool(app.config.get("ETHOS_API_KEY")),
+                "ethos":         bool(app.config.get("ETHOS_ENVIRONMENTS")),
                 "conductor":     bool(app.config.get("CONDUCTOR_URL")),
                 "unidata":       bool(app.config.get("UNIDATA_HOST")),
                 "colleague_api": bool(app.config.get("COLLEAGUE_WEB_API_URL")),

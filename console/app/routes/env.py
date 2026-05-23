@@ -35,5 +35,11 @@ def switch_environment():
     if monitor:
         monitor.reset()
 
+    # Schemas differ between environments — drop the introspection cache so
+    # the next GraphQL/Schema-Browser request refetches against the new env.
+    import app.routes.graphql_routes as gr
+    gr._schema_cache = None
+    gr._schema_cache_time = 0.0
+
     current_app.extensions["current_env_name"] = name
     return jsonify({"switched_to": name, "url": env["url"]})

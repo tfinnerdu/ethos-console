@@ -57,7 +57,7 @@ function renderTable() {
   } else {
     statusEl.className = 'text-muted small mb-2';
     statusEl.textContent =
-      total ? `Showing ${rows.length} of ${total} resources` : 'No resources — check ETHOS_API_KEY';
+      total ? `Showing ${rows.length} of ${total} resources` : 'No resources — check the configured Ethos environment';
   }
 
   const tbody = document.getElementById('resource-list-tbody');

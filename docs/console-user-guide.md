@@ -104,7 +104,7 @@ The dark row of tabs beneath the navbar. Each tab links to a major feature area.
 ## 4. Bus Monitor
 
 **URL:** `/`  
-**Requires:** `ETHOS_API_KEY`
+**Requires:** a configured Ethos environment
 
 The Bus Monitor continuously polls the Ethos message bus, displaying every change notification as it arrives. It is the primary real-time operational view.
 
@@ -168,7 +168,7 @@ The right column. Shows aggregated stats per resource for the current session:
 ## 5. Replay
 
 **URL:** `/replay`  
-**Requires:** `ETHOS_API_KEY` + `CONDUCTOR_URL`
+**Requires:** a configured Ethos environment + `CONDUCTOR_URL`
 
 The Replay tab lets you re-fire a Colleague change notification through a Netflix Conductor workflow — useful for testing integration logic without generating a real Colleague change.
 
@@ -210,7 +210,7 @@ A log of all replays triggered in the current session, showing workflow name, tr
 ## 6. GraphQL
 
 **URL:** `/graphql`  
-**Requires:** `ETHOS_API_KEY` (or `ETHOS_GRAPHQL_API_KEY` for a dedicated key)
+**Requires:** a configured Ethos environment (set `ETHOS_ENV_n_GRAPHQL_KEY` for a dedicated GraphQL key)
 
 An interactive GraphQL query builder and executor for the Ethos GraphQL API.
 
@@ -252,7 +252,7 @@ Click **Save** after writing a query to store it with a name and optional descri
 ## 7. Schema Browser
 
 **URL:** `/schema-browser`  
-**Requires:** `ETHOS_API_KEY`
+**Requires:** a configured Ethos environment
 
 A read-only browser for exploring the full EEDM resource schema — all field names, types, and nesting structure.
 
@@ -276,7 +276,7 @@ The tree is lazy-loaded — sub-fields are only fetched when you expand a node.
 ## 8. Resources
 
 **URL:** `/resources`  
-**Requires:** `ETHOS_API_KEY`
+**Requires:** a configured Ethos environment
 
 A browser for the Ethos REST resource API. Explore any EEDM resource, inspect records by GUID, and export collections.
 
@@ -357,7 +357,7 @@ With a mnemonic selected in the detail panel:
 ## 10. Field Diff
 
 **URL:** `/field-diff`  
-**Requires:** `ETHOS_API_KEY` + `UNIDATA_HOST`
+**Requires:** a configured Ethos environment + `UNIDATA_HOST`
 
 Compares the fields in an Ethos EEDM resource definition against the actual fields in the corresponding Colleague UniData file. Highlights fields that exist in one place but not the other — useful for diagnosing missing data in Ethos payloads.
 
@@ -544,7 +544,7 @@ In non-mock mode the change-notification reads (`app/cn_repository.py`) are inte
 ## 14. Health
 
 **URL:** `/health`  
-**Requires:** `ETHOS_API_KEY`
+**Requires:** a configured Ethos environment
 
 Operational health view for the Ethos connection and the console's internal state.
 
@@ -584,11 +584,18 @@ All variables go in `console/.env`. Copy `console/.env.example` as a starting po
 
 ### Core — Required
 
+At least one Ethos environment block is required:
+
 | Variable | Default | Description |
 |---|---|---|
-| `ETHOS_API_KEY` | — | Ethos integration API key. Required for all Ethos-backed features. |
-| `ETHOS_BASE_URL` | `https://integrate.elluciancloud.com` | Ethos API base URL |
+| `ETHOS_ENV_1_NAME` | — | Display name for the environment (e.g. `Dev`, `Test`, `Prod`). |
+| `ETHOS_ENV_1_URL`  | `https://integrate.elluciancloud.com` | Ethos API base URL for this environment. |
+| `ETHOS_ENV_1_KEY`  | — | Ethos integration API key. Required for all Ethos-backed features. |
+| `ETHOS_ENV_1_GRAPHQL_KEY` | _(falls back to `_KEY`)_ | Optional — set only when the bus key for this env lacks GraphQL scope. |
+| `DEFAULT_ENV` | _(first configured env)_ | Case-insensitive match against an `ETHOS_ENV_n_NAME` to preselect at startup. |
 | `SECRET_KEY` | `dev-secret-change-in-prod` | Flask session signing key. Change in production. |
+
+Define `ETHOS_ENV_2_*` through `ETHOS_ENV_5_*` the same way to expose the nav-bar environment switcher.
 
 ### Multi-Environment Switcher
 
@@ -603,12 +610,6 @@ ETHOS_ENV_2_NAME=Prod
 ETHOS_ENV_2_URL=https://integrate.elluciancloud.com
 ETHOS_ENV_2_KEY=<prod api key>
 ```
-
-### GraphQL Dedicated Key
-
-| Variable | Description |
-|---|---|
-| `ETHOS_GRAPHQL_API_KEY` | Optional. When set, all GraphQL tab operations (schema load, query execution) use this key instead of `ETHOS_API_KEY`. Useful for pointing GraphQL at a production environment while the rest of the console uses a test key. |
 
 ### Colleague Web API
 

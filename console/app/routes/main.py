@@ -80,6 +80,6 @@ def colleague_api():
 @main_bp.get("/cn-monitor")
 @login_required
 def cn_monitor():
-    ethos_configured = bool(current_app.config.get("ETHOS_API_KEY"))
+    ethos_configured = bool(current_app.config.get("ETHOS_ENVIRONMENTS"))
     return render_template("cn_monitor.html", active_tab="cn_monitor",
                            ethos_configured=ethos_configured)

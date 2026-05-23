@@ -111,7 +111,7 @@ def push_notifications():
     app_obj = current_app._get_current_object()
     ethos = app_obj.extensions.get("ethos_client")
     if not ethos or not ethos.is_configured():
-        return jsonify({"error": "Ethos not configured", "setup": "Set ETHOS_API_KEY in .env"}), 503
+        return jsonify({"error": "Ethos not configured", "setup": "Add an ETHOS_ENV_1_* block to .env"}), 503
 
     data = request.get_json(silent=True) or {}
     resource_name = (data.get("resource_name") or "").strip()

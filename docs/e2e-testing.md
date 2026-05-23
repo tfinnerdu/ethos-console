@@ -128,7 +128,7 @@ The CN reads against Colleague Web API are intentionally stubbed pending endpoin
 Open `http://localhost:5012` and verify:
 
 - [ ] Bus Monitor loads, SSE stream connects (status dot animates)
-- [ ] Resources page loads, table renders (empty without `ETHOS_API_KEY`)
+- [ ] Resources page loads, table renders (empty without a configured `ETHOS_ENV_n`)
 - [ ] GraphQL page loads, saved query chips appear (5 preloaded)
 - [ ] Health page loads without JS console errors
 - [ ] Error Log page loads, metric tiles show `0` or `—`
@@ -142,7 +142,7 @@ Open `http://localhost:5012` and verify:
 See `docs/warning.md` §1 for rationale.
 
 - [ ] **Replay** tab shows the red caustic-operation banner
-- [ ] **Change Notifications → Push** shows the red caustic banner (when `ETHOS_API_KEY` is set)
+- [ ] **Change Notifications → Push** shows the red caustic banner (when an `ETHOS_ENV_n` block is configured)
 - [ ] **Colleague API** shows the red caustic banner (when `COLLEAGUE_WEB_API_URL` is set)
 - [ ] **Direct Query** shows the red caustic banner (when `UNIDATA_HOST` is set)
 - [ ] Caustic banners appear in **both** development and production — they warn about the action, not the environment
@@ -183,7 +183,7 @@ See `docs/warning.md` §5. Enable with `CONSOLE_MOCK_MODE=true` in `.env` and re
 - [ ] Nav bar shows an amber **MOCK** badge next to the environment badge
 - [ ] Every API response carries header `X-Mock-Mode: true` (`curl -i http://localhost:5012/api/resources/`)
 - [ ] `GET /api/health/` returns body with `"mock": true`
-- [ ] Every tab loads with content — no "off" badges, no empty "check ETHOS_API_KEY" states
+- [ ] Every tab loads with content — no "off" badges, no empty "no env configured" states
 - [ ] Resources tab populates with ~22 mock resources
 - [ ] GraphQL tab introspection shows `persons16`, `sections16`, etc.
 - [ ] Schema Browser left list populates; clicking `persons16` shows fields

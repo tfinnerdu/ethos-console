@@ -28,7 +28,7 @@ async function loadHealth() {
   document.getElementById('token-valid').textContent = token.valid ? 'Valid' : 'Invalid / Unconfigured';
   document.getElementById('token-expiry').textContent = token.valid
     ? `Expires in ${token.expires_in_minutes}min`
-    : data.ethos_configured ? 'Token not yet acquired' : 'ETHOS_API_KEY not set';
+    : data.ethos_configured ? 'Token not yet acquired' : 'No Ethos environment configured';
 
   // Queue tile
   document.getElementById('queue-depth').textContent = data.queue_depth ?? '—';

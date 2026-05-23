@@ -3,17 +3,15 @@ from app import create_app
 
 
 _ENVS = [
-    {"name": "Dev",  "url": "https://dev.example",  "key": "dev-key"},
-    {"name": "Test", "url": "https://test.example", "key": "test-key"},
-    {"name": "Prod", "url": "https://prod.example", "key": "prod-key"},
+    {"name": "Dev",  "url": "https://dev.example",  "key": "dev-key",  "graphql_key": ""},
+    {"name": "Test", "url": "https://test.example", "key": "test-key", "graphql_key": "test-graphql-key"},
+    {"name": "Prod", "url": "https://prod.example", "key": "prod-key", "graphql_key": ""},
 ]
 
 _BASE_OVERRIDES = {
     "TESTING": True,
     "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
     "CONSOLE_KEY": "",
-    "ETHOS_API_KEY": "top-level-key-should-not-be-used",
-    "ETHOS_BASE_URL": "https://top-level.example",
     "ETHOS_ENVIRONMENTS": _ENVS,
 }
 
@@ -55,13 +53,41 @@ def test_no_default_env_uses_first_configured_env():
     assert app.extensions["ethos_client"].api_key == "dev-key"
 
 
-def test_no_environments_falls_back_to_top_level_key():
-    """Without any ETHOS_ENV_n, the client uses the top-level ETHOS_API_KEY."""
-    app = _make_app(ETHOS_ENVIRONMENTS=[], DEFAULT_ENV="Whatever")
+def test_no_environments_leaves_client_unconfigured(caplog):
+    """Without any ETHOS_ENV_n, the EthosClient is unconfigured and Ethos-
+    dependent tabs surface their 503 setup state. A startup warning fires."""
+    import logging
+    with caplog.at_level(logging.WARNING):
+        app = _make_app(ETHOS_ENVIRONMENTS=[], DEFAULT_ENV="Whatever")
     assert app.extensions["current_env_name"] == ""
     ethos = app.extensions["ethos_client"]
-    assert ethos.api_key == "top-level-key-should-not-be-used"
-    assert ethos.base_url == "https://top-level.example"
+    assert ethos.api_key == ""
+    assert ethos.is_configured() is False
+    assert any("No ETHOS_ENV_n configured" in r.message for r in caplog.records)
+
+
+def test_graphql_helper_uses_env_specific_key_when_set(app):
+    """If active env carries a graphql_key, _get_graphql_ethos returns a
+    client built with that key instead of the bus key."""
+    # Reuse the session-scoped app fixture but install our envs + switch to Test.
+    app.config["ETHOS_ENVIRONMENTS"] = _ENVS
+    app.extensions["current_env_name"] = "Test"
+    from app.routes.graphql_routes import _get_graphql_ethos
+    with app.test_request_context():
+        client = _get_graphql_ethos()
+    assert client.api_key == "test-graphql-key"
+    assert client.base_url == "https://test.example"
+
+
+def test_graphql_helper_falls_back_to_bus_client_when_no_graphql_key(app):
+    """When the active env has no graphql_key, GraphQL uses the regular
+    bus EthosClient (no extra construction)."""
+    app.config["ETHOS_ENVIRONMENTS"] = _ENVS
+    app.extensions["current_env_name"] = "Dev"
+    from app.routes.graphql_routes import _get_graphql_ethos
+    with app.test_request_context():
+        client = _get_graphql_ethos()
+    assert client is app.extensions["ethos_client"]
 
 
 def test_default_env_does_not_break_mock_mode():

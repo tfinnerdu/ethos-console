@@ -2,9 +2,6 @@ import os
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
-    ETHOS_API_KEY = os.environ.get("ETHOS_API_KEY", "")
-    ETHOS_GRAPHQL_API_KEY = os.environ.get("ETHOS_GRAPHQL_API_KEY", "")
-    ETHOS_BASE_URL = os.environ.get("ETHOS_BASE_URL", "https://integrate.elluciancloud.com")
     CONDUCTOR_API_KEY = os.environ.get("CONDUCTOR_API_KEY", "")
     CONDUCTOR_URL = os.environ.get("CONDUCTOR_URL", "")
     UNIDATA_CONN_STR = os.environ.get("UNIDATA_CONN_STR", "")
@@ -24,11 +21,19 @@ class Config:
     CONSOLE_MOCK_MODE = os.environ.get("CONSOLE_MOCK_MODE", "").strip().lower() in (
         "1", "true", "yes", "on",
     )
+    # An environment is required — one entry feeds the whole console. Define a
+    # second / third one to make the nav-bar dropdown appear; pick the active
+    # one at startup with DEFAULT_ENV.
+    #
+    # ETHOS_ENV_n_GRAPHQL_KEY is optional. Use it when an environment's bus key
+    # doesn't have GraphQL scope and you need a separately-scoped key just for
+    # introspection / GraphQL execution. Falls back to ETHOS_ENV_n_KEY.
     ETHOS_ENVIRONMENTS = [
         {
             "name": os.environ.get(f"ETHOS_ENV_{i}_NAME", ""),
             "url": os.environ.get(f"ETHOS_ENV_{i}_URL", "https://integrate.elluciancloud.com"),
             "key": os.environ.get(f"ETHOS_ENV_{i}_KEY", ""),
+            "graphql_key": os.environ.get(f"ETHOS_ENV_{i}_GRAPHQL_KEY", ""),
         }
         for i in range(1, 6)
         if os.environ.get(f"ETHOS_ENV_{i}_NAME") and os.environ.get(f"ETHOS_ENV_{i}_KEY")

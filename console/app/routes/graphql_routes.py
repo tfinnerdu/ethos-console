@@ -7,11 +7,19 @@ graphql_bp = Blueprint("graphql", __name__)
 
 
 def _get_graphql_ethos():
-    """Return an EthosClient using ETHOS_GRAPHQL_API_KEY if set, else the default client."""
+    """Return an EthosClient scoped to the active env's GraphQL key.
+
+    Each ETHOS_ENV_n may carry an optional ETHOS_ENV_n_GRAPHQL_KEY for
+    instances where the bus key doesn't have GraphQL scope (e.g. a dev
+    tenant where GraphQL resources can't be updated). Falls back to the
+    active env's regular key (i.e. the default EthosClient).
+    """
     from app.ethos_client import EthosClient
-    key = current_app.config.get("ETHOS_GRAPHQL_API_KEY", "")
-    if key:
-        return EthosClient(api_key=key, base_url=current_app.config["ETHOS_BASE_URL"])
+    envs = current_app.config.get("ETHOS_ENVIRONMENTS", [])
+    current_name = current_app.extensions.get("current_env_name", "")
+    active = next((e for e in envs if e["name"] == current_name), None)
+    if active and active.get("graphql_key"):
+        return EthosClient(api_key=active["graphql_key"], base_url=active["url"])
     return get_ethos(current_app._get_current_object())
 
 INTROSPECTION_QUERY = """

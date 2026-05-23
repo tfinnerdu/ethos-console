@@ -14,7 +14,7 @@ def app():
     flask_app.config.update(
         TESTING=True,
         SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
-        ETHOS_API_KEY="",
+        ETHOS_ENVIRONMENTS=[],
         CONSOLE_KEY="",  # open-access by default; individual tests set this explicitly
         WTF_CSRF_ENABLED=False,
     )
