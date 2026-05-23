@@ -9,21 +9,36 @@ $Root = $PSScriptRoot
 $RepoRoot = Split-Path $Root -Parent
 $LogDir = Join-Path $Root ".logs"
 $AppLog = Join-Path $LogDir "app.log"
-$AppLogErr = Join-Path $LogDir "app.err"
 
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory $LogDir | Out-Null }
 
-# Load repo-root .env, then console-local .env (local overrides root)
-foreach ($envSearch in @((Join-Path $RepoRoot ".env"), (Join-Path $Root ".env"))) {
-    if (Test-Path $envSearch) {
-        Get-Content $envSearch | Where-Object { $_ -match "^\s*[^#]" -and $_ -match "=" } | ForEach-Object {
-            $parts = $_ -split "=", 2
-            [System.Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
+function Set-EnvFromFile {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return $false }
+    Get-Content $Path | Where-Object { $_ -match "^\s*[^#]" -and $_ -match "=" } | ForEach-Object {
+        $parts = $_ -split "=", 2
+        $key = $parts[0].Trim()
+        $value = $parts[1].Trim()
+        # Strip surrounding quotes — both " and ' — so a value written as
+        # DEFAULT_ENV="Prod" gets stored as Prod, not "Prod" (which would never
+        # match a configured env name in Python).
+        if ($value.Length -ge 2) {
+            $first = $value[0]; $last = $value[$value.Length - 1]
+            if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
+                $value = $value.Substring(1, $value.Length - 2)
+            }
         }
-        Write-Host "[EthosConsole] Loaded $envSearch"
+        [System.Environment]::SetEnvironmentVariable($key, $value, "Process")
     }
+    return $true
 }
-if (-not (Test-Path (Join-Path $RepoRoot ".env")) -and -not (Test-Path (Join-Path $Root ".env"))) {
+
+# Load repo-root .env, then console-local .env (local overrides root)
+$rootLoaded = Set-EnvFromFile (Join-Path $RepoRoot ".env")
+$consoleLoaded = Set-EnvFromFile (Join-Path $Root ".env")
+if ($rootLoaded)    { Write-Host "[EthosConsole] Loaded $(Join-Path $RepoRoot '.env')" }
+if ($consoleLoaded) { Write-Host "[EthosConsole] Loaded $(Join-Path $Root '.env')" }
+if (-not $rootLoaded -and -not $consoleLoaded) {
     Write-Host "[EthosConsole] No .env found - copy console\.env.example to .env and fill in an ETHOS_ENV_1_* block"
 }
 
@@ -56,18 +71,16 @@ if ($ForceDeps -or -not (Test-Path (Join-Path $VenvDir "Scripts\flask.exe"))) {
 $env:FLASK_ENV = "development"
 $env:PORT = $Port
 
-Write-Host "[EthosConsole] Starting Ethos Dev Console on http://localhost:$Port ..."
-Write-Host "[EthosConsole] Logs: $AppLog"
+Write-Host "[EthosConsole] Starting Ethos Dev Console on http://localhost:$Port"
+Write-Host "[EthosConsole] Log file: $AppLog"
 Write-Host "[EthosConsole] Press Ctrl+C to stop."
 
-$proc = Start-Process `
-    -FilePath $PythonPath `
-    -ArgumentList "run.py" `
-    -WorkingDirectory $Root `
-    -NoNewWindow `
-    -PassThru `
-    -RedirectStandardOutput $AppLog `
-    -RedirectStandardError $AppLogErr
-
-Write-Host "[EthosConsole] PID $($proc.Id) - http://localhost:$Port"
-Wait-Process -Id $proc.Id
+# Run python directly. Output streams to the parent shell (so the hub launcher
+# captures it through its normal pipe) and is tee'd to a log file for
+# after-the-fact debugging. No new window is spawned.
+Push-Location $Root
+try {
+    & $PythonPath run.py 2>&1 | Tee-Object -FilePath $AppLog
+} finally {
+    Pop-Location
+}

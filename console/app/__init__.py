@@ -72,6 +72,16 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             "No ETHOS_ENV_n configured. Add ETHOS_ENV_1_NAME / _URL / _KEY to "
             ".env to enable Ethos-dependent tabs."
         )
+    elif active_env:
+        # Always emit this so an operator can verify the dropdown matches
+        # what's actually in flight — answers "why am I not on the env I
+        # set DEFAULT_ENV to?" without grepping config.
+        logging.getLogger(__name__).info(
+            "Active Ethos environment: %r (url=%s, dedicated graphql key=%s)",
+            active_env["name"],
+            active_env["url"],
+            "yes" if active_env.get("graphql_key") else "no",
+        )
 
     if mock_mode:
         logging.getLogger(__name__).warning(
