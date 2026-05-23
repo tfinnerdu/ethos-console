@@ -66,6 +66,50 @@ class ReplayHistory(db.Model):
         }
 
 
+class AuditEntry(db.Model):
+    """Audit row for every state-changing or sensitive read operation.
+
+    Replaces the C# CNM AuditEntry one-for-one in shape and intent, kept
+    deliberately small so the same record covers Colleague reads, change-
+    notification publishes, Conductor replays, mnemonic edits, and any
+    future surface. `detail` is the catch-all JSON blob — put before/after
+    state, source IP, failure reasons, anything situational.
+    """
+    __tablename__ = "audit_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    occurred_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+    actor = db.Column(db.String(256), nullable=False, default="system", index=True)
+    actor_display_name = db.Column(db.String(512))
+    action = db.Column(db.String(64), nullable=False)
+    resource_type = db.Column(db.String(128), nullable=False)
+    resource_id = db.Column(db.String(512), index=True)
+    outcome = db.Column(db.String(32), nullable=False, default="success")
+    failure_reason = db.Column(db.Text)
+    detail = db.Column(db.JSON)
+    correlation_id = db.Column(db.String(64), index=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "occurred_at": self.occurred_at.isoformat() if self.occurred_at else None,
+            "actor": self.actor,
+            "actor_display_name": self.actor_display_name,
+            "action": self.action,
+            "resource_type": self.resource_type,
+            "resource_id": self.resource_id,
+            "outcome": self.outcome,
+            "failure_reason": self.failure_reason,
+            "detail": self.detail or {},
+            "correlation_id": self.correlation_id,
+        }
+
+
 class EthosErrorLog(db.Model):
     __tablename__ = "ethos_error_log"
 
