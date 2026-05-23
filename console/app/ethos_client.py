@@ -84,9 +84,15 @@ class EthosClient:
         return int(data) if isinstance(data, (int, str)) else int(data.get("count", 0))
 
     def get_available_resources(self) -> list:
+        # Ellucian's Integration gateway returns 404 on many tenants when this
+        # endpoint receives plain application/json — it expects the versioned
+        # available-resources media type. Send both so the gateway can pick
+        # whichever it supports for this tenant.
         r = requests.get(
             f"{self.base_url}/api/available-resources",
-            headers=self.get_headers(),
+            headers=self.get_headers(
+                "application/vnd.hedtech.integration.available-resources.v1+json, application/json"
+            ),
             timeout=30,
         )
         r.raise_for_status()
@@ -118,9 +124,13 @@ class EthosClient:
             return {}
 
     def get_cn_available_resources(self) -> list:
+        # Same dual-Accept as /api/available-resources — most tenants need the
+        # versioned media type; some accept plain JSON.
         r = requests.get(
             f"{self.base_url}/api/change-notifications/available-resources",
-            headers=self.get_headers(),
+            headers=self.get_headers(
+                "application/vnd.hedtech.integration.available-resources.v1+json, application/json"
+            ),
             timeout=30,
         )
         r.raise_for_status()

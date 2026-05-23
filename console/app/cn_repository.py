@@ -38,16 +38,53 @@ class CnRepository:
         }
 
     # ── change-notification reads ────────────────────────────────────────────
-    # TODO: implement once Colleague Web API CN-config endpoints are confirmed.
-    # Same state the C# Infrastructure ChangeNotificationRepository was in.
+    # Routed through the Colleague Web API event-configurations endpoint —
+    # /api/event-configurations returns the live CN configuration. The
+    # field-name mapping below is best-effort against the documented shape;
+    # adjust if a real tenant returns different keys.
     def get_notifications(self, resource: str | None = None, status: str | None = None) -> list:
-        return []
+        if not self._colleague or not self._colleague.is_configured():
+            return []
+        configs = self._colleague.get_event_configurations(resource_name=resource) or []
+        items = []
+        for c in configs:
+            normalised = {
+                "id": str(c.get("id") or f"CN-{c.get('resourceName') or 'unknown'}"),
+                "resourceName": c.get("resourceName") or c.get("resource") or "",
+                "status": "Enabled" if c.get("isEnabled", c.get("enabled")) else "Disabled",
+                "hasParagraph": bool(c.get("paragraphCode") or c.get("paragraph")),
+                "paragraphCode": c.get("paragraphCode") or c.get("paragraph"),
+                "processCode": c.get("processCode"),
+                "lastModified": c.get("lastModified") or c.get("modifiedOn"),
+            }
+            if status and normalised["status"].lower() != status.lower():
+                continue
+            items.append(normalised)
+        return items
 
     def get_notification(self, cn_id: str) -> dict | None:
+        if not self._colleague or not self._colleague.is_configured():
+            return None
+        for item in self.get_notifications():
+            if item["id"] == cn_id:
+                # Colleague Web API doesn't expose per-CN detail in a separate
+                # endpoint — the list entry IS the detail. Return as-is.
+                return item
         return None
 
     def get_paragraph(self, cn_id: str) -> dict | None:
-        return None
+        # Paragraph source isn't surfaced by /api/event-configurations.
+        # Until a Colleague Web API endpoint for paragraph source is wired
+        # up, return the paragraph code (if known) so the UI can render the
+        # name even when source text isn't available.
+        item = self.get_notification(cn_id)
+        if not item or not item.get("paragraphCode"):
+            return None
+        return {
+            "id": cn_id,
+            "paragraphCode": item["paragraphCode"],
+            "source": None,  # TODO: source endpoint TBD
+        }
 
     # ── diagnostics — fully functional ───────────────────────────────────────
     def get_diagnostics(self, subscribed_names: list[str]) -> dict:
