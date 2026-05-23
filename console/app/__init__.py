@@ -7,6 +7,7 @@ from .cn_client import CnmClient
 from .colleague_api_client import ColleagueApiClient
 from .conductor_client import ConductorClient
 from .unidata_client import UnidataClient
+from .cn_repository import CnRepository
 from .bus_monitor import BusMonitor
 from .health_monitor import EthosHealthMonitor
 from config import config
@@ -48,13 +49,14 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         )
         from .mocks import (
             MockEthosClient, MockCnmClient, MockColleagueApiClient,
-            MockConductorClient, MockUnidataClient,
+            MockConductorClient, MockUnidataClient, MockCnRepository,
         )
         ethos = MockEthosClient()
         cnm = MockCnmClient()
         colleague_api = MockColleagueApiClient()
         conductor = MockConductorClient()
         unidata = MockUnidataClient()
+        cn_repository = MockCnRepository()
     else:
         ethos = EthosClient(
             api_key=app.config["ETHOS_API_KEY"],
@@ -80,6 +82,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             password=app.config.get("UNIDATA_PASSWORD", ""),
             account=app.config.get("UNIDATA_ACCOUNT", ""),
         )
+        cn_repository = CnRepository(colleague_api_client=colleague_api)
 
     monitor = BusMonitor(ethos)
     health_monitor = EthosHealthMonitor(ethos)
@@ -92,6 +95,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     app.extensions["colleague_api_client"] = colleague_api
     app.extensions["conductor_client"] = conductor
     app.extensions["unidata_client"] = unidata
+    app.extensions["cn_repository"] = cn_repository
     app.extensions["bus_monitor"] = monitor
     app.extensions["health_monitor"] = health_monitor
 

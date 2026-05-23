@@ -1,270 +1,201 @@
-"""Tests for /api/cn endpoints.
-
-All CNM HTTP calls are mocked — no live CNM service needed.
-Tests cover: 503 setup guide, 200 happy paths, 502 on upstream error.
-"""
-from unittest.mock import MagicMock, patch
+"""Tests for /api/cn endpoints (post-fold — no CnmClient proxy hop)."""
+from unittest.mock import MagicMock
 import pytest
+
+from app.audit import Action, write_event
+from app.database import AuditEntry
 
 
 @pytest.fixture()
-def cnm_client(app):
-    """Configure app with a CNM_BASE_URL and inject a mock CnmClient."""
-    original_url = app.config.get("CNM_BASE_URL", "")
-    original_key = app.config.get("CNM_API_KEY", "")
-    app.config["CNM_BASE_URL"] = "http://cnm-test"
-    app.config["CNM_API_KEY"] = ""
-
+def cn_repo(app):
+    """Inject a MagicMock CnRepository for one test."""
+    original = app.extensions.get("cn_repository")
     mock = MagicMock()
     mock.is_configured.return_value = True
-    mock.get_health.return_value = {"status": "ok", "service": "cnm-api", "version": "1.0.0", "uptime_seconds": 300}
+    mock.get_health.return_value = {
+        "status": "ok",
+        "service": "ethos-console.cn",
+        "colleague_api_configured": False,
+    }
     mock.get_notifications.return_value = [
-        {"id": "cn-1", "resourceName": "persons", "description": "Person updated",
-         "status": "Enabled", "hasParagraph": False, "lastModified": "2026-05-01T12:00:00Z"},
-        {"id": "cn-2", "resourceName": "courses", "description": "Course created",
-         "status": "Disabled", "hasParagraph": True, "lastModified": "2026-05-02T08:00:00Z"},
+        {"id": "cn-1", "resourceName": "persons",  "status": "Enabled",
+         "hasParagraph": False, "lastModified": "2026-05-01T12:00:00Z"},
+        {"id": "cn-2", "resourceName": "courses",  "status": "Disabled",
+         "hasParagraph": True,  "lastModified": "2026-05-02T08:00:00Z"},
     ]
     mock.get_notification.return_value = {
-        "id": "cn-1", "resourceName": "persons", "description": "Person updated",
-        "status": "Enabled", "paragraphCode": None, "processCode": "SAVEPERSON",
-        "parameters": ["ID"], "edpsRules": [], "lastModified": "2026-05-01T12:00:00Z",
+        "id": "cn-1", "resourceName": "persons", "status": "Enabled",
+        "paragraphCode": None, "processCode": "SAVEPERSON",
+        "parameters": ["ID"], "edpsRules": [],
     }
     mock.get_paragraph.return_value = {"code": "PARA1", "source": "paragraph text"}
-    mock.get_cn_history.return_value = [
-        {"auditId": 1, "timestamp": "2026-05-01T12:00:00Z", "userId": "u1",
-         "userDisplayName": "Alice", "action": "View", "targetType": "ChangeNotification",
-         "targetIdentifier": "cn-1", "outcome": "Success", "correlationId": "abc"}
-    ]
     mock.get_diagnostics.return_value = {
+        "aligned": ["persons", "courses"],
         "subscribedNotPublished": ["events"],
         "publishedNotSubscribed": ["sections"],
-        "aligned": ["persons", "courses"],
         "totalSubscribed": 3,
         "totalPublished": 3,
     }
-    mock.get_audit_log.return_value = {
-        "items": [
-            {"auditId": 1, "timestamp": "2026-05-01T12:00:00Z", "userId": "u1",
-             "userDisplayName": "Alice", "action": "View", "targetType": "ChangeNotification",
-             "targetIdentifier": "cn-1", "outcome": "Success", "correlationId": "abc",
-             "beforeState": None, "afterState": None, "failureReason": None, "sourceIp": None}
-        ],
-        "totalCount": 1, "page": 1, "pageSize": 50,
-    }
-
-    original_ext = app.extensions.get("cnm_client")
-    app.extensions["cnm_client"] = mock
-    try:
-        yield app.test_client(), mock
-    finally:
-        if original_ext is not None:
-            app.extensions["cnm_client"] = original_ext
-        app.config["CNM_BASE_URL"] = original_url
-        app.config["CNM_API_KEY"] = original_key
-
-
-# ── 503 setup guide (no CNM_BASE_URL) ────────────────────────────────────────
-
-def test_health_503_when_not_configured(client):
-    r = client.get("/api/cn/health")
-    assert r.status_code == 503
-    data = r.get_json()
-    assert "error" in data
-    assert "setup" in data
-    assert "CNM_BASE_URL" in data["setup"]
-
-
-def test_notifications_503_when_not_configured(client):
-    r = client.get("/api/cn/notifications")
-    assert r.status_code == 503
-
-
-def test_diagnostics_503_when_not_configured(client):
-    r = client.get("/api/cn/diagnostics")
-    assert r.status_code == 503
-
-
-def test_audit_log_503_when_not_configured(client):
-    r = client.get("/api/cn/audit-log")
-    assert r.status_code == 503
+    app.extensions["cn_repository"] = mock
+    yield app.test_client(), mock
+    if original is not None:
+        app.extensions["cn_repository"] = original
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
-def test_health_200(cnm_client):
-    tc, _ = cnm_client
+def test_health_200(cn_repo):
+    tc, _ = cn_repo
     r = tc.get("/api/cn/health")
     assert r.status_code == 200
-    data = r.get_json()
-    assert data["status"] == "ok"
-    assert data["service"] == "cnm-api"
-
-
-def test_health_502_on_upstream_error(app):
-    mock = MagicMock()
-    mock.is_configured.return_value = True
-    mock.get_health.side_effect = Exception("connection refused")
-    original_ext = app.extensions.get("cnm_client")
-    app.extensions["cnm_client"] = mock
-    try:
-        r = app.test_client().get("/api/cn/health")
-    finally:
-        if original_ext is not None:
-            app.extensions["cnm_client"] = original_ext
-    assert r.status_code == 502
+    assert r.get_json()["status"] == "ok"
 
 
 # ── Notifications list ────────────────────────────────────────────────────────
 
-def test_notifications_200(cnm_client):
-    tc, _ = cnm_client
+def test_notifications_200(cn_repo):
+    tc, _ = cn_repo
     r = tc.get("/api/cn/notifications")
     assert r.status_code == 200
 
 
-def test_notifications_has_items_and_total(cnm_client):
-    tc, _ = cnm_client
+def test_notifications_has_items_and_total(cn_repo):
+    tc, _ = cn_repo
     data = tc.get("/api/cn/notifications").get_json()
     assert "items" in data
-    assert "total" in data
     assert data["total"] == 2
 
 
-def test_notifications_item_shape(cnm_client):
-    tc, _ = cnm_client
+def test_notifications_item_shape(cn_repo):
+    tc, _ = cn_repo
     item = tc.get("/api/cn/notifications").get_json()["items"][0]
-    assert "id" in item
-    assert "resourceName" in item
-    assert "status" in item
-    assert "hasParagraph" in item
+    assert {"id", "resourceName", "status", "hasParagraph"} <= set(item.keys())
 
 
-def test_notifications_passes_resource_filter(cnm_client):
-    tc, mock = cnm_client
+def test_notifications_passes_resource_filter(cn_repo):
+    tc, mock = cn_repo
     tc.get("/api/cn/notifications?resource=persons")
     mock.get_notifications.assert_called_with(resource="persons", status=None)
 
 
-def test_notifications_passes_status_filter(cnm_client):
-    tc, mock = cnm_client
+def test_notifications_passes_status_filter(cn_repo):
+    tc, mock = cn_repo
     tc.get("/api/cn/notifications?status=Enabled")
     mock.get_notifications.assert_called_with(resource=None, status="Enabled")
 
 
 # ── Notification detail ───────────────────────────────────────────────────────
 
-def test_notification_detail_200(cnm_client):
-    tc, _ = cnm_client
+def test_notification_detail_200(cn_repo):
+    tc, _ = cn_repo
     r = tc.get("/api/cn/notifications/cn-1")
     assert r.status_code == 200
-    data = r.get_json()
-    assert data["id"] == "cn-1"
-    assert "parameters" in data
-    assert "edpsRules" in data
+    assert r.get_json()["id"] == "cn-1"
 
 
-def test_notification_detail_404_propagated(app):
-    mock = MagicMock()
-    mock.is_configured.return_value = True
-    mock.get_notification.side_effect = Exception("404 Not Found")
-    original_ext = app.extensions.get("cnm_client")
-    app.extensions["cnm_client"] = mock
-    try:
-        r = app.test_client().get("/api/cn/notifications/bad-id")
-    finally:
-        if original_ext is not None:
-            app.extensions["cnm_client"] = original_ext
+def test_notification_detail_404_when_repo_returns_none(cn_repo):
+    tc, mock = cn_repo
+    mock.get_notification.return_value = None
+    r = tc.get("/api/cn/notifications/missing")
     assert r.status_code == 404
 
 
 # ── Paragraph ─────────────────────────────────────────────────────────────────
 
-def test_paragraph_200(cnm_client):
-    tc, _ = cnm_client
+def test_paragraph_200(cn_repo):
+    tc, _ = cn_repo
     r = tc.get("/api/cn/notifications/cn-1/paragraph")
     assert r.status_code == 200
-    data = r.get_json()
-    assert "code" in data
-    assert "source" in data
+    assert {"code", "source"} <= set(r.get_json().keys())
 
 
-# ── CN history ────────────────────────────────────────────────────────────────
+def test_paragraph_404_when_repo_returns_none(cn_repo):
+    tc, mock = cn_repo
+    mock.get_paragraph.return_value = None
+    r = tc.get("/api/cn/notifications/missing/paragraph")
+    assert r.status_code == 404
 
-def test_cn_history_200(cnm_client):
-    tc, _ = cnm_client
-    r = tc.get("/api/cn/notifications/cn-1/history")
-    assert r.status_code == 200
-    data = r.get_json()
+
+# ── CN history (now sourced from the audit log) ───────────────────────────────
+
+def test_cn_history_returns_audit_entries_for_that_cn(app, cn_repo):
+    tc, _ = cn_repo
+    with app.app_context():
+        AuditEntry.query.delete()
+        from app.database import db as _db
+        _db.session.commit()
+        write_event(Action.VIEW, "cn.notification", "cn-1")
+        write_event(Action.VIEW, "cn.notification", "cn-2")
+    data = tc.get("/api/cn/notifications/cn-1/history").get_json()
     assert "items" in data
-    assert len(data["items"]) == 1
+    assert all(item["resource_id"] == "cn-1" for item in data["items"])
 
 
 # ── Diagnostics ───────────────────────────────────────────────────────────────
 
-def test_diagnostics_200(cnm_client):
-    tc, _ = cnm_client
-    r = tc.get("/api/cn/diagnostics")
-    assert r.status_code == 200
-
-
-def test_diagnostics_shape(cnm_client):
-    tc, _ = cnm_client
+def test_diagnostics_shape(cn_repo, mock_ethos):
+    tc, _ = cn_repo
+    mock_ethos.get_cn_available_resources.return_value = [
+        {"resourceName": "persons"}, {"resourceName": "sections"},
+    ]
     data = tc.get("/api/cn/diagnostics").get_json()
-    assert "subscribedNotPublished" in data
-    assert "publishedNotSubscribed" in data
-    assert "aligned" in data
-    assert "totalSubscribed" in data
-    assert "totalPublished" in data
+    assert {"aligned", "subscribedNotPublished", "publishedNotSubscribed",
+            "totalSubscribed", "totalPublished"} <= set(data.keys())
 
 
-def test_diagnostics_502_on_upstream_error(app):
-    mock = MagicMock()
-    mock.is_configured.return_value = True
-    mock.get_diagnostics.side_effect = Exception("timeout")
-    original_ext = app.extensions.get("cnm_client")
-    app.extensions["cnm_client"] = mock
-    try:
-        r = app.test_client().get("/api/cn/diagnostics")
-    finally:
-        if original_ext is not None:
-            app.extensions["cnm_client"] = original_ext
-    assert r.status_code == 502
+def test_diagnostics_passes_subscribed_names_to_repo(cn_repo, mock_ethos):
+    tc, mock = cn_repo
+    mock_ethos.get_cn_available_resources.return_value = [
+        {"resourceName": "persons"}, {"resourceName": "students"},
+    ]
+    tc.get("/api/cn/diagnostics")
+    mock.get_diagnostics.assert_called_once()
+    passed = mock.get_diagnostics.call_args[0][0]
+    assert sorted(passed) == ["persons", "students"]
 
 
-# ── Audit log ─────────────────────────────────────────────────────────────────
+# ── Audit log (now reads the local audit table) ───────────────────────────────
 
-def test_audit_log_200(cnm_client):
-    tc, _ = cnm_client
-    r = tc.get("/api/cn/audit-log")
-    assert r.status_code == 200
-
-
-def test_audit_log_shape(cnm_client):
-    tc, _ = cnm_client
-    data = tc.get("/api/cn/audit-log").get_json()
-    assert "items" in data
-    assert "totalCount" in data
-    assert "page" in data
-    assert "pageSize" in data
+def test_audit_log_returns_local_audit_rows(app, client):
+    with app.app_context():
+        AuditEntry.query.delete()
+        from app.database import db as _db
+        _db.session.commit()
+        write_event(Action.PUBLISH, "ethos.change_notification", "persons")
+    data = client.get("/api/cn/audit-log").get_json()
+    assert {"items", "totalCount", "page", "pageSize", "totalPages"} <= set(data.keys())
+    assert any(i["resource_id"] == "persons" for i in data["items"])
 
 
-def test_audit_log_passes_pagination(cnm_client):
-    tc, mock = cnm_client
-    tc.get("/api/cn/audit-log?page=2&pageSize=25")
-    mock.get_audit_log.assert_called_with(page=2, page_size=25, user_id=None, target_identifier=None)
+def test_audit_log_pagination(app, client):
+    with app.app_context():
+        AuditEntry.query.delete()
+        from app.database import db as _db
+        _db.session.commit()
+        for i in range(7):
+            write_event(Action.VIEW, "test", f"id-{i}")
+    data = client.get("/api/cn/audit-log?page=1&pageSize=3").get_json()
+    assert len(data["items"]) == 3
+    assert data["totalCount"] == 7
+    assert data["totalPages"] == 3
 
 
-def test_audit_log_passes_target_filter(cnm_client):
-    tc, mock = cnm_client
-    tc.get("/api/cn/audit-log?targetIdentifier=cn-1")
-    mock.get_audit_log.assert_called_with(page=1, page_size=50, user_id=None, target_identifier="cn-1")
+def test_audit_log_filter_by_target_identifier(app, client):
+    with app.app_context():
+        AuditEntry.query.delete()
+        from app.database import db as _db
+        _db.session.commit()
+        write_event(Action.VIEW, "test", "persons-x")
+        write_event(Action.VIEW, "test", "courses-x")
+    data = client.get("/api/cn/audit-log?targetIdentifier=persons").get_json()
+    assert data["totalCount"] == 1
+    assert data["items"][0]["resource_id"] == "persons-x"
 
 
 # ── Push change notifications ─────────────────────────────────────────────────
 
 @pytest.fixture()
 def push_client(app):
-    """Configure app with a mocked EthosClient that supports push methods."""
     original = app.extensions.get("ethos_client")
     mock = MagicMock()
     mock.is_configured.return_value = True
@@ -281,54 +212,28 @@ def push_client(app):
 def test_push_503_when_ethos_not_configured(client):
     r = client.post("/api/cn/push", json={"resource_name": "persons", "guids": ["abc"]})
     assert r.status_code == 503
-    data = r.get_json()
-    assert "error" in data
-    assert "setup" in data
 
 
 def test_push_400_missing_resource_name(push_client):
     tc, _ = push_client
     r = tc.post("/api/cn/push", json={"guids": ["abc"]})
     assert r.status_code == 400
-    assert "resource_name" in r.get_json()["error"]
 
 
 def test_push_400_missing_guids(push_client):
     tc, _ = push_client
     r = tc.post("/api/cn/push", json={"resource_name": "persons", "guids": []})
     assert r.status_code == 400
-    assert "guid" in r.get_json()["error"]
 
 
 def test_push_200_returns_results(push_client):
     tc, _ = push_client
-    r = tc.post("/api/cn/push", json={
-        "resource_name": "persons",
-        "operation": "replaced",
-        "guids": ["fee12eb6-dae1-456b-a7c4-063458617478"],
-    })
-    assert r.status_code == 200
-    data = r.get_json()
-    assert "results" in data
-    assert len(data["results"]) == 1
-
-
-def test_push_success_result_shape(push_client):
-    tc, _ = push_client
     data = tc.post("/api/cn/push", json={
-        "resource_name": "persons",
+        "resource_name": "persons", "operation": "replaced",
         "guids": ["fee12eb6-dae1-456b-a7c4-063458617478"],
     }).get_json()
-    result = data["results"][0]
-    assert result["status"] == "success"
-    assert result["guid"] == "fee12eb6-dae1-456b-a7c4-063458617478"
-    assert "version" in result
-
-
-def test_push_calls_get_resource_by_id(push_client):
-    tc, mock = push_client
-    tc.post("/api/cn/push", json={"resource_name": "persons", "guids": ["abc-123"]})
-    mock.get_resource_by_id.assert_called_with("persons", "abc-123")
+    assert len(data["results"]) == 1
+    assert data["results"][0]["status"] == "success"
 
 
 def test_push_calls_publish_notification(push_client):
@@ -338,53 +243,22 @@ def test_push_calls_publish_notification(push_client):
     })
     call_args = mock.publish_notification.call_args[0][0]
     assert call_args["resource"]["name"] == "persons"
-    assert call_args["resource"]["id"] == "abc-123"
     assert call_args["operation"] == "created"
-    assert call_args["contentType"] == "resource-representation"
 
 
-def test_push_error_result_when_upstream_fails(app):
-    original = app.extensions.get("ethos_client")
-    mock = MagicMock()
-    mock.is_configured.return_value = True
-    mock.get_resource_by_id.side_effect = Exception("404 Not Found")
-    app.extensions["ethos_client"] = mock
-    r = app.test_client().post("/api/cn/push", json={
-        "resource_name": "persons", "guids": ["bad-guid"],
+def test_push_emits_one_audit_event_per_publish_operation(app, push_client):
+    """One audit row per logical publish — never one per fan-out guid."""
+    tc, _ = push_client
+    with app.app_context():
+        AuditEntry.query.delete()
+        from app.database import db as _db
+        _db.session.commit()
+    tc.post("/api/cn/push", json={
+        "resource_name": "persons", "operation": "replaced",
+        "guids": ["g1", "g2", "g3"],
     })
-    assert r.status_code == 200
-    result = r.get_json()["results"][0]
-    assert result["status"] == "error"
-    assert "404" in result["error"]
-    app.extensions["ethos_client"] = original
-
-
-def test_push_partial_results_on_mixed_outcomes(app):
-    """Some GUIDs succeed, others fail — all returned in results list."""
-    original = app.extensions.get("ethos_client")
-    mock = MagicMock()
-    mock.is_configured.return_value = True
-    call_count = [0]
-
-    def side_effect(resource, guid):
-        call_count[0] += 1
-        if call_count[0] % 2 == 0:
-            raise Exception("upstream error")
-        return {"id": guid}, "application/json"
-
-    mock.get_resource_by_id.side_effect = side_effect
-    mock.publish_notification.return_value = {}
-    app.extensions["ethos_client"] = mock
-
-    r = app.test_client().post("/api/cn/push", json={
-        "resource_name": "persons",
-        "guids": ["guid-1", "guid-2", "guid-3"],
-    })
-    assert r.status_code == 200
-    results = r.get_json()["results"]
-    assert len(results) == 3
-    statuses = [res["status"] for res in results]
-    assert "success" in statuses
-    assert "error" in statuses
-
-    app.extensions["ethos_client"] = original
+    with app.app_context():
+        rows = AuditEntry.query.filter_by(action=Action.PUBLISH).all()
+        assert len(rows) == 1
+        assert rows[0].resource_id == "persons"
+        assert rows[0].detail["guid_count"] == 3

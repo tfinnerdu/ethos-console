@@ -8,6 +8,7 @@ from .cnm import MockCnmClient
 from .colleague_api import MockColleagueApiClient
 from .conductor import MockConductorClient
 from .unidata import MockUnidataClient
+from .cn_repository import MockCnRepository
 
 __all__ = [
     "MockEthosClient",
@@ -15,4 +16,5 @@ __all__ = [
     "MockColleagueApiClient",
     "MockConductorClient",
     "MockUnidataClient",
+    "MockCnRepository",
 ]
