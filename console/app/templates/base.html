@@ -139,7 +139,6 @@ async function switchEthosEnv(name) {
     </a>
     <a href="/cn-monitor"       class="tab-item {% if active_tab == 'cn_monitor' %}active{% endif %}">
       <i class="bi bi-bell me-1"></i>Change Notifications
-      {% if not configured_features.cnm %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
     <a href="/health"           class="tab-item {% if active_tab == 'health' %}active{% endif %}">
       <i class="bi bi-activity me-1"></i>Health

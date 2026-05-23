@@ -494,20 +494,20 @@ When `COLLEAGUE_WEB_API_URL` is not set, the tab shows a setup guide with the th
 
 ## 13. Change Notifications
 
-**URL:** `/cn-monitor`  
-**Requires:** `CNM_BASE_URL`
+**URL:** `/cn-monitor`
+**Requires:** `COLLEAGUE_WEB_API_URL` (for live data) — works fully in `CONSOLE_MOCK_MODE`
 
-Connects to the Change Notification Manager (CNM) service to show Colleague change notification configuration and subscription alignment.
+Shows Colleague change notification configuration and subscription alignment. The reads are in-process — there is no separate service to point at. (The previous C# CNM service was folded into the console.)
 
 ### Summary Tiles
 
 | Tile | Description |
 |---|---|
-| CNM Service | Connection status dot + status text |
+| CN Service | Local status — `colleague_api_configured` reflects whether `COLLEAGUE_WEB_API_URL` is set |
 | Total | Total change notifications configured in Colleague |
 | Enabled | Count with active publishing enabled |
 | Disabled | Count with publishing disabled |
-| Subscribed | Resources our Conductor consumer listens to |
+| Subscribed | Resources Ethos is subscribed to |
 | Published | Resources Colleague is actively publishing |
 | Gaps | Resources in one list but not the other |
 
@@ -515,7 +515,7 @@ Connects to the Change Notification Manager (CNM) service to show Colleague chan
 
 **Change Notifications tab**
 
-A filterable table of all Colleague change notification configurations. Columns include resource name, status (Enabled/Disabled), and process code. 
+A filterable table of all Colleague change notification configurations. Columns include resource name, status (Enabled/Disabled), and process code.
 
 - **Search** box filters by resource name in real time
 - **Status filter** dropdown filters to Enabled or Disabled
@@ -523,7 +523,7 @@ A filterable table of all Colleague change notification configurations. Columns 
 
 **Diagnostics tab**
 
-Three-column alignment view comparing what Colleague publishes against what Conductor subscribes to:
+Three-column alignment view comparing what Colleague publishes against what the Ethos tenant is subscribed to:
 
 | Column | Color | Meaning |
 |---|---|---|
@@ -533,11 +533,11 @@ Three-column alignment view comparing what Colleague publishes against what Cond
 
 **Audit Log tab**
 
-A timestamped log of all actions taken through the CNM service — who viewed, enabled, disabled, or deleted what. Filterable by date range and user.
+A timestamped log of every state-changing action recorded by `app/audit.py` — Publish, Trigger, Call, etc. Filterable by user and target identifier. The CN per-notification History view reads from the same audit table.
 
-### Connection Setup
+### Implementation note
 
-When `CNM_BASE_URL` is not set, the tab shows a setup guide. In local development, set `CNM_BASE_URL=http://localhost:5011` and leave `CNM_API_KEY` blank (the CNM dev server accepts unauthenticated requests). In production, set both URL and API key.
+In non-mock mode the change-notification reads (`app/cn_repository.py`) are intentionally stubbed pending Colleague Web API endpoint confirmation. Run with `CONSOLE_MOCK_MODE=true` to see realistic CN data end-to-end while the real path is wired up.
 
 ---
 
@@ -627,13 +627,6 @@ ETHOS_ENV_2_KEY=<prod api key>
 | `UNIDATA_USER` | — | UniData service account |
 | `UNIDATA_PASSWORD` | — | UniData password |
 | `UNIDATA_ACCOUNT` | — | Full server-side path to the Colleague apphome directory (e.g. `D:\Ellucian\coll18\test\apphome`) |
-
-### Change Notification Manager
-
-| Variable | Description |
-|---|---|
-| `CNM_BASE_URL` | CNM service URL (e.g. `http://localhost:5011` for local dev) |
-| `CNM_API_KEY` | Azure AD bearer token for production. Leave blank for local dev. |
 
 ### Conductor / Replay
 

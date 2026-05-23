@@ -16,15 +16,18 @@ Every production source file must be accounted for by exactly one (or more) of:
 | File | Category | Coverage reference |
 |---|---|---|
 | `app/__init__.py` | ✅ 📌 | App factory exercised by every test via `conftest.py`; blueprint prefixes (incl. `/api/cn`) pinned in `test_contracts.py` |
+| `app/audit.py` | ✅ 📌 | `test_audit.py` — write_event, query_events, actor fallback, pagination, filters |
 | `app/auth.py` | ✅ | `test_auth.py` — check_key, api_auth_required, _auth_enabled |
-| `app/cn_client.py` | ✅ | `test_cn_monitor_api.py` — all methods exercised via mocked CnmClient |
 | `app/bus_monitor.py` | ✅ | `test_bus_monitor.py` — all pure-logic methods; thread loop is 📋 (see §12 Bus Monitor in e2e-testing.md) |
+| `app/cn_repository.py` | ✅ | `test_cn_monitor_api.py` exercises the routes that call this; `MockCnRepository` characterized in `test_mock_mode.py` |
+| `app/colleague_api_client.py` | ✅ | `test_mock_mode.py` characterization; routes exercised in colleague_api integration tests |
+| `app/conductor_client.py` | ✅ | `test_replay_api.py` swaps the extension to a MagicMock for trigger paths |
 | `app/database.py` | ✅ 📌 | Model to_dict() shapes pinned in `test_contracts.py`; CRUD exercised via API tests; seed counts pinned |
 | `app/ethos_client.py` | ✅ | `test_ethos_client.py` — all methods mocked with `requests`; `get_resource_by_id` and `publish_notification` exercised via `test_cn_monitor_api.py` push tests |
 | `app/health_monitor.py` | ✅ | `test_health_monitor.py` — latency percentiles, thresholds, resource health |
 | `app/routes/__init__.py` | 🔧 | Empty init file |
 | `app/routes/auth.py` | ✅ 📌 | Login/logout flow in `test_contracts.py` auth section; login.html render is 📋 |
-| `app/routes/cn_monitor.py` | ✅ 📌 | `test_cn_monitor_api.py` — 503 shape, 200 happy paths, 502 upstream errors, push 400/200/partial results; `/api/cn` prefix pinned in `test_contracts.py` |
+| `app/routes/cn_monitor.py` | ✅ 📌 | `test_cn_monitor_api.py` — health, notifications/detail/paragraph, history (audit-backed), diagnostics set-diff, push (one audit per publish), audit log; `/api/cn` prefix pinned in `test_contracts.py` |
 | `app/routes/bus.py` | ✅ 📋 | REST endpoints in `test_bus_api.py`; SSE `/stream` is 📋 (§12 e2e-testing.md — streaming requires live WSGI) |
 | `app/routes/errors.py` | ✅ | `test_errors_api.py` — list, filter, spikes, flush, export |
 | `app/routes/graphql_routes.py` | ✅ 📌 | `test_graphql_api.py`; cache TTL value pinned in `test_contracts.py` |
@@ -82,58 +85,12 @@ All templates are **🔧 compile-verified** by Flask's Jinja2 template engine (s
 
 ---
 
-## C# CNM Service (`cnm/src/`)
-
-### Application Layer
+## Mock-mode providers (`console/app/mocks/`)
 
 | File | Category | Coverage reference |
 |---|---|---|
-| `GetAboutQuery.cs` | ✅ | `GetAboutHandlerTests.cs` |
-| `GetAuditLogQuery.cs` | ✅ | `GetAuditLogHandlerTests.cs` |
-| `GetChangeNotification*.cs` (3 files) | ✅ | `GetChangeNotification*HandlerTests.cs` |
-| `GetParagraphQuery.cs` | ✅ | `GetParagraphHandlerTests.cs` |
-| `GetSubscriptionPublishingDiagnosticQuery.cs` | ✅ | `GetSubscriptionPublishingDiagnosticHandlerTests.cs` |
-| `GetResourcesQuery.cs` | ✅ | `GetResourcesHandlerTests.cs` |
-| `ServiceRegistration.cs` | 🔧 | DI registration — compiler catches type errors |
-
-### API Layer
-
-| File | Category | Coverage reference |
-|---|---|---|
-| `Program.cs` | 🔧 | Startup wiring — `CnmWebApplicationFactory` exercises the full host in tests |
-| `Controllers/*.cs` (7 files) | ✅ | `*EndpointTests.cs` integration tests via `WebApplicationFactory` |
-| `Services/CurrentUserService.cs` | ✅ | `MeEndpointTests.cs` |
-| `DevAuth/DevAuthHandler.cs` | ✅ | All endpoint tests run through dev auth handler |
-
-### Infrastructure Layer
-
-| File | Category | Coverage reference |
-|---|---|---|
-| `ChangeNotificationRepository.cs` | 📌 | `ChangeNotificationRepositoryStubTests.cs` — §0.2 stub behavior locked; see inline doc for when to replace with real impl |
-| `ColleagueAboutRepository.cs` | ✅ | `ColleagueWebApiContractTests.cs` |
-| `ResourceRepository.cs` | ✅ | `ResourceRepositoryTests.cs` |
-| `AuditRepository.cs` | ✅ | `AuditRepositoryTests.cs` |
-| `FileAuditRepository.cs` | ✅ | `FileAuditRepositoryTests.cs` |
-| `CnmDbContext.cs` | ✅ | `AuditRepositoryTests.cs` uses EF InMemory provider |
-| `Persistence/Configurations/*.cs` | 🔧 | EF Fluent API config — compiler + EF model validation |
-| `Health/*.cs` (3 files) | ✅ | `HealthDeepEndpointTests.cs` + `HealthEndpointTests.cs` |
-| `Colleague/WebApi/IColleagueWebApiClient.cs` | 🔧 | Interface — no runtime behavior; implementations tested via repos |
-| `Colleague/WebApi/*Options.cs` (3 files) | 🔧 | POCOs — compiler-verified |
-| `Colleague/WebApi/*Response.cs` (2 files) | 🔧 | DTOs — compiler-verified |
-| `Colleague/WebApi/EventConfigs/*.cs` (2 files) | 🔧 | DTOs — compiler-verified |
-| `Colleague/Das/DasOptions.cs` | 🔧 | POCO — compiler-verified |
-| `ServiceRegistration.cs` | 🔧 | DI registration |
-
-### Contracts Layer
-
-All 9 files in `cnm/src/EthosCn.Contracts/` are **🔧 compile-verified** — pure record/DTO types with no runtime behavior. Shape is indirectly verified by handler and endpoint tests that serialize/deserialize them.
-
-### Domain Layer
-
-| File | Category |
-|---|---|
-| `Entities/*.cs` (3 files) | 🔧 Pure domain objects; EF mapping verified by persistence tests |
-| `Enums/*.cs` (3 files) | 🔧 Enum values — compiler-verified |
+| `ethos.py`, `colleague_api.py`, `conductor.py`, `unidata.py`, `cn_repository.py` | ✅ 📌 | `test_mock_mode.py` — three required signals (badge / header / health key) + characterization for every provider's fixture shape; parametrized smoke test asserts every tab returns 200 in mock mode |
+| `fixtures.py` | 📌 | Pinned by the characterization tests above |
 
 ---
 
@@ -147,8 +104,6 @@ All 9 files in `cnm/src/EthosCn.Contracts/` are **🔧 compile-verified** — pu
 | `console/k8s/*.yaml` (5 files) | 📋 | §7 — liveness probe path (`/api/health/live`) is 📌 pinned in test_contracts.py |
 | `console/requirements.txt` | 🔧 | pip install — no testable behavior |
 | `console/pytest.ini` | 🔧 | pytest config |
-| `cnm/docker-compose.yml` | 📋 | §1 Local Dev Setup in e2e-testing.md |
-| `ethos-console.sln` | 🔧 | Solution file |
 | `start-local.ps1` | 📋 | §1 Local Dev Setup |
 
 ---
@@ -167,11 +122,7 @@ All 9 files in `cnm/src/EthosCn.Contracts/` are **🔧 compile-verified** — pu
 ## Running the Full Suite
 
 ```bash
-# Python (204 tests)
 cd console && python -m pytest tests/ -v
-
-# C# (22 tests)
-cd cnm && dotnet test
 ```
 
 Manual procedures: see `docs/e2e-testing.md` §12 for the full console smoke test checklist.

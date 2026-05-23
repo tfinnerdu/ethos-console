@@ -1,6 +1,4 @@
 param(
-    [switch]$CnmOnly,
-    [switch]$ConsoleOnly,
     [switch]$ForceDeps
 )
 
@@ -18,32 +16,19 @@ if (Test-Path $EnvFile) {
     }
 }
 
-$CnmApiPort  = if ($env:CNM_API_PORT) { $env:CNM_API_PORT } else { "5011" }
-$ConsolePort = if ($env:PORT)         { $env:PORT }         else { "5012" }
+$ConsolePort = if ($env:PORT) { $env:PORT } else { "5012" }
 
 Write-Host ""
-Write-Host "  Doane Ethos Console - Local Hub"
-Write-Host "  ================================"
-Write-Host "  CNM API          -> http://localhost:$CnmApiPort"
-Write-Host "  Ethos Console    -> http://localhost:$ConsolePort"
+Write-Host "  Doane Ethos Console"
+Write-Host "  ==================="
+Write-Host "  http://localhost:$ConsolePort"
 Write-Host ""
 
 $forceSwitches = if ($ForceDeps) { "-ForceDeps" } else { "" }
 
-if (-not $ConsoleOnly) {
-    Write-Host "[Hub] Starting CNM API..."
-    $cnmScript = Join-Path $Root "cnm\start-local.ps1"
-    Start-Process powershell `
-        -ArgumentList "-NoExit -File `"$cnmScript`" $forceSwitches" `
-        -WindowStyle Normal
-}
+$consoleScript = Join-Path $Root "console\start-local.ps1"
+Start-Process powershell `
+    -ArgumentList "-NoExit -File `"$consoleScript`" $forceSwitches" `
+    -WindowStyle Normal
 
-if (-not $CnmOnly) {
-    Write-Host "[Hub] Starting Ethos Dev Console..."
-    $consoleScript = Join-Path $Root "console\start-local.ps1"
-    Start-Process powershell `
-        -ArgumentList "-NoExit -File `"$consoleScript`" $forceSwitches" `
-        -WindowStyle Normal
-}
-
-Write-Host "[Hub] Both services launched in separate windows."
+Write-Host "[Hub] Console launched in a separate window."

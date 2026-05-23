@@ -23,41 +23,6 @@
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
 <div id="cn-section-monitor">
 
-{% if not cnm_configured %}
-<div class="row justify-content-center mt-2">
-  <div class="col-lg-7">
-    <div class="card border-warning">
-      <div class="card-header bg-warning text-dark fw-semibold">
-        <i class="bi bi-bell-slash me-2"></i>CNM service not configured
-      </div>
-      <div class="card-body">
-        <p class="mb-3">
-          The Monitor section proxies data from the <strong>EthosCn CNM API</strong>.
-          To enable it, point the console at your running CNM instance.
-        </p>
-        <ol class="mb-3">
-          <li class="mb-2">
-            Add <code>CNM_BASE_URL</code> to your <code>.env</code>:<br>
-            <code class="text-muted">CNM_BASE_URL=http://localhost:5011</code> (dev)<br>
-            <code class="text-muted">CNM_BASE_URL=https://your-host/prod/cnm</code> (prod)
-          </li>
-          <li class="mb-2">
-            <strong>Production only</strong> — also add a Bearer token:<br>
-            <code class="text-muted">CNM_API_KEY=&lt;Azure AD service token&gt;</code>
-          </li>
-          <li class="mb-2">Restart the console and return to this tab.</li>
-        </ol>
-        <div class="alert alert-info small mb-0">
-          <i class="bi bi-info-circle me-1"></i>
-          The Push section is available now — it uses your configured Ethos API key directly.
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-{% else %}
-
 <!-- Status bar -->
 <div class="row g-2 mb-3">
   <div class="col-auto">
@@ -268,7 +233,6 @@
   </div>
 
 </div><!-- tab-content -->
-{% endif %}
 </div><!-- cn-section-monitor -->
 
 

@@ -72,7 +72,7 @@ console bugs**:
 
 | Symptom | Cause | Not a bug because… |
 |---|---|---|
-| `Connection refused` / `WinError 10061` on the **CN Monitor** tab, host `localhost:5011` | The CNM service (the C# `cnm/` project) is not running locally. | The console is a thin proxy — it has nothing to serve until CNM is up. Start CNM, or point `CNM_BASE_URL` at a running instance. |
+| Empty Notifications / Diagnostics on the **CN Monitor** tab in non-mock mode | The in-process Colleague change-notification reader is intentionally stubbed pending endpoint confirmation. | Same TODO state the previous C# CNM service was in — the data layer is awaiting Colleague Web API endpoint inventory. Mock mode shows realistic CN data while the real path is wired up. |
 | `Connection aborted` / `ConnectionResetError 10054` on the **Colleague API** tab | The Colleague Web API host is not reachable (no VPN, firewall, or the host genuinely reset the connection). | Network reachability is an environment fact, not console logic. Connect to the Doane network / VPN, or test from a host that can reach it. |
 | `401 Unauthorized` from `…/api/available-resources` (Resources tab, Field Diff resource list) | The Ethos **API key in use lacks scope** for the `available-resources` endpoint. The key may be valid for other calls and still be denied this one. | Endpoint-level authorization is granted in Ethos, not in this code. Use a key whose application has access to `available-resources`. |
 | Replay cannot reach Conductor | `CONDUCTOR_URL` points at a host not reachable from the workstation. | Same as above — reachability is environmental. |
@@ -94,7 +94,7 @@ traceback), that is a console bug worth filing.
 | EEDM Resource Coverage Map: "No resources — check ETHOS_API_KEY" | **Environment + bug — fixed (UI)** | Root cause is the `available-resources` 401 below. Separately, the Resources page swallowed the real error and always showed the generic "check ETHOS_API_KEY" text. It now surfaces the actual error (e.g. the 401) in the status line and table. |
 | Field Diff resource list: `401 … available-resources` | **Environment** | The Ethos key lacks scope for `available-resources`. The Field Diff resource list now shows the real error instead of rendering blank. |
 | Colleague Web API: `ConnectionResetError 10054` | **Environment** | Colleague Web API host unreachable from the test workstation. Needs network/VPN access. No console change. |
-| CN tabs: `localhost:5011 … connection refused` | **Environment** | The CNM service is not running locally. Start it, or repoint `CNM_BASE_URL`. No console change. |
+| CN tab shows empty notifications / diagnostics in non-mock mode | **Implementation** | The CN data layer (`app/cn_repository.py`) is stubbed pending Colleague Web API endpoint confirmation. Run in mock mode (`CONSOLE_MOCK_MODE=true`) to see realistic CN data while the real path is being wired up. |
 
 ---
 
@@ -134,8 +134,8 @@ When on:
 
 - Every tab is exercisable. The "off" badges disappear because every feature
   flag is forced true.
-- `MockEthosClient`, `MockCnmClient`, `MockColleagueApiClient`,
-  `MockConductorClient`, and `MockUnidataClient` (under `app/mocks/`) replace
+- `MockEthosClient`, `MockColleagueApiClient`, `MockConductorClient`,
+  `MockUnidataClient`, and `MockCnRepository` (under `app/mocks/`) replace
   the real clients at app-creation time. Shared fixtures live in
   `app/mocks/fixtures.py` and are pinned by `tests/test_mock_mode.py` so a
   shape change cannot slip through silently.

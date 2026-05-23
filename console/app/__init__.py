@@ -112,13 +112,12 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             # Every feature is exercisable in mock mode — clear all "off" badges.
             configured_features = {
                 k: True for k in
-                ("ethos", "conductor", "cnm", "unidata", "colleague_api", "alerting")
+                ("ethos", "conductor", "unidata", "colleague_api", "alerting")
             }
         else:
             configured_features = {
                 "ethos":         bool(app.config.get("ETHOS_API_KEY")),
                 "conductor":     bool(app.config.get("CONDUCTOR_URL")),
-                "cnm":           bool(app.config.get("CNM_BASE_URL")),
                 "unidata":       bool(app.config.get("UNIDATA_HOST")),
                 "colleague_api": bool(app.config.get("COLLEAGUE_WEB_API_URL")),
                 "alerting":      bool(app.config.get("ALERT_WEBHOOK_URL")),
