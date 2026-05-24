@@ -26,10 +26,14 @@ class EthosClient:
         return self._token
 
     def get_headers(self, accept: str = "application/json") -> dict:
+        # No Content-Type on the default — methods that POST a body either pass
+        # `json=...` (requests auto-sets application/json) or override the
+        # header explicitly. Sending Content-Type on a body-less GET trips
+        # routing on some Ellucian gateways and was causing 404s on
+        # /api/available-resources for tenants that worked over curl.
         return {
             "Authorization": f"Bearer {self.get_token()}",
             "Accept": accept,
-            "Content-Type": "application/json",
         }
 
     def get_resource(self, resource: str, params: dict | None = None, version: str | None = None) -> list | dict:
