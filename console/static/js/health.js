@@ -84,5 +84,26 @@ async function loadHealth() {
   }
 }
 
+async function refreshConsoleCaches() {
+  const btn = document.querySelector('[onclick="refreshConsoleCaches()"]');
+  const status = document.getElementById('cache-refresh-status');
+  btn.disabled = true;
+  status.className = 'small text-muted ms-2';
+  status.textContent = 'Refreshing…';
+  try {
+    const r = await fetch('/api/health/caches/refresh', { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    status.className = 'small text-success ms-2';
+    status.textContent = `Cleared: ${(data.cleared || []).join(', ')}`;
+  } catch (e) {
+    status.className = 'small text-danger ms-2';
+    status.textContent = `Failed: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { status.textContent = ''; }, 6000);
+  }
+}
+
 loadHealth();
 setInterval(loadHealth, 10000);

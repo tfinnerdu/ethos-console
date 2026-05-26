@@ -76,6 +76,52 @@ def _schema_from_resources(resources: list) -> dict:
         "_source": "available-resources",
     }
 
+
+def _resources_from_graphql_schema(schema: dict) -> list:
+    """Synthesise an /api/available-resources-shaped list from a GraphQL
+    introspection schema.
+
+    Each Query field like ``personAddresses11`` becomes resource
+    ``person-addresses`` with version ``11``. Different versions of the same
+    resource (``persons16`` + ``persons17``) collapse into a single entry
+    with multiple representations.
+    """
+    import re
+
+    query_type_name = schema.get("queryType", {}).get("name", "Query")
+    type_map = {t["name"]: t for t in schema.get("types", []) if t.get("name")}
+    query = type_map.get(query_type_name, {})
+
+    resources: dict[str, set[str]] = {}
+    for field in (query.get("fields") or []):
+        name = field.get("name", "")
+        # Strip the trailing digits as the version; the rest is the camel
+        # resource name.
+        m = re.match(r"^([a-z][A-Za-z]*?)(\d+)$", name)
+        if not m:
+            continue
+        camel, version = m.group(1), m.group(2)
+        kebab = re.sub(r"(?<!^)(?=[A-Z])", "-", camel).lower()
+        resources.setdefault(kebab, set()).add(version)
+
+    out = []
+    for resource_name, versions in resources.items():
+        sorted_versions = sorted(versions, key=int, reverse=True)
+        out.append({
+            "name": resource_name,
+            "latestVersion": sorted_versions[0] if sorted_versions else None,
+            "versions": sorted_versions,
+            "representations": [
+                {
+                    "X-Media-Type": f"application/vnd.hedtech.integration.v{v}+json",
+                    "methods": ["get"],
+                    "version": v,
+                }
+                for v in sorted_versions
+            ],
+        })
+    return sorted(out, key=lambda r: r["name"])
+
 _schema_cache = None
 _schema_cache_time: float = 0.0
 

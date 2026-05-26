@@ -71,7 +71,7 @@
         <div class="col-3"><div class="fw-bold" id="lat-max">—</div><div class="text-muted" style="font-size:.7rem">Max</div></div>
       </div>
     </div>
-    <div class="console-card">
+    <div class="console-card mb-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="console-card-header mb-0">Recent Errors</div>
         <a href="/errors" class="btn btn-xs-link small">View all <i class="bi bi-arrow-right"></i></a>
@@ -79,6 +79,20 @@
       <div id="error-list">
         <div class="text-muted small">No errors recorded.</div>
       </div>
+    </div>
+
+    <!-- Console internals — out-of-the-way maintenance actions -->
+    <div class="console-card">
+      <div class="console-card-header mb-2">Console Internals</div>
+      <div class="small text-muted mb-2">
+        Drop the in-memory caches the Schema Browser, GraphQL tab, and
+        Resources tab share. The next request rebuilds them from the active
+        Ethos environment.
+      </div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="refreshConsoleCaches()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh caches
+      </button>
+      <span id="cache-refresh-status" class="small ms-2"></span>
     </div>
   </div>
 </div>

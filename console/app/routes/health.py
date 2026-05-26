@@ -25,3 +25,23 @@ def token_status():
     """Lightweight token status — polled by the expiry warning banner."""
     ethos = get_ethos(current_app._get_current_object())
     return jsonify(ethos.token_status)
+
+
+@health_bp.post("/caches/refresh")
+@api_auth_required
+def refresh_caches():
+    """Drop every introspection-derived cache the console shares across tabs.
+    Cheap; the next request rebuilds against the active Ethos environment.
+    Useful when Ethos-side config changed mid-session or when debugging.
+    """
+    import app.routes.graphql_routes as gr
+    import app.routes.resources as rr
+    gr._schema_cache = None
+    gr._schema_cache_time = 0.0
+    rr._resource_cache = []
+    rr._resource_source = ""
+    rr._cn_resource_cache = []
+    return jsonify({
+        "refreshed": True,
+        "cleared": ["graphql_schema", "available_resources", "cn_resources"],
+    })

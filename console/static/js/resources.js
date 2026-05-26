@@ -6,6 +6,8 @@ let annotationMap = {};
 let currentFilter = 'all';
 let selectedResource = null;
 let resourceError = null;
+let resourceSource = '';
+let resourceNote = '';
 
 function esc(s) {
   const d = document.createElement('div');
@@ -24,9 +26,13 @@ async function loadResources() {
   if (resR.status === 'fulfilled') {
     allResources = resR.value.items || [];
     resourceError = resR.value.error || null;
+    resourceSource = resR.value.source || '';
+    resourceNote = resR.value.note || '';
   } else {
     allResources = [];
     resourceError = (resR.reason && resR.reason.message) || 'Failed to reach the console API';
+    resourceSource = '';
+    resourceNote = '';
   }
   if (cnR.status === 'fulfilled' && cnR.value.items) {
     cnSet = new Set((cnR.value.items || []).map(i => i.resourceName || i.name || i));
@@ -54,6 +60,13 @@ function renderTable() {
   if (!total && resourceError) {
     statusEl.className = 'small mb-2 text-danger';
     statusEl.textContent = `Could not load resources — ${resourceError}`;
+  } else if (resourceSource === 'graphql-schema') {
+    // Fallback path fired — REST /api/available-resources is unreachable
+    // but GraphQL introspection gave us the list. Surface this so the
+    // operator knows what they're looking at.
+    statusEl.className = 'small mb-2 text-warning';
+    statusEl.textContent =
+      `Showing ${rows.length} of ${total} resources (via GraphQL fallback — ${resourceNote || 'available-resources endpoint unavailable'})`;
   } else {
     statusEl.className = 'text-muted small mb-2';
     statusEl.textContent =
