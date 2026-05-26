@@ -88,10 +88,15 @@ class EthosClient:
         return int(data) if isinstance(data, (int, str)) else int(data.get("count", 0))
 
     def get_available_resources(self) -> list:
-        # Ellucian's Integration gateway requires the versioned media type for
-        # this endpoint — sending plain application/json routes to a 404,
-        # masking the real reason (which is almost always a scope issue on
-        # the application key, surfacing as 401 once the right MIME is sent).
+        # Not currently called from the Resources route — see
+        # app/routes/resources.py::_populate_resource_cache. The route derives
+        # the resource list from GraphQL introspection until the REST
+        # endpoint's tenant-scoping is sorted out. Kept here so diagnostic
+        # callers (curl, future revisits, scripts) can still exercise it.
+        #
+        # Ellucian's gateway requires the versioned media type — plain
+        # application/json routes to a 404 even on tenants where the call
+        # would otherwise return 200.
         r = requests.get(
             f"{self.base_url}/api/available-resources",
             headers=self.get_headers(

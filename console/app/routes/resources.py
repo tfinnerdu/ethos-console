@@ -12,68 +12,49 @@ _cn_resource_cache: list = []
 
 
 def _populate_resource_cache(ethos) -> tuple[list, str, str | None]:
-    """Resolve the resource list, falling back to GraphQL introspection when
-    /api/available-resources is unreachable (401/404/scope issues on the
-    tenant's application key).
+    """Resolve the resource list via GraphQL introspection.
 
-    Returns (items, source, fallback_note). source is "available-resources"
-    or "graphql-schema"; fallback_note is non-empty only when the fallback
-    fired.
+    Parked: /api/available-resources is a meta endpoint whose access is gated
+    by application type/role on the Ethos side, and tenant configuration for
+    it varies enough that we hit 401/404 cases that aren't ours to fix.
+    GraphQL introspection exposes the same data — query field names →
+    camelCase resource, trailing digits → version — so we use that as the
+    sole source until the REST path is sorted out tenant-side.
+
+    `EthosClient.get_available_resources()` is intentionally left in place
+    for direct diagnostic use and so the future-revisit path is one
+    `ethos.get_available_resources()` call away. It just isn't wired here.
+
+    Reuses the introspection schema cache shared with the Schema Browser and
+    GraphQL tab so this is free when those tabs have been visited first.
     """
-    try:
-        items = ethos.get_available_resources()
-        return items, "available-resources", None
-    except Exception as rest_exc:
-        # The REST endpoint is meta-scoped on the application; some tenants'
-        # application keys aren't authorized for it. GraphQL introspection
-        # exposes the same resource list (query field names → camelCase,
-        # trailing digits → version), so derive from there.
-        #
-        # Reuse the introspection cache shared with the Schema Browser and
-        # GraphQL tab so we don't re-fetch the schema if it's already loaded.
-        import time as _time
-        from app.routes import graphql_routes as gr
-        from app.routes.graphql_routes import (
-            INTROSPECTION_QUERY,
-            SCHEMA_CACHE_TTL,
-            _resources_from_graphql_schema,
-        )
+    import time as _time
+    from app.routes import graphql_routes as gr
+    from app.routes.graphql_routes import (
+        INTROSPECTION_QUERY,
+        SCHEMA_CACHE_TTL,
+        _resources_from_graphql_schema,
+    )
 
-        schema = None
-        cached = gr._schema_cache
-        if (
-            cached is not None
-            and cached.get("_source") != "available-resources"
-            and (_time.time() - gr._schema_cache_time) < SCHEMA_CACHE_TTL
-        ):
-            schema = cached
-        else:
-            try:
-                result = ethos.graphql(INTROSPECTION_QUERY)
-            except Exception as gql_exc:
-                raise RuntimeError(
-                    f"REST /api/available-resources failed ({rest_exc}); "
-                    f"GraphQL fallback also failed ({gql_exc})."
-                ) from rest_exc
-            schema = (result.get("data") or {}).get("__schema")
-            if schema:
-                # Populate the shared cache so the next Schema Browser /
-                # GraphQL-tab visit doesn't refetch either.
-                gr._schema_cache = schema
-                gr._schema_cache_time = _time.time()
+    schema = None
+    cached = gr._schema_cache
+    if (
+        cached is not None
+        and cached.get("_source") != "available-resources"
+        and (_time.time() - gr._schema_cache_time) < SCHEMA_CACHE_TTL
+    ):
+        schema = cached
+    else:
+        result = ethos.graphql(INTROSPECTION_QUERY)
+        schema = (result.get("data") or {}).get("__schema")
+        if schema:
+            gr._schema_cache = schema
+            gr._schema_cache_time = _time.time()
 
-        if not schema:
-            raise RuntimeError(
-                f"REST /api/available-resources failed ({rest_exc}); "
-                f"GraphQL fallback returned no schema."
-            ) from rest_exc
+    if not schema:
+        raise RuntimeError("GraphQL introspection returned no schema.")
 
-        items = _resources_from_graphql_schema(schema)
-        note = (
-            f"Derived from GraphQL introspection — /api/available-resources "
-            f"returned: {rest_exc}"
-        )
-        return items, "graphql-schema", note
+    return _resources_from_graphql_schema(schema), "graphql-schema", None
 
 
 @resources_bp.get("/")

@@ -24,55 +24,51 @@ def test_resources_list(client, mock_ethos):
     assert "items" in data
 
 
-def test_resources_list_uses_rest_source_by_default(client, mock_ethos):
-    """When /api/available-resources succeeds, the response source is the
-    REST endpoint and no fallback note is attached."""
-    data = client.get("/api/resources/").get_json()
-    assert data["source"] == "available-resources"
-    assert "note" not in data
-
-
-def test_resources_list_falls_back_to_graphql_when_rest_fails(client, mock_ethos):
-    """When /api/available-resources raises (401/404/scope issues), the
-    route derives the list from GraphQL introspection so the tab still works."""
-    mock_ethos.get_available_resources.side_effect = Exception(
-        "401 Client Error: Unauthorized"
-    )
+def test_resources_list_source_is_graphql_schema(client, mock_ethos):
+    """The Resources route derives its list from GraphQL introspection
+    until /api/available-resources is sorted out tenant-side."""
     mock_ethos.graphql.return_value = {
         "data": {
             "__schema": {
                 "queryType": {"name": "Query"},
-                "types": [
-                    {
-                        "name": "Query",
-                        "kind": "OBJECT",
-                        "fields": [
-                            {"name": "persons16", "type": {"name": "P16", "kind": "OBJECT"}},
-                            {"name": "personAddresses11", "type": {"name": "PA11", "kind": "OBJECT"}},
-                            {"name": "sections16", "type": {"name": "S16", "kind": "OBJECT"}},
-                        ],
-                    },
-                ],
+                "types": [{
+                    "name": "Query", "kind": "OBJECT",
+                    "fields": [
+                        {"name": "persons16", "type": {"name": "P16", "kind": "OBJECT"}},
+                        {"name": "personAddresses11", "type": {"name": "PA11", "kind": "OBJECT"}},
+                    ],
+                }],
             }
         }
     }
     data = client.get("/api/resources/").get_json()
     assert data["source"] == "graphql-schema"
-    assert "note" in data and "Derived from GraphQL" in data["note"]
     names = {i["name"] for i in data["items"]}
-    assert {"persons", "person-addresses", "sections"} <= names
+    assert {"persons", "person-addresses"} <= names
     persons = next(i for i in data["items"] if i["name"] == "persons")
     assert persons["latestVersion"] == "16"
 
 
-def test_resources_fallback_reuses_shared_graphql_schema_cache(client, mock_ethos):
-    """When the GraphQL fallback fires and the schema cache is already warm
-    (Schema Browser / GraphQL tab loaded it), the resources route must
-    reuse it instead of calling ethos.graphql() again."""
+def test_resources_does_not_call_rest_available_resources(client, mock_ethos):
+    """Belt-and-suspenders: the route must not invoke
+    ethos.get_available_resources() — that path is parked until REST scope
+    is sorted out."""
+    mock_ethos.graphql.return_value = {
+        "data": {"__schema": {"queryType": {"name": "Query"},
+                              "types": [{"name": "Query", "kind": "OBJECT", "fields": []}]}}
+    }
+    mock_ethos.get_available_resources.reset_mock()
+    client.get("/api/resources/")
+    mock_ethos.get_available_resources.assert_not_called()
+
+
+def test_resources_reuses_shared_graphql_schema_cache(client, mock_ethos):
+    """When the schema cache is already warm (Schema Browser / GraphQL tab
+    loaded it), the Resources route reuses it instead of calling
+    ethos.graphql() again."""
     import time
     import app.routes.graphql_routes as gr
 
-    # Warm the shared cache as if Schema Browser had loaded it.
     gr._schema_cache = {
         "queryType": {"name": "Query"},
         "types": [{
@@ -82,11 +78,10 @@ def test_resources_fallback_reuses_shared_graphql_schema_cache(client, mock_etho
     }
     gr._schema_cache_time = time.time()
     try:
-        mock_ethos.get_available_resources.side_effect = Exception("401 Unauthorized")
         mock_ethos.graphql.reset_mock()
         data = client.get("/api/resources/").get_json()
         assert data["source"] == "graphql-schema"
-        # The whole point: no fresh GraphQL call when the cache is warm.
+        # Warm cache must mean no fresh GraphQL call.
         mock_ethos.graphql.assert_not_called()
     finally:
         gr._schema_cache = None
@@ -100,6 +95,14 @@ def test_env_switch_clears_resource_cache(client, mock_ethos, app):
         {"name": "Dev",  "url": "https://d.example", "key": "dk", "graphql_key": ""},
         {"name": "Test", "url": "https://t.example", "key": "tk", "graphql_key": ""},
     ]
+    mock_ethos.graphql.return_value = {
+        "data": {"__schema": {
+            "queryType": {"name": "Query"},
+            "types": [{"name": "Query", "kind": "OBJECT", "fields": [
+                {"name": "persons16", "type": {"name": "P", "kind": "OBJECT"}},
+            ]}],
+        }}
+    }
     # Warm the cache.
     client.get("/api/resources/")
     import app.routes.resources as rr
