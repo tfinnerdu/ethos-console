@@ -145,3 +145,8 @@ function formatPayload() {
     ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
   } catch { /* ignore */ }
 }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+// Server-side cache makes this cheap on repeat visits — auto-load so the
+// tab doesn't require a manual click to populate.
+loadTypes();

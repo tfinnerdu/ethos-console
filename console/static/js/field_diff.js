@@ -90,3 +90,8 @@ async function runDiff(resource) {
     panel.innerHTML = `<div class="text-danger small">${e.message}</div>`;
   }
 }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('diff-resource-list')) loadDiffResources();
+});

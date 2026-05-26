@@ -303,3 +303,11 @@ function clearSubroutine() {
   document.getElementById('sub-meta').textContent = '';
   _subArgCount = 0;
 }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+// Auto-load the files list so the tab doesn't require a manual click.
+// Wraps in DOMContentLoaded because the file-list container is inside the
+// configured-only branch of the template.
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('cq-file-list')) loadFiles();
+});

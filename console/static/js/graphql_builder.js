@@ -8,16 +8,10 @@ let saveModal = null;
 
 // ── Schema loading ────────────────────────────────────────────────────────────
 
-async function loadSchema(forceRefresh = false) {
-  const btn = document.getElementById('btn-load-schema');
+async function loadSchema() {
   const status = document.getElementById('schema-status');
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
   status.textContent = 'Loading...';
-
   try {
-    if (forceRefresh) {
-      await fetch('/api/graphql-console/schema', { method: 'DELETE' });
-    }
     const r = await fetch('/api/graphql-console/schema');
     const data = await r.json();
     if (data.error) throw new Error(data.error);
@@ -28,8 +22,6 @@ async function loadSchema(forceRefresh = false) {
     status.textContent = '✗ ' + e.message;
     document.getElementById('schema-tree').innerHTML =
       `<div class="text-danger small p-2">Schema load failed: ${e.message}</div>`;
-  } finally {
-    btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
   }
 }
 
@@ -390,3 +382,4 @@ async function deleteQuery(id) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadSavedQueries();
+loadSchema();

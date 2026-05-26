@@ -77,18 +77,30 @@ function renderTable() {
   tbody.innerHTML = rows.map(r => {
     const name = resourceName(r);
     const ver = r.latestVersion || r.version || '—';
+    const versionsStr = (r.versions || []).join(', ') || ver;
     const isCn = cnSet.has(name);
     const ann = annotationMap[name];
     const isGap = ann?.trigger_conditions_gap;
     const isSel = selectedResource === name;
 
-    return `<tr class="resource-row${isSel ? ' selected' : ''}" onclick="selectResource('${name}', '${ver}', ${JSON.stringify((r.versions||[]).join(', ') || ver)})">
-      <td class="font-monospace small">${name}</td>
-      <td class="text-muted small">v${ver}</td>
+    // Use data-* attributes instead of inlining values into the onclick
+    // expression — the previous JSON.stringify inside the attribute broke
+    // when the version list contained quote-significant characters.
+    return `<tr class="resource-row${isSel ? ' selected' : ''}"
+               data-resource-name="${esc(name)}"
+               data-resource-version="${esc(ver)}"
+               data-resource-versions="${esc(versionsStr)}"
+               onclick="selectResourceFromRow(this)">
+      <td class="font-monospace small">${esc(name)}</td>
+      <td class="text-muted small">v${esc(ver)}</td>
       <td>${isCn ? '<span class="badge badge-active" style="font-size:.65rem">CN ✓</span>' : '<span class="badge badge-unknown" style="font-size:.65rem">—</span>'}</td>
       <td>${isGap ? '<i class="bi bi-exclamation-triangle-fill text-warning" title="TRIGGER_CONDITIONS gap"></i>' : ''}</td>
     </tr>`;
   }).join('');
+}
+
+function selectResourceFromRow(row) {
+  selectResource(row.dataset.resourceName, row.dataset.resourceVersion, row.dataset.resourceVersions);
 }
 
 function resourceName(r) {
@@ -103,12 +115,6 @@ function setFilter(f, btn) {
 }
 
 function filterTable() { renderTable(); }
-
-async function refreshResources() {
-  await fetch('/api/resources/refresh', { method: 'POST' });
-  allResources = []; cnSet = new Set();
-  await loadResources();
-}
 
 // ── Detail panel ──────────────────────────────────────────────────────────────
 

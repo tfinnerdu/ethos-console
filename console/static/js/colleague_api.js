@@ -186,3 +186,9 @@ function clearTransaction() {
   document.getElementById('ctx-result').innerHTML = '';
   document.getElementById('ctx-meta').textContent = '';
 }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+// Auto-populate event configurations when the configured branch renders.
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('evcfg-list')) loadEventConfigs();
+});
