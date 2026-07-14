@@ -26,6 +26,16 @@ def _make_app(secret_key):
         test_app = create_app("development")
     test_app.config.update(
         TESTING=False,
+        # Flask lazily sets the "app"-named logger to DEBUG the first time
+        # app.logger is touched on a DEBUG=True app (e.g. while handling a
+        # real client request below). "app.health_monitor" is a child logger
+        # that would inherit that level — and uopy (imported by
+        # unidata_client.py) globally reclasses every not-yet-created logger
+        # as its own UOLogger the moment it's imported, whose debug()
+        # override has a real arg-count bug once DEBUG-enabled. Keep this
+        # False so this file (the one place real HTTP requests hit a
+        # non-TESTING app) can't flip that on for the rest of the suite.
+        DEBUG=False,
         SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
         SECRET_KEY=secret_key,
     )

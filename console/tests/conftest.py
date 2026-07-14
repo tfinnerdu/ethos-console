@@ -13,6 +13,14 @@ def app():
 
     flask_app.config.update(
         TESTING=True,
+        # DEBUG=False matters beyond Flask's own behavior: the first current_app.logger
+        # access on a DEBUG=True app makes Flask set the "app"-named logger to DEBUG
+        # (flask.logging.create_logger). uopy (imported by unidata_client.py) globally
+        # reclasses every not-yet-created logger to its own UOLogger the moment it's
+        # imported, and UOLogger.debug() has a real arg-count bug once DEBUG-enabled —
+        # so leaving this True risks poisoning app.health_monitor's logger for the rest
+        # of the suite the first time any route logs via current_app.logger.
+        DEBUG=False,
         SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
         ETHOS_ENVIRONMENTS=[],
         WTF_CSRF_ENABLED=False,

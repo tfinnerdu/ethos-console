@@ -128,7 +128,7 @@ All templates are **🔧 compile-verified** by Flask's Jinja2 template engine (s
 ## Running the Full Suite
 
 ```bash
-# Python (PLACEHOLDER_COUNT tests)
+# Python (368 tests)
 cd console && python -m pytest tests/ -v
 ```
 
