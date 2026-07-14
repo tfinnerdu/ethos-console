@@ -25,6 +25,8 @@
   </PropertyGroup>
   <!-- ── Application source ─────────────────────────────────────────────── -->
   <ItemGroup>
+    <Compile Include="app\dob_detector.py" />
+    <Compile Include="app\dob_sql_source.py" />
     <Compile Include="run.py" />
     <Compile Include="config.py" />
     <Compile Include="app\__init__.py" />
@@ -64,6 +66,11 @@
   </ItemGroup>
   <!-- ── Tests ──────────────────────────────────────────────────────────── -->
   <ItemGroup>
+    <Compile Include="test.py" />
+    <Compile Include="tests\test_default_env.py" />
+    <Compile Include="tests\test_dob_detector.py" />
+    <Compile Include="tests\test_dob_repair_api.py" />
+    <Compile Include="tests\test_dob_sql_source.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
     <Compile Include="tests\test_audit.py" />
@@ -85,6 +92,7 @@
   </ItemGroup>
   <!-- ── Templates ─────────────────────────────────────────────────────── -->
   <ItemGroup>
+    <Content Include=".env" />
     <Content Include=".gitignore" />
     <Content Include="app\templates\_macros.html" />
     <Content Include="app\templates\base.html" />
@@ -101,6 +109,7 @@
     <Content Include="app\templates\replay.html" />
     <Content Include="app\templates\resources.html" />
     <Content Include="app\templates\schema_browser.html" />
+    <Content Include="tests\fixtures\dob_sample_persons.csv" />
   </ItemGroup>
   <!-- ── Static assets ──────────────────────────────────────────────────── -->
   <ItemGroup>
@@ -110,6 +119,7 @@
     <Content Include="static\js\colleague_api.js" />
     <Content Include="static\js\colleague_query.js" />
     <Content Include="static\js\confirm.js" />
+    <Content Include="static\js\dob_repair.js" />
     <Content Include="static\js\errors.js" />
     <Content Include="static\js\field_diff.js" />
     <Content Include="static\js\graphql_builder.js" />
@@ -142,6 +152,7 @@
     <Folder Include="static\css\" />
     <Folder Include="static\js\" />
     <Folder Include="tests\" />
+    <Folder Include="tests\fixtures\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Fallback if PTVS targets are not installed (Rider / dotnet CLI) -->
