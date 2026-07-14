@@ -344,3 +344,40 @@ def seed_saved_queries(app):
             if not SavedQuery.query.filter_by(name=entry["name"]).first():
                 db.session.add(SavedQuery(**entry))
         db.session.commit()
+
+
+class DobDecision(db.Model):
+    """Reviewer disposition for one DOB Repair candidate pair (PD0002124).
+
+    The detector (app/dob_detector.py) proposes; this table is where a
+    reviewer disposes. Nothing here writes to Colleague — a decision only
+    marks which record a human has approved for correction. The actual write
+    happens outside this app, through a sanctioned Ethos/NAE channel, using
+    the CSV this table feeds via GET /api/dob-repair/export/corrections.
+
+    candidate_id is the detector's stable, order-independent pair key
+    (sorted person_id pair), so decisions survive re-analysis against a
+    fresh PERSON export as long as the same two person_ids reappear.
+    """
+    __tablename__ = "dob_decisions"
+
+    candidate_id = db.Column(db.String(200), primary_key=True)
+    action = db.Column(db.String(20), nullable=False)
+    corrected_person_id = db.Column(db.String(100))
+    corrected_from = db.Column(db.String(20))
+    corrected_to = db.Column(db.String(20))
+    reviewer = db.Column(db.String(100), default="unknown")
+    decided_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    note = db.Column(db.Text)
+
+    def to_dict(self):
+        return {
+            "candidate_id": self.candidate_id,
+            "action": self.action,
+            "corrected_person_id": self.corrected_person_id,
+            "corrected_from": self.corrected_from,
+            "corrected_to": self.corrected_to,
+            "reviewer": self.reviewer,
+            "decided_at": self.decided_at.isoformat() if self.decided_at else None,
+            "note": self.note or "",
+        }

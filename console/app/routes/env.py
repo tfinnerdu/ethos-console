@@ -1,11 +1,9 @@
 from flask import Blueprint, jsonify, request, current_app
-from app.auth import api_auth_required
 
 env_bp = Blueprint("env", __name__)
 
 
 @env_bp.get("/")
-@api_auth_required
 def list_environments():
     envs = current_app.config.get("ETHOS_ENVIRONMENTS", [])
     current = current_app.extensions.get("current_env_name", "")
@@ -16,7 +14,6 @@ def list_environments():
 
 
 @env_bp.post("/switch")
-@api_auth_required
 def switch_environment():
     data = request.get_json(force=True) or {}
     name = (data.get("name") or "").strip()

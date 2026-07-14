@@ -46,15 +46,31 @@ pytest tests/test_mock_mode.py
 | `test_schema_browser_api.py` | Types list, type detail (resolves field→type), introspection-empty error path, validate |
 | `test_mock_mode.py`         | The three required signals (badge / header / health key), per-provider fixture characterizations, every tab returns 200 in mock mode |
 | `test_mnemonics_api.py`     | CRUD, filter, uppercase, 404, 409 |
-| `test_bus_*.py`             | Bus REST + monitor pure-logic methods |
+| `test_bus_*.py`             | Bus REST + monitor pure-logic methods, incl. `/start`/`/stop` and no-auto-start-on-boot regression guard |
+| `test_dob_detector.py`      | PD0002124 detection engine: backward-shift HIGH case, year-boundary shift, same-zone clean records, forward-gap REVIEW, ambiguous-origin MEDIUM, elevated-risk worklist, identity scoring |
+| `test_dob_repair_api.py`    | DOB Repair CRUD: analyze (CSV + SQL fetch), status, candidates, decision (accept/reject/defer), export corrections |
+| `test_dob_sql_source.py`    | SQL fetch read-only guard (rejects writes, multi-statement, `SELECT...INTO`), connection-string building, row mapping — no live SQL Server needed |
 | `test_contracts.py`         | Blueprint prefixes, model shapes, error envelopes, seed counts, health keys |
-| `test_auth.py`              | check_key, `api_auth_required`, `_auth_enabled` |
+| `test_auth.py`              | Login gate: fail-closed when unconfigured/default `SECRET_KEY`, redirect/401 when not logged in, login/logout flow, `next` sanitization — builds its own non-`TESTING` app instance so the real gate runs (every other module gets a free pass via `current_app.testing`) |
 
 ---
 
 ## 2. Liveness and health smoke
 
-After `.\console\start-local.ps1`:
+Run after starting the console with `.\console\start-local.ps1`.
+
+**Login required.** Every curl example below except Liveness needs an
+authenticated session cookie once `AUTH_USERNAME`/`AUTH_PASSWORD` are
+configured (they're fail-closed by default — see the "Authentication"
+subsection of §15 in `docs/console-user-guide.md`). Get a cookie jar once
+and reuse it for the rest of this guide:
+
+```powershell
+curl -c cookies.txt -d "username=<user>&password=<pass>" http://localhost:5012/login
+curl -b cookies.txt http://localhost:5012/api/health/
+```
+
+### Liveness
 
 ```powershell
 # Always 200 — use for Uptime Kuma / k8s liveness probe
@@ -64,6 +80,8 @@ curl http://localhost:5012/api/health/live
 # recent_errors, error_count_1h, error_status, resource_health, ethos_configured, mock
 curl http://localhost:5012/api/health/
 ```
+
+Expected: `{"status": "ok"}` from Liveness; the full health response is covered below.
 
 ### Full health response shape
 
@@ -95,6 +113,8 @@ curl http://localhost:5012/api/health/
 
 ## 3. API smoke (real mode)
 
+All commands below need the `cookies.txt` session cookie from §2 — add `-b cookies.txt` to each (omitted here for brevity).
+
 ```powershell
 $BASE = "http://localhost:5012"
 
@@ -117,9 +137,15 @@ curl $BASE/api/cn/notifications
 curl "$BASE/api/cn/notifications?resource=persons"
 curl $BASE/api/cn/diagnostics
 curl $BASE/api/cn/audit-log
+
+# DOB Repair
+curl $BASE/api/dob-repair/status
+curl -F "csv_file=@console/tests/fixtures/dob_sample_persons.csv" $BASE/api/dob-repair/analyze
 ```
 
 The CN reads against Colleague Web API are intentionally stubbed pending endpoint confirmation, so in real mode `/api/cn/notifications` is expected to return an empty list. Run in mock mode (`CONSOLE_MOCK_MODE=true`) to see realistic CN data.
+
+Expected after the DOB Repair analyze call: `summary.high == 2`, `summary.medium == 1`, `summary.review == 1` against the bundled fixture.
 
 ---
 
@@ -127,15 +153,18 @@ The CN reads against Colleague Web API are intentionally stubbed pending endpoin
 
 Open `http://localhost:5012` and verify:
 
-- [ ] Bus Monitor loads, SSE stream connects (status dot animates)
+- [ ] Unauthenticated request redirects to `/login`; wrong credentials show an error; correct credentials land on Bus Monitor
+- [ ] Bus Monitor loads **stopped** by default (no auto-poll); clicking **Start Monitor** connects the SSE stream (status dot animates) and the button turns into **Stop Monitor**
 - [ ] Resources page loads, table renders (empty without a configured `ETHOS_ENV_n`)
 - [ ] GraphQL page loads, saved query chips appear (5 preloaded)
 - [ ] Health page loads without JS console errors
 - [ ] Error Log page loads, metric tiles show `0` or `—`
+- [ ] DOB Repair page loads; uploading the bundled sample CSV populates the summary tiles and review queue; Export Corrections CSV downloads after accepting a HIGH candidate
 - [ ] "View all →" link from Health navigates to `/errors`
 - [ ] Mnemonics page loads, table renders
 - [ ] Change Notifications tab loads — no "configure CNM" setup card
 - [ ] Schema Browser loads, types list populates after "Load Schema"
+- [ ] Sign out redirects to `/login`; the app is gated again
 
 ### Caustic-operation banners
 

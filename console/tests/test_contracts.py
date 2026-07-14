@@ -15,6 +15,7 @@ from app.database import (
     EthosErrorLog,
     ResourceAnnotation,
     SavedQuery,
+    DobDecision,
     SEED_SAVED_QUERIES,
     db,
 )
@@ -50,6 +51,11 @@ ANNOTATION_DICT_KEYS = {
 SAVED_QUERY_DICT_KEYS = {
     "id", "name", "description", "query_text",
     "variables", "is_preloaded", "created_at", "updated_by",
+}
+
+DOB_DECISION_DICT_KEYS = {
+    "candidate_id", "action", "corrected_person_id", "corrected_from",
+    "corrected_to", "reviewer", "decided_at", "note",
 }
 
 
@@ -96,6 +102,14 @@ def test_saved_query_to_dict_keys(app):
         db.session.add(obj)
         db.session.flush()
         assert set(obj.to_dict().keys()) == SAVED_QUERY_DICT_KEYS
+
+
+def test_dob_decision_to_dict_keys(app):
+    with app.app_context():
+        obj = DobDecision(candidate_id="1001__1002", action="accept")
+        db.session.add(obj)
+        db.session.flush()
+        assert set(obj.to_dict().keys()) == DOB_DECISION_DICT_KEYS
 
 
 # ── Seeded saved query contract ───────────────────────────────────────────────
@@ -155,6 +169,7 @@ EXPECTED_PREFIXES = {
     "/api/schema-browser",
     "/api/phase3",
     "/api/cn",
+    "/api/dob-repair",
 }
 
 
@@ -181,50 +196,18 @@ def test_schema_cache_ttl_is_4_hours():
 
 
 # ── Auth contract ─────────────────────────────────────────────────────────────
-
-def test_auth_open_when_no_key(app):
-    """With no CONSOLE_KEY set, every page is accessible without login."""
-    assert not app.config.get("CONSOLE_KEY"), "This test requires CONSOLE_KEY to be empty"
-    r = app.test_client().get("/")
-    assert r.status_code == 200
-
-
-def test_auth_redirects_when_key_set(app):
-    """When CONSOLE_KEY is set and no session exists, HTML routes redirect to /login."""
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "test-secret"
-        r = app.test_client().get("/")
-        assert r.status_code == 302
-        assert "/login" in r.headers["Location"]
-    finally:
-        app.config["CONSOLE_KEY"] = original
-
-
-def test_auth_wrong_key_returns_login_with_error(app):
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "correct-secret"
-        r = app.test_client().post("/login",
-                                   data={"key": "wrong-secret", "next": "/"},
-                                   follow_redirects=False)
-        assert r.status_code == 200
-        assert b"Invalid access key" in r.data
-    finally:
-        app.config["CONSOLE_KEY"] = original
-
-
-def test_auth_correct_key_grants_access(app):
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "correct-secret"
-        client = app.test_client()
-        r = client.post("/login",
-                        data={"key": "correct-secret", "next": "/"},
-                        follow_redirects=True)
-        assert r.status_code == 200
-    finally:
-        app.config["CONSOLE_KEY"] = original
+# The old CONSOLE_KEY-based gate's behavior contracts (open-when-unset,
+# redirect-when-set, wrong/correct key handling) lived here because that gate
+# had no TESTING-aware bypass — it ran for real even under this file's shared,
+# TESTING=True session `app` fixture. The new gate (app/auth.py) explicitly
+# short-circuits when `current_app.testing` is true, specifically so this
+# shared fixture (and the ~200 other tests using it) don't need to log in —
+# which means real gate behavior can no longer be exercised through this
+# fixture at all. That behavioral coverage now lives in tests/test_auth.py,
+# which builds its own non-TESTING app instance for exactly this reason.
+# (test_login_and_logout_routes_exist, the one contract that's still
+# meaningful under TESTING=True, lives earlier in this file alongside the
+# other blueprint/URL-map contracts.)
 
 
 # ── Phase 3 "not configured" response contract ────────────────────────────────

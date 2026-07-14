@@ -1,125 +1,216 @@
-"""Unit tests for app/auth.py — check_key, api_auth_required, _auth_enabled."""
-import hmac
-import pytest
+"""Tests for the single-credential login gate — app/auth.py, app/routes/auth.py.
+
+This is the one test file in the suite that builds its own app instance
+without TESTING=True, so the before_request gate in app/auth.py actually
+runs. Every other test file gets a free pass from the gate (it returns
+immediately when `current_app.testing` is true) via the shared session `app`
+fixture in conftest.py, which already sets TESTING=True — so none of the
+other test files needed to change for this feature.
+
+Credentials are set via app.config[...] (not monkeypatch.setenv) because
+config.py's Config class reads os.environ once, at import time, into frozen
+class attributes — the same reason the old CONSOLE_KEY-based tests mutated
+app.config directly instead of the environment.
+"""
 from unittest.mock import patch
 
+import pytest
 
-# ── check_key ─────────────────────────────────────────────────────────────────
+from app import auth, create_app
 
-def test_check_key_correct(app):
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "my-secret"
-        with app.app_context():
-            from app.auth import check_key
-            assert check_key("my-secret") is True
-    finally:
-        app.config["CONSOLE_KEY"] = original
+REAL_SECRET_KEY = "a-real-random-test-signing-key-not-the-default"
 
 
-def test_check_key_wrong(app):
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "my-secret"
-        with app.app_context():
-            from app.auth import check_key
-            assert check_key("wrong") is False
-    finally:
-        app.config["CONSOLE_KEY"] = original
+def _make_app(secret_key):
+    with patch("app.ethos_client.EthosClient.is_configured", return_value=False):
+        test_app = create_app("development")
+    test_app.config.update(
+        TESTING=False,
+        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
+        SECRET_KEY=secret_key,
+    )
+    with test_app.app_context():
+        from app.database import db as _db
+        _db.create_all()
+    return test_app
 
 
-def test_check_key_empty_key_allows_all(app):
-    """No CONSOLE_KEY configured → every submitted value passes."""
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = ""
-        with app.app_context():
-            from app.auth import check_key
-            assert check_key("anything") is True
-            assert check_key("") is True
-    finally:
-        app.config["CONSOLE_KEY"] = original
+@pytest.fixture()
+def unconfigured_client(monkeypatch):
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    app = _make_app(REAL_SECRET_KEY)
+    app.config["AUTH_USERNAME"] = ""
+    app.config["AUTH_PASSWORD"] = ""
+    return app.test_client()
 
 
-def test_check_key_trims_whitespace(app):
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "secret"
-        with app.app_context():
-            from app.auth import check_key
-            assert check_key("  secret  ") is True
-    finally:
-        app.config["CONSOLE_KEY"] = original
+@pytest.fixture()
+def default_secret_key_client(monkeypatch):
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    app = _make_app(auth.DEFAULT_SECRET_KEY)
+    app.config["AUTH_USERNAME"] = "admin"
+    app.config["AUTH_PASSWORD"] = "correct-horse"
+    return app.test_client()
 
 
-def test_check_key_uses_hmac_compare_digest(app):
-    """Confirm hmac.compare_digest is used (timing-safe comparison)."""
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "key"
-        with app.app_context():
-            from app import auth as auth_module
-            with patch.object(hmac, "compare_digest", wraps=hmac.compare_digest) as mock_cd:
-                auth_module.check_key("key")
-                mock_cd.assert_called_once()
-    finally:
-        app.config["CONSOLE_KEY"] = original
+@pytest.fixture()
+def configured_client(monkeypatch):
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    app = _make_app(REAL_SECRET_KEY)
+    app.config["AUTH_USERNAME"] = "admin"
+    app.config["AUTH_PASSWORD"] = "correct-horse"
+    return app.test_client()
 
 
-# ── api_auth_required ─────────────────────────────────────────────────────────
-
-def test_api_auth_required_open_when_no_key(app):
-    """With no CONSOLE_KEY, API routes are accessible with no credentials."""
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = ""
-        r = app.test_client().get("/api/health/")
-        assert r.status_code == 200
-    finally:
-        app.config["CONSOLE_KEY"] = original
+def _login(client, username="admin", password="correct-horse", next_path=None):
+    data = {"username": username, "password": password}
+    if next_path is not None:
+        data["next"] = next_path
+    return client.post("/login", data=data)
 
 
-def test_api_auth_required_header_key(app):
-    """X-Console-Key header with correct value grants access."""
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "hdr-secret"
-        r = app.test_client().get("/api/health/",
-                                  headers={"X-Console-Key": "hdr-secret"})
-        assert r.status_code == 200
-    finally:
-        app.config["CONSOLE_KEY"] = original
+class TestFailClosedWhenUnconfigured:
+    def test_home_page_redirects_to_login(self, unconfigured_client):
+        resp = unconfigured_client.get("/")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_login_page_shows_not_configured_notice(self, unconfigured_client):
+        resp = unconfigured_client.get("/login")
+        assert resp.status_code == 503
+        assert b"not configured" in resp.data.lower()
+
+    def test_login_post_also_blocked(self, unconfigured_client):
+        resp = _login(unconfigured_client)
+        assert resp.status_code == 503
+
+    def test_api_route_returns_503_json(self, unconfigured_client):
+        resp = unconfigured_client.get("/api/dob-repair/status")
+        assert resp.status_code == 503
+        assert "not configured" in resp.get_json()["error"].lower()
+
+    def test_existing_page_also_gated(self, unconfigured_client):
+        """Mnemonics used to be @login_required; confirm the global gate
+        still protects it now that the decorator is gone."""
+        resp = unconfigured_client.get("/mnemonics")
+        assert resp.status_code == 302
+
+    def test_health_live_still_exempt(self, unconfigured_client):
+        resp = unconfigured_client.get("/api/health/live")
+        assert resp.status_code == 200
+        assert resp.get_json() == {"status": "ok"}
 
 
-def test_api_auth_required_wrong_header_key(app):
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "hdr-secret"
-        r = app.test_client().get("/api/health/",
-                                  headers={"X-Console-Key": "wrong"})
-        assert r.status_code == 401
-        assert r.get_json()["error"] == "Unauthorized"
-    finally:
-        app.config["CONSOLE_KEY"] = original
+class TestFailClosedWhenSecretKeyIsDefault:
+    """Credentials ARE set here, but SECRET_KEY is still the public default —
+    the gate must treat this exactly like unconfigured, since a default
+    SECRET_KEY makes the session cookie forgeable."""
+
+    def test_home_page_still_blocked(self, default_secret_key_client):
+        resp = default_secret_key_client.get("/")
+        assert resp.status_code == 302
+
+    def test_api_route_still_503(self, default_secret_key_client):
+        resp = default_secret_key_client.get("/api/dob-repair/status")
+        assert resp.status_code == 503
+
+    def test_correct_credentials_do_not_help(self, default_secret_key_client):
+        resp = _login(default_secret_key_client)
+        assert resp.status_code == 503
+
+    def test_health_live_still_exempt(self, default_secret_key_client):
+        resp = default_secret_key_client.get("/api/health/live")
+        assert resp.status_code == 200
 
 
-def test_api_auth_required_no_header_no_session(app):
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "hdr-secret"
-        r = app.test_client().get("/api/health/")
-        assert r.status_code == 401
-    finally:
-        app.config["CONSOLE_KEY"] = original
+class TestGateWhenConfiguredButNotLoggedIn:
+    def test_home_page_redirects_with_next(self, configured_client):
+        resp = configured_client.get("/")
+        assert resp.status_code == 302
+        assert "/login" in resp.headers["Location"]
+
+    def test_api_route_returns_401(self, configured_client):
+        resp = configured_client.get("/api/dob-repair/status")
+        assert resp.status_code == 401
+
+    def test_bare_health_route_gated(self, configured_client):
+        """/api/health/ (bare) was @api_auth_required before; stays gated."""
+        resp = configured_client.get("/api/health/")
+        assert resp.status_code == 401
+
+    def test_health_token_now_gated(self, configured_client):
+        """/api/health/token had NO decorator before (a real gap) — the
+        global gate tightens this rather than exempting it."""
+        resp = configured_client.get("/api/health/token")
+        assert resp.status_code == 401
+
+    def test_login_page_renders_form(self, configured_client):
+        resp = configured_client.get("/login")
+        assert resp.status_code == 200
+        assert b"username" in resp.data.lower()
+        assert b"password" in resp.data.lower()
+
+    def test_login_page_preserves_next_param(self, configured_client):
+        resp = configured_client.get("/login?next=/dob-repair")
+        assert b"/dob-repair" in resp.data
+
+    def test_health_live_still_exempt(self, configured_client):
+        resp = configured_client.get("/api/health/live")
+        assert resp.status_code == 200
 
 
-def test_api_auth_required_session_grants_access(app):
-    original = app.config.get("CONSOLE_KEY", "")
-    try:
-        app.config["CONSOLE_KEY"] = "sess-secret"
-        client = app.test_client()
-        client.post("/login", data={"key": "sess-secret", "next": "/"})
-        r = client.get("/api/health/")
-        assert r.status_code == 200
-    finally:
-        app.config["CONSOLE_KEY"] = original
+class TestLoginFlow:
+    def test_wrong_password_rejected(self, configured_client):
+        resp = _login(configured_client, password="wrong")
+        assert resp.status_code == 401
+        assert b"Invalid username or password" in resp.data
+        assert configured_client.get("/api/dob-repair/status").status_code == 401
+
+    def test_wrong_username_rejected(self, configured_client):
+        resp = _login(configured_client, username="not-admin")
+        assert resp.status_code == 401
+
+    def test_error_message_does_not_reveal_which_field_was_wrong(self, configured_client):
+        wrong_user = _login(configured_client, username="nope").data
+        wrong_pass = _login(configured_client, password="nope").data
+        assert wrong_user == wrong_pass
+
+    def test_correct_credentials_grant_access(self, configured_client):
+        resp = _login(configured_client)
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/")
+        follow_up = configured_client.get("/api/dob-repair/status")
+        assert follow_up.status_code == 200
+
+    def test_correct_credentials_unlock_existing_page(self, configured_client):
+        _login(configured_client)
+        assert configured_client.get("/mnemonics").status_code == 200
+
+    def test_next_param_relative_path_honored(self, configured_client):
+        resp = _login(configured_client, next_path="/dob-repair")
+        assert resp.headers["Location"].endswith("/dob-repair")
+
+    def test_next_param_absolute_url_rejected(self, configured_client):
+        resp = _login(configured_client, next_path="http://evil.example.com/steal")
+        assert resp.headers["Location"].endswith("/")
+        assert "evil.example.com" not in resp.headers["Location"]
+
+    def test_next_param_protocol_relative_rejected(self, configured_client):
+        resp = _login(configured_client, next_path="//evil.example.com/steal")
+        assert resp.headers["Location"].endswith("/")
+        assert "evil.example.com" not in resp.headers["Location"]
+
+    def test_already_authenticated_login_page_redirects_away(self, configured_client):
+        _login(configured_client)
+        resp = configured_client.get("/login")
+        assert resp.status_code == 302
+
+    def test_logout_clears_session(self, configured_client):
+        _login(configured_client)
+        assert configured_client.get("/api/dob-repair/status").status_code == 200
+
+        logout_resp = configured_client.get("/logout")
+        assert logout_resp.status_code == 302
+        assert logout_resp.headers["Location"].endswith("/login")
+
+        assert configured_client.get("/api/dob-repair/status").status_code == 401

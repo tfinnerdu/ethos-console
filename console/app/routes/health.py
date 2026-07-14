@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, current_app
 from app import get_health_monitor, get_ethos
-from app.auth import api_auth_required
 
 health_bp = Blueprint("health", __name__)
 
@@ -12,7 +11,6 @@ def liveness():
 
 
 @health_bp.get("/")
-@api_auth_required
 def health_check():
     hm = get_health_monitor(current_app._get_current_object())
     data = hm.check_health()
@@ -28,7 +26,6 @@ def token_status():
 
 
 @health_bp.post("/caches/refresh")
-@api_auth_required
 def refresh_caches():
     """Drop every introspection-derived cache the console shares across tabs.
     Cheap; the next request rebuilds against the active Ethos environment.

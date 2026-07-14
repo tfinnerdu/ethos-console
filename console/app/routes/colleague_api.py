@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request, current_app
-from app.auth import api_auth_required
 
 colleague_api_bp = Blueprint("colleague_api", __name__)
 
@@ -22,7 +21,6 @@ def _require_configured():
 
 
 @colleague_api_bp.get("/about")
-@api_auth_required
 def get_about():
     client, err = _require_configured()
     if err:
@@ -34,7 +32,6 @@ def get_about():
 
 
 @colleague_api_bp.get("/event-configurations")
-@api_auth_required
 def get_event_configs():
     client, err = _require_configured()
     if err:
@@ -48,7 +45,6 @@ def get_event_configs():
 
 
 @colleague_api_bp.post("/transaction")
-@api_auth_required
 def call_transaction():
     client, err = _require_configured()
     if err:
@@ -66,7 +62,6 @@ def call_transaction():
 
 
 @colleague_api_bp.get("/metadata/<api_domain>/<api_type>")
-@api_auth_required
 def get_metadata(api_domain: str, api_type: str):
     client, err = _require_configured()
     if err:
