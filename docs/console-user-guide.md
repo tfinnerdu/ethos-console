@@ -23,6 +23,7 @@
 13. [Change Notifications](#13-change-notifications)
 14. [Health](#14-health)
 15. [Configuration Reference](#15-configuration-reference)
+16. [DOB Repair](#16-dob-repair)
 
 ---
 
@@ -45,6 +46,7 @@ The Ethos Dev Console is an internal developer tool for the Doane Enterprise Ser
 | Call Colleague CTX transactions via the Web API | Colleague API |
 | Monitor change notification configuration and subscription alignment | Change Notifications |
 | Check API token status, latency, error log | Health |
+| Detect and human-review PD0002124 (Instant Enrollment DOB timezone shift) | DOB Repair |
 
 **Tab badges:** Any tab whose required environment variable is not configured shows a small muted `OFF` chip. These disappear automatically once the corresponding `.env` entry is filled in and the server is restarted.
 
@@ -73,7 +75,11 @@ The console starts on **http://localhost:5012** by default (override with `PORT=
 
 ### Authentication
 
-Set `CONSOLE_KEY=some-secret` in `.env` to password-protect the console. Leave it blank to run open (suitable for local-only use). When a key is set, a **Sign out** link appears in the top nav.
+The console sits behind a single shared username/password (see `app/auth.py`). Set `AUTH_USERNAME` and `AUTH_PASSWORD` in `.env` — any page loads to a **Sign in** screen first. A **Sign out** link always appears in the top nav.
+
+**Fail-closed.** If `AUTH_USERNAME`/`AUTH_PASSWORD` are unset, or `SECRET_KEY` is still the placeholder default, the sign-in page shows "Authentication is not configured on this deployment" instead of a form, and every other page/API route is blocked too — nothing is reachable until it's configured correctly. This is a deliberate, temporary step (one shared credential, no per-user accounts); the plan is to replace it with SSO later without changing how the rest of the app is gated. See `docs/auth-gate-guide.md` for the reusable pattern this follows and exactly what would change at SSO time.
+
+Sessions expire after `AUTH_SESSION_LIFETIME_HOURS` (default 8h). Health check endpoints (`/api/health/live`) are never gated — they have to keep working for uptime monitors and k8s probes regardless of login state.
 
 ---
 
@@ -89,7 +95,7 @@ The dark navy bar at the top of every page.
 | **ENV badge** | Shows the current Flask environment (`DEVELOPMENT` or `PRODUCTION`) |
 | **Ethos environment dropdown** | Appears when 2+ Ethos environments are configured via `ETHOS_ENV_*` vars. Click to hot-swap credentials — switches the active API key and base URL without a restart, and resets the Bus Monitor buffer. |
 | **Health** link | Quick link to the Health tab |
-| **Sign out** link | Ends the session (only visible when `CONSOLE_KEY` is configured) |
+| **Sign out** link | Ends the session |
 
 ### Token Expiry Banner
 
@@ -106,7 +112,9 @@ The dark row of tabs beneath the navbar. Each tab links to a major feature area.
 **URL:** `/`  
 **Requires:** a configured Ethos environment
 
-The Bus Monitor continuously polls the Ethos message bus, displaying every change notification as it arrives. It is the primary real-time operational view.
+The Bus Monitor polls the Ethos message bus, displaying every change notification as it arrives. It is the primary real-time operational view.
+
+**Defaults to stopped.** The console no longer auto-starts polling on boot — click **Start Monitor** to begin (it turns into a red **Stop Monitor** button once running). This avoids spamming Ethos with `/consume` requests every `BUS_POLL_INTERVAL` seconds when nobody is watching the tab. The Start/Stop state is shared across tabs/sessions (it's a server-side background thread, not per-browser) and is reflected live via the same event stream that feeds the live feed below. This is a separate control from **Pause**, which only suspends polling temporarily while leaving the background thread running.
 
 ### Summary Tiles
 
@@ -593,7 +601,22 @@ At least one Ethos environment block is required:
 | `ETHOS_ENV_1_KEY`  | — | Ethos integration API key. Required for all Ethos-backed features. |
 | `ETHOS_ENV_1_GRAPHQL_KEY` | _(falls back to `_KEY`)_ | Optional — set only when the bus key for this env lacks GraphQL scope. |
 | `DEFAULT_ENV` | _(first configured env)_ | Case-insensitive match against an `ETHOS_ENV_n_NAME` to preselect at startup. |
-| `SECRET_KEY` | `dev-secret-change-in-prod` | Flask session signing key. Change in production. |
+| `SECRET_KEY` | `dev-secret-change-in-prod` | Flask session signing key — also signs the login session cookie (see Authentication below). **Must** be a real random value in any deployment that sets `AUTH_USERNAME`/`AUTH_PASSWORD` — left at the default, the login gate can be bypassed by forging a session cookie. Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`. |
+
+### Authentication
+
+```
+AUTH_USERNAME=
+AUTH_PASSWORD=
+AUTH_COOKIE_SECURE=true
+AUTH_SESSION_LIFETIME_HOURS=8
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUTH_USERNAME` / `AUTH_PASSWORD` | — | The single shared login credential, delivered to the container as plaintext env vars from a Kubernetes secret (the secret itself is encrypted at rest). **Fail-closed:** unset either one and every route except health checks is blocked, not silently ungated. |
+| `AUTH_COOKIE_SECURE` | `true` | Cookie only sent over HTTPS. Set `false` only for local `http://localhost` dev. |
+| `AUTH_SESSION_LIFETIME_HOURS` | `8` | How long a login lasts before you're asked to sign in again. |
 
 Define `ETHOS_ENV_2_*` through `ETHOS_ENV_5_*` the same way to expose the nav-bar environment switcher.
 
@@ -649,7 +672,73 @@ ETHOS_ENV_2_KEY=<prod api key>
 | Variable | Default | Description |
 |---|---|---|
 | `DATABASE_URL` | SQLite (`ethos_console.db`) | PostgreSQL connection string if not using SQLite (e.g. `postgresql://user:pass@localhost:5432/ethos_console`) |
-| `CONSOLE_KEY` | *(open)* | Password for the console UI. Leave blank for open access. |
 | `PORT` | `5012` | HTTP port |
 | `FLASK_ENV` | `development` | `development` or `production` |
-| `BUS_POLL_INTERVAL` | `2` | Seconds between Ethos bus polls |
+| `BUS_POLL_INTERVAL` | `2` | Seconds between Ethos bus polls, once started (see §4 — the monitor no longer auto-starts) |
+
+### DOB Repair — SQL Fetch Source
+
+Optional, alternative to CSV upload on the DOB Repair tab (see §16). Leave all unset to keep DOB Repair CSV-only.
+
+```
+DOB_RECONCILE_INPUT_CSV=
+DOB_RECONCILE_SQL_FILE=
+DOB_RECONCILE_DB_SERVER=
+DOB_RECONCILE_DB_NAME=
+DOB_RECONCILE_DB_USER=
+DOB_RECONCILE_DB_PASSWORD=
+DOB_RECONCILE_DB_DRIVER=ODBC Driver 18 for SQL Server
+DOB_RECONCILE_DB_ENCRYPT=yes
+DOB_RECONCILE_DB_TRUST_SERVER_CERT=yes
+```
+
+| Variable | Description |
+|---|---|
+| `DOB_RECONCILE_INPUT_CSV` | Path to a PERSON export CSV that a nightly job refreshes on the server. Shows a "Reload from configured export" button when set. |
+| `DOB_RECONCILE_SQL_FILE` | Path to a `.sql` file you draft and own — a single read-only SELECT/WITH statement whose output columns match `app/dob_detector.py`'s `DEFAULT_COLUMNS`. See `docs/dob_reconcile_query.example.sql`. |
+| `DOB_RECONCILE_DB_SERVER` / `DOB_RECONCILE_DB_NAME` | The SQL Server host and database (your Colleague reporting view / ODS mirror). |
+| `DOB_RECONCILE_DB_USER` / `DOB_RECONCILE_DB_PASSWORD` | SQL authentication credentials. Leave both blank to fall back to a trusted (Windows-integrated) connection. |
+| `DOB_RECONCILE_DB_DRIVER` | Installed ODBC driver name (default matches the driver installed in the Dockerfile). |
+| `DOB_RECONCILE_DB_ENCRYPT` / `DOB_RECONCILE_DB_TRUST_SERVER_CERT` | Default `yes`/`yes` — works against a typical internal SQL Server with a self-signed certificate. |
+
+**Grant the configured DB login SELECT-only permission** on whatever views the query touches — that's the real safety boundary, not the app's own read-only-statement guard (`app/dob_sql_source.py` rejects multiple statements and write keywords, but that's a footgun-catcher, not a substitute for database permissions).
+
+---
+
+## 16. DOB Repair
+
+**URL:** `/dob-repair`  
+**Requires:** Nothing (CSV upload works out of the box; SQL fetch is optional — see §15)
+
+Detects and human-reviews PD0002124 — the Colleague Self-Service Instant Enrollment defect that stores a registrant's Date of Birth one day early when their browser timezone is east of the Central-time server. This tab finds likely-shifted PERSON records from a data export and proposes corrections. **It never writes to Colleague, Ethos, or NAE.** A reviewer accepts, rejects, or defers each candidate, and the tab exports an approved-corrections CSV that you apply through your own sanctioned write channel (an audited Ethos PUT, or manual NAE correction).
+
+This tab displays applicant PII — name, date of birth, address, email, phone — so restrict access to the review team, not the general console user base.
+
+### Load PERSON Export
+
+Export PERSON data from any source you have — an ODS/Colleague reporting view, an Informer report, or an Ethos-to-CSV export. Minimum useful columns: person id, last/first name, date of birth, and an origin field marking Instant Enrollment records (`INSTANT_ENROLL`, `INSTANT ENROLLMENT`, `IE`, or `SS_IE`). Address, email, and phone improve identity matching.
+
+- Choose the CSV file and click **Analyze**.
+- If `DOB_RECONCILE_INPUT_CSV` is set, a **Reload from configured export** button appears.
+- If the SQL fetch source is configured (§15), a **Fetch via SQL & Analyze** button appears — runs a single, server-administered SELECT query live against your reporting database.
+- **Identity Threshold** (default 6) — how strongly two records must resemble the same person before they're compared for a one-day DOB gap.
+
+### Review Queue
+
+Every candidate is a pair of records whose DOBs are exactly one calendar day apart, sorted worst-first:
+
+| Bucket | Meaning |
+|---|---|
+| **HIGH** | The Instant-Enroll record is exactly one day *before* an authoritative (non-IE) twin — the classic bug signature. The later date is proposed as the true DOB. |
+| **MEDIUM** | Same one-day gap, but origin doesn't cleanly separate corrupted from authoritative. Later date is a tentative guess only — confirm before accepting. |
+| **REVIEW** | The Instant-Enroll record is the *later* one — the wrong direction for this bug, so it's more likely a typo or two different people. No date is pre-selected. |
+
+For each row, pick which date is true (pre-selected to the later date for HIGH and MEDIUM), then **Accept** (after a confirmation dialog), **Reject**, or **Defer**. Decisions persist across re-analysis: uploading a fresh export re-runs the detector, but a decision already made for the same pair of person IDs is preserved.
+
+### Elevated Risk Worklist
+
+Unpaired Instant-Enroll records with a DOB whose address is in an Eastern-time state — no authoritative twin exists to confirm the shift from data alone. This is a **risk-ranked worklist, not proof of corruption**: it tells you where to look, not what to change. Never correct this list wholesale.
+
+### Export Corrections CSV
+
+Downloads every **accepted** decision as `dob_corrections.csv` with columns: `person_id, current_dob, corrected_dob, decided_by, decided_at, candidate_id, note`. This is the hand-off point to a separate, deliberate write step — it is not applied automatically by this console.

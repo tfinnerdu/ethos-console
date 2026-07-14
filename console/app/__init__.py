@@ -33,6 +33,13 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
 
     db.init_app(app)
 
+    # Single-credential login gate (see app/auth.py) — fail-closed if
+    # AUTH_USERNAME/AUTH_PASSWORD aren't configured, or SECRET_KEY is still
+    # the default. Registered before blueprint imports so it governs every
+    # route registered below.
+    from app.auth import register_auth_gate
+    register_auth_gate(app)
+
     with app.app_context():
         db.create_all()
         seed_mnemonics(app)
@@ -123,8 +130,10 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     monitor = BusMonitor(ethos)
     health_monitor = EthosHealthMonitor(ethos)
 
-    if ethos.is_configured() and not app.config.get("TESTING"):
-        monitor.start(poll_interval=app.config["BUS_POLL_INTERVAL"], app=app)
+    # Bus Monitor defaults to stopped — it does not auto-start polling Ethos
+    # on boot. Start it explicitly from the Bus Monitor tab (POST
+    # /api/bus/start), so an idle console doesn't spam Ethos with /consume
+    # requests every BUS_POLL_INTERVAL seconds when nobody is watching.
 
     app.extensions["ethos_client"] = ethos
     app.extensions["colleague_api_client"] = colleague_api
@@ -184,6 +193,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     from .routes.cn_monitor import cn_bp
     from .routes.env import env_bp
     from .routes.colleague_api import colleague_api_bp
+    from .routes.dob_repair import dob_repair_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -191,6 +201,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     app.register_blueprint(health_bp, url_prefix="/api/health")
     app.register_blueprint(replay_bp, url_prefix="/api/replay")
     app.register_blueprint(mnemonics_bp, url_prefix="/api/mnemonics")
+    app.register_blueprint(dob_repair_bp, url_prefix="/api/dob-repair")
     app.register_blueprint(resources_bp, url_prefix="/api/resources")
     app.register_blueprint(graphql_bp, url_prefix="/api/graphql-console")
     app.register_blueprint(errors_bp, url_prefix="/api/errors")

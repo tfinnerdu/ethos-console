@@ -2,6 +2,7 @@
 
 let totalEvents = 0;
 let paused = false;
+let running = false;
 let evtSource = null;
 let resourceStats = {};
 let activeFilters = { resource: '', operation: 'all' };
@@ -98,7 +99,57 @@ function updateMetaTile(meta) {
 
   const pollAgo = meta.last_poll != null ? `Polled ${meta.last_poll}s ago` : 'Waiting...';
   document.getElementById('tile-last-poll').textContent = pollAgo;
+
+  // Keep the Start/Stop button in sync even if another tab/session toggled it.
+  if (typeof meta.running === 'boolean' && meta.running !== running) {
+    updateStartStopUI(meta.running);
+  }
 }
+
+// ── Start / Stop ──────────────────────────────────────────────────────────────
+// The monitor defaults to stopped on app boot (no auto-poll spam against
+// Ethos) — this is the master on/off switch. Pause/Resume (below) only
+// suspends polling while the background thread stays alive; Start/Stop
+// controls whether that thread exists at all.
+
+function updateStartStopUI(isRunning) {
+  running = isRunning;
+  const btn = document.getElementById('btn-start-stop');
+  btn.innerHTML = running
+    ? '<i class="bi bi-stop-fill"></i> Stop Monitor'
+    : '<i class="bi bi-play-fill"></i> Start Monitor';
+  btn.classList.toggle('btn-doane', !running);
+  btn.classList.toggle('btn-outline-danger', running);
+  if (!paused) {
+    document.getElementById('tile-paused-status').textContent = running ? 'Streaming' : 'Stopped';
+  }
+}
+
+async function syncMonitorStatus() {
+  try {
+    const r = await fetch('/api/bus/stats');
+    const data = await r.json();
+    updateStartStopUI(!!data.running);
+  } catch {
+    // Leave the UI at its default (stopped) state if the check fails.
+  }
+}
+
+document.getElementById('btn-start-stop').addEventListener('click', async function () {
+  this.disabled = true;
+  try {
+    const endpoint = running ? '/api/bus/stop' : '/api/bus/start';
+    const r = await fetch(endpoint, { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) {
+      alert('Error: ' + (data.error || 'Unknown error') + (data.setup ? '\n' + data.setup : ''));
+      return;
+    }
+    updateStartStopUI(!!data.running);
+  } finally {
+    this.disabled = false;
+  }
+});
 
 function updateResourceStats(event) {
   const resource = event.resource || 'unknown';
@@ -269,3 +320,4 @@ document.getElementById('btn-clear').addEventListener('click', async function ()
 
 connectStream();
 loadPresets();
+syncMonitorStatus();

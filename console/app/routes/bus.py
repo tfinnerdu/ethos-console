@@ -1,7 +1,7 @@
 import json
 import time
 from flask import Blueprint, Response, jsonify, request, current_app, stream_with_context
-from app import get_monitor
+from app import get_monitor, get_ethos
 from app.database import db, FilterPreset
 
 bus_bp = Blueprint("bus", __name__)
@@ -26,6 +26,7 @@ def bus_stream():
                 "queue_depth": depth,
                 "last_poll": round(time.time() - last_poll) if last_poll else None,
                 "paused": monitor.paused,
+                "running": monitor.running,
             }
             yield f"data: {json.dumps(meta)}\n\n"
             time.sleep(0.5)
@@ -44,12 +45,34 @@ def bus_stream():
 def bus_stats():
     monitor = get_monitor(current_app._get_current_object())
     return jsonify({
+        "running": monitor.running,
         "queue_depth": monitor.queue_depth,
         "paused": monitor.paused,
         "resource_stats": monitor.get_resource_stats(),
         "last_poll_seconds_ago": round(time.time() - monitor.last_poll) if monitor.last_poll else None,
         "buffer_size": len(monitor.event_buffer),
     })
+
+
+@bus_bp.post("/start")
+def start_monitor():
+    app = current_app._get_current_object()
+    ethos = get_ethos(app)
+    if not ethos.is_configured():
+        return jsonify({
+            "error": "Ethos is not configured",
+            "setup": "Set ETHOS_API_KEY in .env to enable the Bus Monitor",
+        }), 503
+    monitor = get_monitor(app)
+    monitor.start(poll_interval=app.config.get("BUS_POLL_INTERVAL", 2), app=app)
+    return jsonify({"running": True})
+
+
+@bus_bp.post("/stop")
+def stop_monitor():
+    monitor = get_monitor(current_app._get_current_object())
+    monitor.stop()
+    return jsonify({"running": False})
 
 
 @bus_bp.post("/pause")

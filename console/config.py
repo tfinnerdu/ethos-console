@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
@@ -13,7 +14,24 @@ class Config:
     UNIDATA_USER = os.environ.get("UNIDATA_USER", "")
     UNIDATA_PASSWORD = os.environ.get("UNIDATA_PASSWORD", "")
     UNIDATA_ACCOUNT = os.environ.get("UNIDATA_ACCOUNT", "")
-    CONSOLE_KEY = os.environ.get("CONSOLE_KEY", "")
+
+    # Single-credential login gate (app/auth.py) — gates every route except
+    # health checks. FAIL-CLOSED: if either is unset, every non-health route
+    # is blocked (503), not silently ungated. See docs/auth-gate-guide.md.
+    AUTH_USERNAME = os.environ.get("AUTH_USERNAME", "")
+    AUTH_PASSWORD = os.environ.get("AUTH_PASSWORD", "")
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = os.environ.get("AUTH_COOKIE_SECURE", "true") in (
+        "1", "true", "True", "yes",
+    )
+    PERMANENT_SESSION_LIFETIME = timedelta(
+        hours=float(os.environ.get("AUTH_SESSION_LIFETIME_HOURS", "8"))
+    )
+
+    # DOB Repair — optional SQL Server fetch source (app/dob_sql_source.py),
+    # alternative to CSV upload. Leave unset to keep DOB Repair CSV-only.
+    DOB_RECONCILE_INPUT_CSV = os.environ.get("DOB_RECONCILE_INPUT_CSV", "")
+
     BUS_POLL_INTERVAL = int(os.environ.get("BUS_POLL_INTERVAL", "2"))
     SILENCE_THRESHOLD_MINUTES = int(os.environ.get("SILENCE_THRESHOLD_MINUTES", "30"))
     ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "")

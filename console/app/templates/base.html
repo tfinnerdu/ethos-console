@@ -47,11 +47,9 @@
     <a href="/health" class="nav-link text-white-50 small">
       <i class="bi bi-heart-pulse me-1"></i>Health
     </a>
-    {% if config.get('CONSOLE_KEY') %}
     <a href="/logout" class="nav-link text-white-50 small">
       <i class="bi bi-box-arrow-right me-1"></i>Sign out
     </a>
-    {% endif %}
   </div>
 </nav>
 
@@ -124,6 +122,9 @@ async function switchEthosEnv(name) {
     </a>
     <a href="/mnemonics"        class="tab-item {% if active_tab == 'mnemonics' %}active{% endif %}">
       <i class="bi bi-book me-1"></i>Mnemonics
+    </a>
+    <a href="/dob-repair"       class="tab-item {% if active_tab == 'dob_repair' %}active{% endif %}">
+      <i class="bi bi-calendar-week me-1"></i>DOB Repair
     </a>
     <a href="/field-diff"       class="tab-item {% if active_tab == 'field_diff' %}active{% endif %}">
       <i class="bi bi-arrow-left-right me-1"></i>Field Diff

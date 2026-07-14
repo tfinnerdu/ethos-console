@@ -5,7 +5,6 @@ Web API are routed through `app.cn_repository.CnRepository`; mock mode
 swaps it for `MockCnRepository`. Audit emission lives in `app.audit`.
 """
 from flask import Blueprint, jsonify, request, current_app
-from app.auth import api_auth_required
 from app.audit import Action, Outcome, write_event, query_events
 from app.cn_repository import CnRepository
 
@@ -19,7 +18,6 @@ def _get_repo() -> CnRepository:
 # ── Health ────────────────────────────────────────────────────────────────────
 
 @cn_bp.get("/health")
-@api_auth_required
 def cnm_health():
     return jsonify(_get_repo().get_health())
 
@@ -27,7 +25,6 @@ def cnm_health():
 # ── Change notifications ──────────────────────────────────────────────────────
 
 @cn_bp.get("/notifications")
-@api_auth_required
 def list_notifications():
     resource = request.args.get("resource")
     status = request.args.get("status")
@@ -39,7 +36,6 @@ def list_notifications():
 
 
 @cn_bp.get("/notifications/<cn_id>")
-@api_auth_required
 def get_notification(cn_id: str):
     try:
         detail = _get_repo().get_notification(cn_id)
@@ -53,7 +49,6 @@ def get_notification(cn_id: str):
 
 
 @cn_bp.get("/notifications/<cn_id>/paragraph")
-@api_auth_required
 def get_paragraph(cn_id: str):
     try:
         paragraph = _get_repo().get_paragraph(cn_id)
@@ -67,7 +62,6 @@ def get_paragraph(cn_id: str):
 
 
 @cn_bp.get("/notifications/<cn_id>/history")
-@api_auth_required
 def get_cn_history(cn_id: str):
     """History for a single CN is whatever the audit log says about it."""
     data = query_events(page=1, page_size=200, resource_id=cn_id)
@@ -77,7 +71,6 @@ def get_cn_history(cn_id: str):
 # ── Diagnostics ───────────────────────────────────────────────────────────────
 
 @cn_bp.get("/diagnostics")
-@api_auth_required
 def diagnostics():
     """Subscribed-vs-published set diff.
 
@@ -106,7 +99,6 @@ def diagnostics():
 # ── Push change notifications ─────────────────────────────────────────────────
 
 @cn_bp.post("/push")
-@api_auth_required
 def push_notifications():
     app_obj = current_app._get_current_object()
     ethos = app_obj.extensions.get("ethos_client")
@@ -157,7 +149,6 @@ def push_notifications():
 # ── Audit log ─────────────────────────────────────────────────────────────────
 
 @cn_bp.get("/audit-log")
-@api_auth_required
 def audit_log():
     try:
         data = query_events(

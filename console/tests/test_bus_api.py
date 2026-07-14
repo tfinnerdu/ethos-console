@@ -13,10 +13,65 @@ def test_stats_returns_200(client):
 
 def test_stats_shape(client):
     data = client.get("/api/bus/stats").get_json()
+    assert "running" in data
     assert "queue_depth" in data
     assert "paused" in data
     assert "resource_stats" in data
     assert "buffer_size" in data
+
+
+# ── Start / Stop ──────────────────────────────────────────────────────────────
+# The monitor must default to stopped (no auto-poll against Ethos on boot) and
+# only start when explicitly asked to, via this pair of endpoints.
+
+def test_create_app_does_not_auto_start_monitor():
+    """Regression guard: Bus Monitor must not auto-poll Ethos on app boot."""
+    from unittest.mock import patch
+    from app import create_app, get_monitor
+
+    with patch("app.ethos_client.EthosClient.is_configured", return_value=True):
+        test_app = create_app("development")
+    try:
+        assert get_monitor(test_app).running is False
+    finally:
+        get_monitor(test_app).stop()
+
+
+def test_stats_running_false_by_default(client):
+    assert client.get("/api/bus/stats").get_json()["running"] is False
+
+
+def test_start_returns_503_when_ethos_not_configured(client):
+    r = client.post("/api/bus/start")
+    assert r.status_code == 503
+    data = r.get_json()
+    assert "error" in data
+    assert "setup" in data
+
+
+def test_start_succeeds_when_ethos_configured(app, mock_ethos):
+    from app import get_monitor
+    client = app.test_client()
+    try:
+        r = client.post("/api/bus/start")
+        assert r.status_code == 200
+        assert r.get_json()["running"] is True
+        assert client.get("/api/bus/stats").get_json()["running"] is True
+    finally:
+        get_monitor(app).stop()
+
+
+def test_stop_returns_running_false(app, mock_ethos):
+    from app import get_monitor
+    client = app.test_client()
+    try:
+        client.post("/api/bus/start")
+        r = client.post("/api/bus/stop")
+        assert r.status_code == 200
+        assert r.get_json()["running"] is False
+        assert client.get("/api/bus/stats").get_json()["running"] is False
+    finally:
+        get_monitor(app).stop()
 
 
 def test_stats_paused_false_initially(client):

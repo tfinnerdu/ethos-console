@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title_suffix %} — DOB Repair{% endblock %}
+
+{% block content %}
+<div class="alert alert-warning small py-2 mb-3">
+  <i class="bi bi-exclamation-triangle me-1"></i>
+  <strong>PD0002124 — Instant Enrollment DOB timezone shift.</strong>
+  This tab only proposes corrections and exports them for a sanctioned
+  Ethos/NAE apply step outside this console — it never writes to Colleague.
+  It also displays applicant name/DOB/address/email/phone, so restrict
+  access to the review team.
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-2">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-total">—</div>
+      <div class="metric-label">Records</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-high">—</div>
+      <div class="metric-label">High</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-medium">—</div>
+      <div class="metric-label">Medium</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-review">—</div>
+      <div class="metric-label">Review</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-elevated">—</div>
+      <div class="metric-label">Elevated Risk</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="metric-tile">
+      <div class="metric-value" id="tile-unparseable">—</div>
+      <div class="metric-label">Unparseable</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-12 col-lg-6">
+    <div class="console-card h-100">
+      <div class="console-card-header">Load PERSON Export</div>
+      <div class="mb-2">
+        <label class="form-label small text-muted mb-1">PERSON export CSV</label>
+        <input type="file" id="dob-csv-file" class="form-control form-control-sm" accept=".csv" />
+      </div>
+      <div class="mb-2" style="max-width:140px">
+        <label class="form-label small text-muted mb-1">Identity Threshold</label>
+        <input type="number" id="dob-threshold" class="form-control form-control-sm" value="6" min="1" />
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-sm btn-doane" id="dob-analyze-btn">Analyze</button>
+        <button class="btn btn-sm btn-outline-secondary d-none" id="dob-reload-configured-btn">
+          Reload from configured export
+        </button>
+        <button class="btn btn-sm btn-outline-secondary d-none" id="dob-fetch-sql-btn">
+          Fetch via SQL &amp; Analyze
+        </button>
+      </div>
+      <div class="small text-muted mt-2" id="dob-analyze-status">No analysis has been run yet.</div>
+    </div>
+  </div>
+</div>
+
+<div class="console-card mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="console-card-header mb-0">Review Queue</div>
+    <button class="btn btn-sm btn-outline-secondary" id="dob-export-btn">
+      <i class="bi bi-download"></i> Export Corrections CSV
+    </button>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm resource-table mb-0">
+      <thead>
+        <tr>
+          <th>Bucket</th>
+          <th>Name</th>
+          <th>Earlier DOB (origin)</th>
+          <th>Later DOB (origin)</th>
+          <th>Score</th>
+          <th>Rationale</th>
+          <th>Decision</th>
+        </tr>
+      </thead>
+      <tbody id="dob-candidates-tbody">
+        <tr><td colspan="7" class="text-muted text-center py-3">Upload a PERSON export and click Analyze.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="console-card mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="console-card-header mb-0">
+      Elevated Risk Worklist <span class="text-muted" id="dob-elevated-count"></span>
+    </div>
+    <button class="btn btn-sm btn-outline-secondary" id="dob-elevated-toggle-btn">Show</button>
+  </div>
+  <div id="dob-elevated-content" class="d-none">
+    <p class="small text-muted">
+      Unpaired Instant-Enroll records with an address in an Eastern-time state.
+      This is a risk-ranked worklist, not proof of corruption — it tells you
+      where to look, not what to change.
+    </p>
+    <div class="table-responsive">
+      <table class="table table-sm resource-table mb-0">
+        <thead><tr><th>Person ID</th><th>Name</th><th>DOB</th><th>State</th></tr></thead>
+        <tbody id="dob-elevated-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="console-card d-none" id="dob-unparseable-card">
+  <div class="console-card-header">Unparseable Date of Birth</div>
+  <div class="table-responsive">
+    <table class="table table-sm resource-table mb-0">
+      <thead><tr><th>Person ID</th><th>Name</th><th>Raw DOB value</th></tr></thead>
+      <tbody id="dob-unparseable-tbody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dob_repair.js"></script>
+{% endblock %}

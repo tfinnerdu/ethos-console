@@ -1,30 +1,49 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, current_app
-from app.auth import check_key
+"""Auth routes — /login, /logout
+
+See app/auth.py for the gate itself (the before_request hook that redirects
+here). This blueprint only handles the login form and clearing the session.
+"""
+from flask import Blueprint, current_app, redirect, render_template, request, url_for
+
+from app import auth
 
 auth_bp = Blueprint("auth", __name__)
 
 
-@auth_bp.get("/login")
-def login():
-    if session.get("authenticated"):
-        return redirect(url_for("main.index"))
-    next_url = request.args.get("next", "/")
-    return render_template("login.html", next_url=next_url, auth_enabled=bool(current_app.config.get("CONSOLE_KEY")))
+@auth_bp.route("/login", methods=["GET", "POST"])
+def login_page():
+    if not auth.is_safely_configured():
+        current_app.logger.warning(
+            "login attempted but auth is not safely configured "
+            "(AUTH_USERNAME/AUTH_PASSWORD unset, or SECRET_KEY is still the "
+            "default) — see docs/auth-gate-guide.md"
+        )
+        return render_template("login.html", not_configured=True), 503
 
+    if auth.is_authenticated():
+        return redirect(auth.safe_next_path(request.args.get("next", "/")))
 
-@auth_bp.post("/login")
-def login_post():
-    key = request.form.get("key", "")
-    next_url = request.form.get("next", "/")
-    if check_key(key):
-        session.permanent = True
-        session["authenticated"] = True
-        return redirect(next_url or "/")
-    return render_template("login.html", next_url=next_url, error="Invalid access key.",
-                           auth_enabled=bool(current_app.config.get("CONSOLE_KEY")))
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        next_path = auth.safe_next_path(request.form.get("next", "/"))
+
+        if auth.verify_credentials(username, password):
+            auth.login(username)
+            current_app.logger.info("login succeeded: username=%r", username)
+            return redirect(next_path)
+
+        auth.record_failed_login(username)
+        return render_template(
+            "login.html",
+            error="Invalid username or password.",
+            next=next_path,
+        ), 401
+
+    return render_template("login.html", next=auth.safe_next_path(request.args.get("next", "/")))
 
 
 @auth_bp.get("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("auth.login"))
+def logout_view():
+    auth.logout()
+    return redirect(url_for("auth.login_page"))
