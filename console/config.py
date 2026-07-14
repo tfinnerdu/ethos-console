@@ -39,11 +39,6 @@ class Config:
         if os.environ.get(f"ETHOS_ENV_{i}_NAME") and os.environ.get(f"ETHOS_ENV_{i}_KEY")
     ]
     DEFAULT_ENV = os.environ.get("DEFAULT_ENV", "").strip()
-
-    _db_url = os.environ.get("DATABASE_URL", "")
-    if _db_url.startswith("postgres://"):
-        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
-    SQLALCHEMY_DATABASE_URI = _db_url or "sqlite:///ethos_console.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class DevelopmentConfig(Config):
