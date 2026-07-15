@@ -170,7 +170,7 @@ The right column. Shows aggregated stats per resource for the current session:
 | Rate | Estimated events per hour based on session duration |
 | Status | `active` (event within last 30 min) or `silent` |
 
-**Silence threshold:** A number input at the bottom of the resource table lets you set a custom silence threshold (default 30 minutes). Resources that exceed this threshold without an event are highlighted and, if `ALERT_WEBHOOK_URL` is configured, trigger a webhook alert.
+**Silence threshold:** A number input at the bottom of the resource table lets you set a custom silence threshold (default 30 minutes). Resources that exceed this threshold without an event are highlighted.
 
 ---
 
@@ -677,8 +677,6 @@ ETHOS_ENV_2_KEY=<prod api key>
 
 | Variable | Default | Description |
 |---|---|---|
-| `ALERT_WEBHOOK_URL` | — | Teams or Slack incoming webhook URL. Teams URLs contain `webhook.office.com`; all others are treated as Slack/generic. Leave blank to disable. |
-| `ALERT_ERROR_THRESHOLD` | `10` | Number of bus poll errors per hour before an alert fires |
 | `SILENCE_THRESHOLD_MINUTES` | `30` | Minutes without activity on a resource before a silence alert fires |
 
 ### Database & Server

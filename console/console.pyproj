@@ -30,6 +30,9 @@
   <ItemGroup>
     <Compile Include="app\dob_detector.py" />
     <Compile Include="app\dob_sql_source.py" />
+    <Compile Include="app\edge_gate_client.py" />
+    <Compile Include="app\help_guide.py" />
+    <Compile Include="app\mocks\edge_gate.py" />
     <Compile Include="app\routes\dob_repair.py" />
     <Compile Include="run.py" />
     <Compile Include="config.py" />
@@ -72,10 +75,13 @@
   </ItemGroup>
   <!-- ── Tests ──────────────────────────────────────────────────────────── -->
   <ItemGroup>
+    <Compile Include="test.py" />
     <Compile Include="tests\test_default_env.py" />
     <Compile Include="tests\test_dob_detector.py" />
     <Compile Include="tests\test_dob_repair_api.py" />
     <Compile Include="tests\test_dob_sql_source.py" />
+    <Compile Include="tests\test_edge_gate_client.py" />
+    <Compile Include="tests\test_help_guide.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
     <Compile Include="tests\test_audit.py" />
@@ -105,6 +111,7 @@
   <ItemGroup>
     <Content Include=".env" />
     <Content Include=".gitignore" />
+    <Content Include="app\templates\help.html" />
     <Content Include="app\templates\_macros.html" />
     <Content Include="app\templates\base.html" />
     <Content Include="app\templates\bus_monitor.html" />
@@ -121,6 +128,10 @@
     <Content Include="app\templates\replay.html" />
     <Content Include="app\templates\resources.html" />
     <Content Include="app\templates\schema_browser.html" />
+    <Content Include="instance\dob_reconcile_query.sql" />
+    <Content Include="instance\ethos_console.db" />
+    <Content Include="logs\uopy.log" />
+    <Content Include="static\js\help.js" />
     <Content Include="tests\fixtures\dob_sample_persons.csv" />
   </ItemGroup>
   <!-- ── Static assets ──────────────────────────────────────────────────── -->
@@ -159,7 +170,9 @@
     <Folder Include="app\mocks\" />
     <Folder Include="app\routes\" />
     <Folder Include="app\templates\" />
+    <Folder Include="instance\" />
     <Folder Include="k8s\" />
+    <Folder Include="logs\" />
     <Folder Include="static\" />
     <Folder Include="static\css\" />
     <Folder Include="static\js\" />
