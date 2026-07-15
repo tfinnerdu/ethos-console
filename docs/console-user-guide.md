@@ -24,6 +24,7 @@
 14. [Health](#14-health)
 15. [Configuration Reference](#15-configuration-reference)
 16. [DOB Repair](#16-dob-repair)
+17. [DoaneEdgeGate](#17-doaneedgegate)
 
 ---
 
@@ -760,3 +761,44 @@ Instant-Enroll records with a DOB, no twin, no corroboration, and an address in 
 ### Export Corrections CSV
 
 Downloads every **accepted** decision as `dob_corrections.csv` with columns: `person_id, current_dob, corrected_dob, decided_by, decided_at, candidate_id, note`. This is the hand-off point to a separate, deliberate write step — it is not applied automatically by this console.
+
+---
+
+## 17. DoaneEdgeGate
+
+**Not a console tab** — DoaneEdgeGate is a separate ASP.NET Core reverse proxy (`DoaneEdgeGate/` at the repo root, part of the same `ethos-console.sln`) that sits in front of the Colleague Web API and prevents PD0002124 (§16's DOB timezone shift) at the network edge, before a corrupted date is ever written. It's covered here because the console has direct visibility into it (§14's Health tile) and a documented working relationship with DOB Repair, below.
+
+### What it does
+
+The Self-Service date picker serializes local midnight as a UTC instant (`toISOString()`) — for any US timezone, that lands on a same-date *morning* UTC time. The Colleague Web API then truncates that instant to server-local (Central) date, landing one day early for anyone east of Central. DoaneEdgeGate forwards the bare date instead of the instant, so the server has nothing to truncate and the intended date survives. No timezone math, and it's fail-safe: a value that's already a bare date is left untouched.
+
+### Run modes
+
+Three modes, meant to be used left to right:
+
+| Mode | Behavior |
+|---|---|
+| **Off** (default) | Pure passthrough — the gate does nothing. Deploy in this mode first. |
+| **Shadow** | Runs the transform and logs every would-be rewrite, but forwards the ORIGINAL body unchanged. Validates against real traffic with zero risk before mutating anything. |
+| **Active** | Matched requests are rewritten before forwarding. |
+
+`FailMode=Open` (the default and strongly recommended setting) forwards the original body unchanged if the rewrite step ever throws — the gate sits in front of every registration and must never be able to drop an enrollment.
+
+### Relationship to DOB Repair (§16)
+
+DoaneEdgeGate is prevention; DOB Repair is detection and cleanup — for whatever got through before the gate was Active, or for the population outside its reach (see the limitation below). Every rewrite (and every would-be rewrite in Shadow) is logged with the original instant and the rewritten date, keyed to the request — and, with the response record-ID capture feature, to the actual Colleague record it produced. That's a direct join key for the nightly detector, not a fuzzy inference. See `DOB-Repair-Tandem-Flow.md` at the repo root for the full picture of how the two tools reinforce each other.
+
+**One honest limitation:** a registrant physically in a UTC-ahead zone (Europe, Asia, Australia) at submission time serializes local midnight to the *previous* UTC date — already wrong before it reaches the gate, with no offset information left to recover the intended date. This population is small for Instant Enrollment but real. DOB Repair's same-person corroboration mechanism (§16) is the only way to catch this case after the fact.
+
+### Where it lives / how to deploy it
+
+The proxy's source, tests, and full documentation live in `DoaneEdgeGate/` — this guide doesn't duplicate that material. Start here, in order:
+
+1. `DoaneEdgeGate-Deployment-Walkthrough.md` — pre-reqs, watch-outs, and a test checklist; the index into everything else below.
+2. `DoaneEdgeGate-Pilot-and-Phase0.md` — the repoint decision and the Phase 0 go/no-go capture (do this before deploying anything).
+3. `DoaneEdgeGate-IIS-Deployment.md` — the concrete per-environment IIS rollout.
+4. `DoaneEdgeGate/docs/architecture.md` — the full design and every configuration option.
+
+### Health tab integration
+
+See §14's DoaneEdgeGate Tile — the console polls the gate's own `GET /health` independently of the Ethos tiles, so a slow or unreachable gate can never hold up the tiles next to it. That's the console's only integration with the gate today — it does not read `/api/v1/status` or `/api/v1/rewrites/recent`. Hit those directly on the gate if you need mode, rewrite counts, or the recent-rewrites audit trail.

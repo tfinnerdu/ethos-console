@@ -1,4 +1,6 @@
-from flask import Blueprint, render_template, current_app
+from flask import Blueprint, render_template, current_app, abort
+
+from app.help_guide import render_guide
 
 main_bp = Blueprint("main", __name__)
 
@@ -75,3 +77,12 @@ def cn_monitor():
     ethos_configured = bool(current_app.config.get("ETHOS_ENVIRONMENTS"))
     return render_template("cn_monitor.html", active_tab="cn_monitor",
                            ethos_configured=ethos_configured)
+
+
+@main_bp.get("/help")
+def help_guide():
+    content, nav = render_guide()
+    if content is None:
+        current_app.logger.error("help: docs/console-user-guide.md not found")
+        abort(404)
+    return render_template("help.html", content=content, nav=nav)

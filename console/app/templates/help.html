@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title_suffix %} — Help{% endblock %}
+
+{% block head %}
+<style>
+  .help-layout { display: flex; align-items: flex-start; gap: 1.5rem; }
+  .help-sidebar {
+    flex: 0 0 280px;
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+  .help-search {
+    position: sticky;
+    top: 0;
+    background: var(--doane-page);
+    padding-bottom: 0.5rem;
+    z-index: 1;
+  }
+  .help-nav { list-style: none; padding-left: 0; margin: 0; font-size: 0.85rem; }
+  .help-nav ul { list-style: none; padding-left: 0.9rem; margin: 0; }
+  .help-nav > li { margin-bottom: 0.15rem; }
+  .help-nav a {
+    display: block;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    color: var(--doane-slate);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .help-nav > li > a { font-weight: 700; color: var(--doane-ink); margin-top: 0.5rem; }
+  .help-nav a:hover { background: var(--doane-section); }
+  .help-nav a.help-nav-active { background: var(--doane-orange); color: #fff; }
+  .help-nav li.help-nav-hidden { display: none; }
+  .help-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid var(--doane-border);
+    border-radius: 0.5rem;
+    padding: 1.5rem 2rem;
+  }
+  .help-content h1 { font-size: 1.6rem; border-bottom: 3px solid var(--doane-orange); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  .help-content h2 {
+    font-size: 1.35rem; color: var(--doane-ink); margin-top: 2.5rem;
+    padding-top: 0.5rem; border-top: 1px solid var(--doane-border);
+    scroll-margin-top: 1rem;
+  }
+  .help-content h2:first-of-type { border-top: none; margin-top: 1rem; }
+  .help-content h3 { font-size: 1.1rem; color: var(--doane-slate); margin-top: 1.75rem; scroll-margin-top: 1rem; }
+  .help-content h4 { font-size: 1rem; color: var(--doane-slate); margin-top: 1.25rem; scroll-margin-top: 1rem; }
+  .help-content table { width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+  .help-content table th, .help-content table td {
+    border: 1px solid var(--doane-border); padding: 0.4rem 0.6rem;
+  }
+  .help-content table th { background: var(--doane-section); }
+  .help-content code {
+    background: var(--doane-section); padding: 0.1rem 0.35rem; border-radius: 0.25rem;
+    color: var(--doane-orange-dark); font-size: 0.9em;
+  }
+  .help-content pre code { background: none; color: inherit; padding: 0; }
+  .help-content pre {
+    background: var(--doane-ink); color: #e8e8e8; padding: 1rem; border-radius: 0.4rem;
+    overflow-x: auto;
+  }
+  .help-content blockquote {
+    border-left: 4px solid var(--doane-orange); background: var(--doane-section);
+    padding: 0.6rem 1rem; margin: 1rem 0; color: var(--doane-slate);
+  }
+  .help-content hr { border-color: var(--doane-border); margin: 2rem 0; }
+  .help-content mark { background: var(--doane-orange-light); padding: 0 0.1em; }
+  .help-no-results { color: var(--doane-muted); font-style: italic; padding: 0.5rem; }
+  @media (max-width: 900px) {
+    .help-layout { flex-direction: column; }
+    .help-sidebar { position: static; max-height: none; width: 100%; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <h5 class="mb-0" style="color: var(--doane-ink);">
+    <i class="bi bi-question-circle me-2"></i>Help &amp; User Guide
+  </h5>
+  <span class="text-muted small">Every tab, every feature — one searchable reference.</span>
+</div>
+
+<div class="help-layout">
+  <nav class="help-sidebar" aria-label="User guide sections">
+    <div class="help-search">
+      <input type="search" id="helpSearchInput" class="form-control form-control-sm"
+             placeholder="Search the guide..." aria-label="Search the user guide">
+      <div id="helpSearchCount" class="small text-muted mt-1"></div>
+    </div>
+    <ul class="help-nav" id="helpNav">
+      {% macro render_nav(tokens) %}
+        {% for tok in tokens %}
+        <li data-search-text="{{ tok.name|lower }}">
+          <a href="#{{ tok.id }}">{{ tok.name }}</a>
+          {% if tok.children %}
+          <ul>{{ render_nav(tok.children) }}</ul>
+          {% endif %}
+        </li>
+        {% endfor %}
+      {% endmacro %}
+      {{ render_nav(nav) }}
+    </ul>
+  </nav>
+
+  <div class="help-content" id="helpContent">
+    {{ content | safe }}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/help.js"></script>
+{% endblock %}
