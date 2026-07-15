@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
+from app.audit import Action, write_event
 from app.database import db, ResourceAnnotation
+from app.request_utils import get_json_body
 
 resources_bp = Blueprint("resources", __name__)
 
@@ -111,7 +113,7 @@ def graphql_proxy():
     ethos = get_ethos(current_app._get_current_object())
     if not ethos.is_configured():
         return jsonify({"error": "Ethos API key not configured"}), 503
-    data = request.get_json(force=True)
+    data = get_json_body(request)
     try:
         result = ethos.graphql(data.get("query", ""), data.get("variables"))
         return jsonify(result)
@@ -134,7 +136,7 @@ def resource_detail(name: str):
 
 @resources_bp.put("/<name>/annotate")
 def annotate_resource(name: str):
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     annotation = ResourceAnnotation.query.filter_by(resource_name=name).first()
     if annotation is None:
         annotation = ResourceAnnotation(resource_name=name)
@@ -149,6 +151,7 @@ def annotate_resource(name: str):
     annotation.last_updated = datetime.now(timezone.utc)
 
     db.session.commit()
+    write_event(Action.UPDATE, "resource_annotation", name)
     return jsonify(annotation.to_dict())
 
 

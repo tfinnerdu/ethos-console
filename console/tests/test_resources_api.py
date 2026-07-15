@@ -175,6 +175,21 @@ def test_annotate_idempotent(client):
     assert data["trigger_conditions_gap"] is False
 
 
+def test_annotate_non_object_json_body_is_a_no_op_not_a_500(client):
+    r = client.put(
+        "/api/resources/persons/annotate", data="42", content_type="application/json",
+    )
+    assert r.status_code == 200
+
+
+def test_graphql_proxy_non_object_json_body_does_not_500(client, mock_ethos):
+    mock_ethos.graphql.return_value = {"data": {}}
+    r = client.post(
+        "/api/resources/graphql", data="null", content_type="application/json",
+    )
+    assert r.status_code != 500
+
+
 def test_annotations_list_after_upsert(client):
     client.put("/api/resources/persons/annotate",
                json={"notes": "n", "trigger_conditions_gap": False, "updated_by": "t"})

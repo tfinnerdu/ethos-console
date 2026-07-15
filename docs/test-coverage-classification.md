@@ -1,5 +1,10 @@
 # Test Coverage Classification
 
+Contract-pinned / characterization tests for files with no live-infra dependency
+live in `console/tests/characterization/` (e.g. the real `ColleagueApiClient`
+and `UnidataClient` classes, as opposed to their mock subclasses). Regular
+unit/route tests stay in `console/tests/` alongside everything else.
+
 Every production source file must be accounted for by exactly one (or more) of:
 
 | Category | Symbol | Meaning |
@@ -20,17 +25,21 @@ Every production source file must be accounted for by exactly one (or more) of:
 | `app/auth.py` | ✅ | `test_auth.py` — fail-closed when unconfigured/default `SECRET_KEY`, `verify_credentials`, session login/logout, `next` sanitization, exemption list (`/api/health/live`, `/login`, `/logout`, `/static/*`) |
 | `app/bus_monitor.py` | ✅ | `test_bus_monitor.py` — all pure-logic methods; `start()`/`stop()` + no-auto-start-on-boot regression guard in `test_bus_api.py`; thread loop is 📋 (see §4 Frontend smoke in e2e-testing.md) |
 | `app/cn_repository.py` | ✅ | `test_cn_monitor_api.py` exercises the routes that call this; `MockCnRepository` characterized in `test_mock_mode.py` |
-| `app/colleague_api_client.py` | ✅ | `test_mock_mode.py` characterization; routes exercised in colleague_api integration tests |
+| `app/colleague_api_client.py` | ✅ | `tests/characterization/test_colleague_api_client_characterization.py` exercises the REAL client (headers/basic-auth encoding, URL construction, `_LegacyTlsAdapter`'s TLS verification is left intact); `test_mock_mode.py` only covers `MockColleagueApiClient`, a subclass that overrides every network-calling method and previously left this file's own code unexercised — do not cite that test alone as coverage for this file |
 | `app/conductor_client.py` | ✅ | `test_replay_api.py` swaps the extension to a MagicMock for trigger paths |
 | `app/database.py` | ✅ 📌 | Model to_dict() shapes pinned in `test_contracts.py`; CRUD exercised via API tests; seed counts pinned |
 | `app/ethos_client.py` | ✅ | `test_ethos_client.py` — all methods mocked with `requests`; `get_resource_by_id` and `publish_notification` exercised via `test_cn_monitor_api.py` push tests |
 | `app/health_monitor.py` | ✅ | `test_health_monitor.py` — latency percentiles, thresholds, resource health |
+| `app/request_utils.py` | ✅ | `test_request_utils.py` — `get_json_body()` coerces every non-dict JSON body (falsy AND truthy: null/[]/""/0/false and 42/"str"/[1,2]/true) to `{}`, unlike the `or {}` idiom it replaced |
+| `app/unidata_client.py` | ✅ | `tests/characterization/test_unidata_client_characterization.py` — `_parse_list_ids()` (pure function), connection param passthrough, `run_command`/`call_subroutine` argument marshalling (mocked `_uopy`, mirroring the `pyodbc`-mock pattern in `test_dob_sql_source.py`); previously entirely unaccounted for in this doc |
 | `app/routes/__init__.py` | 🔧 | Empty init file |
 | `app/routes/auth.py` | ✅ | Login/logout flow in `test_auth.py` (wrong/correct credentials, `next` param, already-authenticated redirect); login.html render is 📋 |
 | `app/routes/cn_monitor.py` | ✅ 📌 | `test_cn_monitor_api.py` — health, notifications/detail/paragraph, history (audit-backed), diagnostics set-diff, push (one audit per publish), audit log; `/api/cn` prefix pinned in `test_contracts.py` |
-| `app/routes/bus.py` | ✅ 📋 | REST endpoints in `test_bus_api.py`, incl. `/start` and `/stop`; SSE `/stream` is 📋 (§4 e2e-testing.md — streaming requires live WSGI) |
-| `app/routes/dob_repair.py` | ✅ | `test_dob_repair_api.py` — analyze (CSV upload + configured-path fallback + SQL fetch), status, candidates, decision, export corrections |
-| `app/routes/errors.py` | ✅ | `test_errors_api.py` — list, filter, spikes, flush, export |
+| `app/routes/bus.py` | ✅ 📋 | REST endpoints in `test_bus_api.py`, incl. `/start`, `/stop`, non-numeric `limit` guard on `/export`, and audit emission on preset create/delete; SSE `/stream` is 📋 (§4 e2e-testing.md — streaming requires live WSGI) |
+| `app/routes/colleague_api.py` | ✅ | `test_colleague_api.py` — about/event-configurations/transaction/metadata, 503-unconfigured shapes, non-object JSON body, audit emission (success and failure) on the CTX transaction call; previously entirely absent from this doc with zero route-level tests |
+| `app/routes/dob_repair.py` | ✅ | `test_dob_repair_api.py` — analyze (CSV upload + configured-path fallback + SQL fetch), status, candidates, decision (incl. audit emission, deliberately excluding DOB values from the audit `detail` blob), export corrections |
+| `app/routes/env.py` | ✅ | `test_env.py` — list, switch (success/404/non-object body), credential swap, cache invalidation, audit emission; previously not listed in this doc and only exercised incidentally as a cache-invalidation side effect from `test_resources_api.py` |
+| `app/routes/errors.py` | ✅ | `test_errors_api.py` — list, filter, spikes, flush (one summary audit event per batch, not one per row), export, non-numeric paging-param guards |
 | `app/routes/graphql_routes.py` | ✅ 📌 | `test_graphql_api.py`; cache TTL value pinned in `test_contracts.py` |
 | `app/routes/health.py` | ✅ 📌 | `test_health.py`; liveness probe contract in `test_contracts.py`; `/` and `/token` gating (now global, not per-route) exercised in `test_auth.py` |
 | `app/routes/main.py` | ✅ 📋 | Page routes (incl. `/dob-repair`) exercised by `test_auth.py`'s gate tests; tab rendering and navigation are 📋 (§4 frontend smoke test) |
@@ -39,7 +48,7 @@ Every production source file must be accounted for by exactly one (or more) of:
 | `app/routes/replay.py` | ✅ | `test_replay_api.py` — fetch, trigger, history, DB persistence |
 | `app/routes/resources.py` | ✅ | `test_resources_api.py` — list, cn-enabled, annotate, annotations list |
 | `app/routes/schema_browser.py` | ✅ | `test_schema_browser_api.py` — types list, type detail, resource-schema, validate |
-| `app/dob_detector.py` | ✅ | `test_dob_detector.py` — pure-Python PD0002124 detection engine, no Flask/DB coupling |
+| `app/dob_detector.py` | ✅ | `test_dob_detector.py` — pure-Python PD0002124 detection engine, no Flask/DB coupling. Confirmed by direct data audit: cross-person twin pairing (`_classify_pair`) is real but low-yield for this bug's actual backlog (no duplicate PERSON records with differing birth dates are being created); same-person corroboration (`_classify_self_corroboration`) is the primary mechanism with real reach — see the module docstring |
 | `app/dob_sql_source.py` | ✅ | `test_dob_sql_source.py` — read-only guard (rejects writes/multi-statement/`SELECT...INTO`), connection-string building, row-to-Record mapping (mocked `pyodbc`, no live SQL Server) |
 | `config.py` | 📌 | `AUTH_USERNAME`/`AUTH_PASSWORD`/`SECRET_KEY`/`DOB_RECONCILE_INPUT_CSV` env-var wiring exercised by `test_auth.py` and `test_dob_repair_api.py` |
 | `run.py` | 🔧 | Flask `app.run()` entry point — no runtime logic to test |
@@ -128,7 +137,7 @@ All templates are **🔧 compile-verified** by Flask's Jinja2 template engine (s
 ## Running the Full Suite
 
 ```bash
-# Python (368 tests)
+# Python (460 tests)
 cd console && python -m pytest tests/ -v
 ```
 

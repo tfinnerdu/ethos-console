@@ -1,0 +1,84 @@
+# DoaneEdgeGate - Kubernetes manifest (SECONDARY option).
+# ---------------------------------------------------------------------------
+# CAVEAT: Only use this if the Colleague Web API request path actually routes
+# through the cluster. For an on-prem IIS-hosted Web API it usually does not;
+# prefer docs/deployment-iis.md. This manifest routes a DEDICATED host to the
+# proxy with NO stripPrefix, because a transparent proxy must forward the original
+# downstream path unchanged (this is intentionally different from the standard
+# /prod/service-name + stripPrefix Doane pattern).
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-gate
+  namespace: prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: edge-gate
+  template:
+    metadata:
+      labels:
+        app: edge-gate
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: edge-gate
+          image: doaneu/edge-gate:1.0.0
+          ports:
+            - containerPort: 5058
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://0.0.0.0:5058"
+            - name: EdgeGate__Mode
+              value: "Off"
+            - name: EdgeGate__Downstream__BaseUrl
+              value: "https://colleague-webapi.internal.doane.edu"
+            - name: EdgeGate__Match__PathPatterns__0
+              value: "/ColleagueApi/the-IE-person-create-path"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5058
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5058
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-gate
+  namespace: prod
+spec:
+  selector:
+    app: edge-gate
+  ports:
+    - port: 80
+      targetPort: 5058
+---
+# Dedicated host, all paths, NO stripPrefix (path fidelity is required).
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: edge-gate
+  namespace: prod
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`edge-gate.doane.edu`)
+      kind: Rule
+      services:
+        - name: edge-gate
+          port: 80
+  tls:
+    secretName: wildcard-doane-tls
+    options: {}
+    certResolver: prod-letsencrypt

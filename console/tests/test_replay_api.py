@@ -25,6 +25,19 @@ def test_fetch_missing_message_id_returns_400(client):
     assert "message_id" in r.get_json()["error"]
 
 
+def test_fetch_non_object_json_body_returns_400_not_500(client):
+    # Regression: request.get_json(force=True) on a JSON body that isn't an
+    # object (null, a list, a bare scalar) returns None, and calling .get()
+    # on None used to raise an unhandled AttributeError -> 500.
+    r = client.post("/api/replay/fetch", data="null", content_type="application/json")
+    assert r.status_code == 400
+
+
+def test_trigger_non_object_json_body_returns_400_not_500(client):
+    r = client.post("/api/replay/trigger", data="[]", content_type="application/json")
+    assert r.status_code == 400
+
+
 def test_fetch_without_ethos_key_returns_503(client):
     r = client.post("/api/replay/fetch", json={"message_id": "42"})
     assert r.status_code == 503
@@ -141,6 +154,42 @@ def test_trigger_persists_history_on_error(client, app, mock_conductor):
     r = client.get("/api/replay/history")
     items = r.get_json()["items"]
     assert any(i["outcome"] == "error" for i in items)
+
+
+def test_trigger_success_emits_audit_event(client, app, mock_conductor):
+    from app.database import AuditEntry
+    app.config["CONDUCTOR_URL"] = "http://conductor/"
+    mock_conductor.trigger_workflow.return_value = "wf-audit-1"
+
+    client.post("/api/replay/trigger", json={
+        "payload": _VALID_PAYLOAD,
+        "workflow_name": "my-workflow",
+    })
+
+    with app.app_context():
+        entry = AuditEntry.query.filter_by(
+            action="trigger", resource_id="wf-audit-1",
+        ).first()
+    assert entry is not None
+    assert entry.outcome == "success"
+
+
+def test_trigger_failure_emits_audit_event(client, app, mock_conductor):
+    from app.database import AuditEntry
+    app.config["CONDUCTOR_URL"] = "http://conductor/"
+    mock_conductor.trigger_workflow.side_effect = req_lib.HTTPError("503 Server Error")
+
+    client.post("/api/replay/trigger", json={
+        "payload": _VALID_PAYLOAD,
+        "workflow_name": "audit-failure-workflow",
+    })
+
+    with app.app_context():
+        entry = AuditEntry.query.filter_by(
+            action="trigger", resource_id="audit-failure-workflow",
+        ).first()
+    assert entry is not None
+    assert entry.outcome == "failure"
 
 
 # ── history ───────────────────────────────────────────────────────────────────

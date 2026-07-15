@@ -3,9 +3,11 @@
 Replaces the HTTP proxy to the C# CNM service. Method shape is preserved
 1:1 so the /api/cn/* routes are a thin pass-through.
 
-The Colleague Web API reads (list, detail, paragraph) are intentionally
-stubbed pending endpoint confirmation — same state the C# Infrastructure
-ChangeNotificationRepository was in. The set-diff diagnostics is fully
+The Colleague Web API reads (list, detail, paragraph) call the real
+/api/event-configurations endpoint via ColleagueApiClient — this is a live
+Colleague Web API call, not a stub. Field-name mapping in get_notifications()
+is best-effort against the documented shape (see the comment there); adjust
+if a real tenant returns different keys. The set-diff diagnostics is fully
 functional because the inputs (Ethos resources + the CN list shape) are
 known.
 """

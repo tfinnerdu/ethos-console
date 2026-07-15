@@ -23,6 +23,7 @@ from datetime import datetime, timezone, date
 
 from flask import Blueprint, Response, current_app, jsonify, request
 
+from app.audit import Action, write_event
 from app.database import db, DobDecision
 from app import dob_detector as detector
 from app import dob_sql_source
@@ -42,6 +43,11 @@ _STATE = {
 
 def _configured_input_path() -> str:
     return current_app.config.get("DOB_RECONCILE_INPUT_CSV", "").strip()
+
+
+def _extra_ie_origin_values() -> set:
+    raw = current_app.config.get("DOB_RECONCILE_IE_ORIGIN_CODES", "")
+    return {v.strip() for v in raw.split(",") if v.strip()}
 
 
 def _store_result(result, source: str, identity_threshold: int) -> None:
@@ -87,7 +93,7 @@ def analyze():
         current_app.logger.error("dob_repair analyze parse error: %s", exc, exc_info=True)
         return jsonify({"error": f"Could not parse CSV: {exc}"}), 400
 
-    result = detector.analyze(records, identity_threshold=threshold)
+    result = detector.analyze(records, identity_threshold=threshold, extra_ie_origin_values=_extra_ie_origin_values())
     _store_result(result, source, threshold)
 
     current_app.logger.info("dob_repair analyze: source=%s %s", source, result.summary)
@@ -131,7 +137,7 @@ def analyze_sql():
         return jsonify({"error": f"SQL fetch failed: {exc}"}), 502
 
     source = f"sql:{dob_sql_source.sql_file_path()}"
-    result = detector.analyze(records, identity_threshold=threshold)
+    result = detector.analyze(records, identity_threshold=threshold, extra_ie_origin_values=_extra_ie_origin_values())
     _store_result(result, source, threshold)
 
     current_app.logger.info(
@@ -270,6 +276,14 @@ def record_decision():
         db.session.rollback()
         current_app.logger.error("dob_repair record_decision error: %s", exc, exc_info=True)
         return jsonify({"error": str(exc)}), 500
+
+    # Detail is deliberately minimal — candidate_id/action/reviewer only, no
+    # DOB values or names — the DobDecision row (not this audit entry) is the
+    # PII-bearing record of what changed.
+    write_event(
+        Action.UPDATE, "dob_decision", candidate_id,
+        detail={"decision_action": action, "reviewer": reviewer},
+    )
 
     current_app.logger.info(
         "dob_repair decision: candidate=%s action=%s corrected=%s reviewer=%s",

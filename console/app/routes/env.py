@@ -1,4 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app
+from app.audit import Action, write_event
+from app.request_utils import get_json_body
 
 env_bp = Blueprint("env", __name__)
 
@@ -15,7 +17,7 @@ def list_environments():
 
 @env_bp.post("/switch")
 def switch_environment():
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     name = (data.get("name") or "").strip()
     envs = current_app.config.get("ETHOS_ENVIRONMENTS", [])
     env = next((e for e in envs if e["name"] == name), None)
@@ -45,4 +47,5 @@ def switch_environment():
     rr._cn_resource_cache = []
 
     current_app.extensions["current_env_name"] = name
+    write_event(Action.SWITCH, "ethos_environment", name, detail={"url": env["url"]})
     return jsonify({"switched_to": name, "url": env["url"]})

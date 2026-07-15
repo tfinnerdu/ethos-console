@@ -95,3 +95,22 @@ def test_cannot_delete_preloaded(client):
     preloaded_id = next(q["id"] for q in data["items"] if q.get("is_preloaded"))
     r = client.delete(f"/api/graphql-console/saved/{preloaded_id}")
     assert r.status_code == 403
+
+
+def test_save_and_delete_query_emit_audit_events(client, app):
+    from app.database import AuditEntry
+    payload = {
+        "name": "Audited Query",
+        "description": "pytest",
+        "query_text": "query { persons16 { edges { node { id } } } }",
+        "variables": {},
+    }
+    r = client.post("/api/graphql-console/saved", json=payload)
+    qid = r.get_json()["id"]
+    client.delete(f"/api/graphql-console/saved/{qid}")
+
+    with app.app_context():
+        actions = {
+            e.action for e in AuditEntry.query.filter_by(resource_id=str(qid)).all()
+        }
+    assert {"create", "delete"} <= actions

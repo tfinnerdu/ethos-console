@@ -1,0 +1,39 @@
+DoaneEdgeGate - common commands
+---------------------------------------------------------------------------
+
+Build everything (solution):
+    dotnet build DoaneEdgeGate.sln -c Debug
+
+Run the tests (dependency-free harness; prints pass/fail, exits non-zero on fail):
+    dotnet run --project tests/DoaneEdgeGate.Tests/DoaneEdgeGate.Tests.csproj
+
+Run the proxy locally (binds 0.0.0.0:5058, Mode=Off by default):
+    powershell -File start-local.ps1
+    -- or --
+    dotnet run --project src/DoaneEdgeGate/DoaneEdgeGate.csproj
+
+Hit the management endpoints:
+    curl http://localhost:5058/health
+    curl http://localhost:5058/api/v1/status
+    curl "http://localhost:5058/api/v1/rewrites/recent?take=50"
+
+Try a rewrite locally (needs a downstream to forward to; point Downstream:BaseUrl
+at any echo endpoint, then):
+    curl -X POST http://localhost:5058/<matched-path> \
+      -H "Content-Type: application/json" \
+      -d "{\"birthDate\":\"1980-04-03T04:00:00Z\"}"
+
+Publish for deployment:
+    dotnet publish src/DoaneEdgeGate/DoaneEdgeGate.csproj -c Release -o publish/edge-gate
+
+Override config from the environment (examples):
+    set EdgeGate__Mode=Shadow
+    set EdgeGate__Downstream__BaseUrl=https://colleague-webapi.internal.doane.edu
+    set EdgeGate__Match__PathPatterns__0=/ColleagueApi/the-IE-path
+
+Notes:
+- There is a build-only NuGet.config at the repo root ONLY on the build host used
+  to produce this project offline; it must not ship. It is git-ignored. Your VS
+  has nuget.org and does not need it.
+- The default forwarder has zero third-party dependencies. To swap to YARP, see
+  docs/architecture.md section 6.

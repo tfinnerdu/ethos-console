@@ -47,11 +47,16 @@ pytest tests/test_mock_mode.py
 | `test_mock_mode.py`         | The three required signals (badge / header / health key), per-provider fixture characterizations, every tab returns 200 in mock mode |
 | `test_mnemonics_api.py`     | CRUD, filter, uppercase, 404, 409 |
 | `test_bus_*.py`             | Bus REST + monitor pure-logic methods, incl. `/start`/`/stop` and no-auto-start-on-boot regression guard |
-| `test_dob_detector.py`      | PD0002124 detection engine: backward-shift HIGH case, year-boundary shift, same-zone clean records, forward-gap REVIEW, ambiguous-origin MEDIUM, elevated-risk worklist, identity scoring |
+| `test_dob_detector.py`      | PD0002124 detection engine: backward-shift HIGH case, year-boundary shift, same-zone clean records, forward-gap REVIEW, ambiguous-origin MEDIUM, elevated-risk worklist, identity scoring, institution-specific origin codes (`extra_ie_origin_values`), same-person corroboration (`_classify_self_corroboration`) |
 | `test_dob_repair_api.py`    | DOB Repair CRUD: analyze (CSV + SQL fetch), status, candidates, decision (accept/reject/defer), export corrections |
 | `test_dob_sql_source.py`    | SQL fetch read-only guard (rejects writes, multi-statement, `SELECT...INTO`), connection-string building, row mapping — no live SQL Server needed |
-| `test_contracts.py`         | Blueprint prefixes, model shapes, error envelopes, seed counts, health keys |
+| `test_contracts.py`         | Blueprint prefixes (all 15, incl. `/api/colleague` and `/api/env`), model shapes, error envelopes, seed counts, health keys |
 | `test_auth.py`              | Login gate: fail-closed when unconfigured/default `SECRET_KEY`, redirect/401 when not logged in, login/logout flow, `next` sanitization — builds its own non-`TESTING` app instance so the real gate runs (every other module gets a free pass via `current_app.testing`) |
+| `test_env.py`               | List/switch environments, credential swap, cache invalidation, audit emission, non-object JSON body |
+| `test_colleague_api.py`     | About/event-configurations/transaction/metadata, 503-unconfigured shapes, audit emission (success/failure) on the CTX transaction call |
+| `test_request_utils.py`     | `get_json_body()` coerces every non-dict JSON body — falsy (`null`/`[]`/`""`/`0`/`false`) AND truthy (`42`/a string/`[1,2]`/`true`) — to `{}` |
+| `characterization/test_colleague_api_client_characterization.py` | Real `ColleagueApiClient`: basic-auth header encoding, URL construction per endpoint, `_LegacyTlsAdapter` leaves cert/hostname verification intact |
+| `characterization/test_unidata_client_characterization.py` | Real `UnidataClient`: `_parse_list_ids()`, connection param passthrough, `run_command`/`call_subroutine` argument marshalling (mocked `_uopy`) |
 
 ---
 
@@ -164,6 +169,7 @@ Open `http://localhost:5012` and verify:
 - [ ] Mnemonics page loads, table renders
 - [ ] Change Notifications tab loads — no "configure CNM" setup card
 - [ ] Schema Browser loads, types list populates after "Load Schema"
+- [ ] Field Diff page loads; **known limitation** — Compare always returns empty Matched/EEDM-only/UniData-only sections (`app/routes/phase3.py`'s field-diff handler is not yet implemented), so an empty result here is expected, not a bug
 - [ ] Sign out redirects to `/login`; the app is gated again
 
 ### Caustic-operation banners

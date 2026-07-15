@@ -1,7 +1,9 @@
 import time
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
+from app.audit import Action, write_event
 from app.database import db, EthosErrorLog, SavedQuery
+from app.request_utils import get_json_body
 
 graphql_bp = Blueprint("graphql", __name__)
 
@@ -187,7 +189,7 @@ def execute_query():
     if not ethos.is_configured():
         return jsonify({"error": "Ethos API key not configured"}), 503
 
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     query = data.get("query", "")
     variables = data.get("variables")
 
@@ -216,7 +218,7 @@ def list_saved_queries():
 
 @graphql_bp.post("/saved")
 def create_saved_query():
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     name = data.get("name", "").strip()
     query_text = data.get("query_text", "").strip()
 
@@ -235,6 +237,7 @@ def create_saved_query():
     )
     db.session.add(entry)
     db.session.commit()
+    write_event(Action.CREATE, "saved_query", str(entry.id), detail={"name": name})
     return jsonify(entry.to_dict()), 201
 
 
@@ -243,6 +246,8 @@ def delete_saved_query(qid: int):
     entry = SavedQuery.query.get_or_404(qid)
     if entry.is_preloaded:
         return jsonify({"error": "Cannot delete a preloaded query"}), 403
+    name = entry.name
     db.session.delete(entry)
     db.session.commit()
+    write_event(Action.DELETE, "saved_query", str(qid), detail={"name": name})
     return jsonify({"deleted": True, "id": qid})

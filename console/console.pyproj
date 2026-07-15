@@ -44,6 +44,7 @@
     <Compile Include="app\database.py" />
     <Compile Include="app\ethos_client.py" />
     <Compile Include="app\health_monitor.py" />
+    <Compile Include="app\request_utils.py" />
     <Compile Include="app\unidata_client.py" />
     <Compile Include="app\mocks\__init__.py" />
     <Compile Include="app\mocks\cn_repository.py" />
@@ -57,6 +58,7 @@
     <Compile Include="app\routes\bus.py" />
     <Compile Include="app\routes\cn_monitor.py" />
     <Compile Include="app\routes\colleague_api.py" />
+    <Compile Include="app\routes\dob_repair.py" />
     <Compile Include="app\routes\env.py" />
     <Compile Include="app\routes\errors.py" />
     <Compile Include="app\routes\graphql_routes.py" />
@@ -70,7 +72,6 @@
   </ItemGroup>
   <!-- ── Tests ──────────────────────────────────────────────────────────── -->
   <ItemGroup>
-    <Compile Include="test.py" />
     <Compile Include="tests\test_default_env.py" />
     <Compile Include="tests\test_dob_detector.py" />
     <Compile Include="tests\test_dob_repair_api.py" />
@@ -82,7 +83,9 @@
     <Compile Include="tests\test_bus_api.py" />
     <Compile Include="tests\test_bus_monitor.py" />
     <Compile Include="tests\test_cn_monitor_api.py" />
+    <Compile Include="tests\test_colleague_api.py" />
     <Compile Include="tests\test_contracts.py" />
+    <Compile Include="tests\test_env.py" />
     <Compile Include="tests\test_errors_api.py" />
     <Compile Include="tests\test_ethos_client.py" />
     <Compile Include="tests\test_graphql_api.py" />
@@ -91,8 +94,12 @@
     <Compile Include="tests\test_mnemonics_api.py" />
     <Compile Include="tests\test_mock_mode.py" />
     <Compile Include="tests\test_replay_api.py" />
+    <Compile Include="tests\test_request_utils.py" />
     <Compile Include="tests\test_resources_api.py" />
     <Compile Include="tests\test_schema_browser_api.py" />
+    <Compile Include="tests\characterization\__init__.py" />
+    <Compile Include="tests\characterization\test_colleague_api_client_characterization.py" />
+    <Compile Include="tests\characterization\test_unidata_client_characterization.py" />
   </ItemGroup>
   <!-- ── Templates ─────────────────────────────────────────────────────── -->
   <ItemGroup>
@@ -104,6 +111,7 @@
     <Content Include="app\templates\cn_monitor.html" />
     <Content Include="app\templates\colleague_api.html" />
     <Content Include="app\templates\colleague_query.html" />
+    <Content Include="app\templates\dob_repair.html" />
     <Content Include="app\templates\errors.html" />
     <Content Include="app\templates\field_diff.html" />
     <Content Include="app\templates\graphql.html" />
@@ -156,6 +164,7 @@
     <Folder Include="static\css\" />
     <Folder Include="static\js\" />
     <Folder Include="tests\" />
+    <Folder Include="tests\characterization\" />
     <Folder Include="tests\fixtures\" />
   </ItemGroup>
   <ItemGroup>

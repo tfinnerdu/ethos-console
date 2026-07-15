@@ -64,7 +64,33 @@ def test_errors_flush(client):
     assert r.status_code == 200
 
 
+def test_errors_flush_emits_one_summary_audit_event(client, app):
+    from app.database import AuditEntry
+    from unittest.mock import MagicMock
+    hm = app.extensions.get("health_monitor")
+    hm.error_log = [
+        {"source": "s", "endpoint": "/e", "http_status": 500, "error_message": "boom"},
+        {"source": "s", "endpoint": "/e", "http_status": 500, "error_message": "boom2"},
+    ]
+    before = AuditEntry.query.filter_by(action="flush").count()
+    client.post("/api/errors/flush")
+    with app.app_context():
+        after = AuditEntry.query.filter_by(action="flush").count()
+    # One summary event for the whole batch, never one per flushed row.
+    assert after == before + 1
+
+
 def test_errors_export_csv(client):
     r = client.get("/api/errors/export")
     assert r.status_code == 200
     assert "text/csv" in r.content_type
+
+
+def test_errors_list_non_numeric_limit_returns_400_not_500(client):
+    r = client.get("/api/errors/?limit=abc")
+    assert r.status_code == 400
+
+
+def test_errors_list_non_numeric_page_returns_400_not_500(client):
+    r = client.get("/api/errors/?page=abc")
+    assert r.status_code == 400

@@ -11,6 +11,14 @@ function fmtSeconds(sec) {
   return `${Math.round(sec / 60)}min ago`;
 }
 
+function fmtUptime(sec) {
+  if (sec == null) return '—';
+  if (sec < 60) return `${Math.round(sec)}s`;
+  if (sec < 3600) return `${Math.round(sec / 60)}min`;
+  if (sec < 86400) return `${Math.round(sec / 3600)}h`;
+  return `${Math.round(sec / 86400)}d`;
+}
+
 async function loadHealth() {
   let data;
   try {
@@ -84,6 +92,37 @@ async function loadHealth() {
   }
 }
 
+async function loadEdgeGateHealth() {
+  let data;
+  try {
+    const r = await fetch('/api/health/edge-gate');
+    data = await r.json();
+  } catch (e) {
+    console.error('Edge gate health fetch failed', e);
+    return;
+  }
+
+  const dot = document.getElementById('edge-gate-dot');
+  const statusEl = document.getElementById('edge-gate-status');
+  const subEl = document.getElementById('edge-gate-sub');
+
+  if (!data.configured) {
+    dot.className = 'status-dot gray';
+    statusEl.textContent = 'Not configured';
+    subEl.textContent = 'Set EDGE_GATE_URL to monitor';
+  } else if (!data.reachable) {
+    dot.className = 'status-dot red';
+    statusEl.textContent = 'Unreachable';
+    subEl.textContent = data.error || 'No response from /health';
+  } else {
+    dot.className = `status-dot ${data.status === 'ok' ? 'green' : 'amber'}`;
+    statusEl.textContent = data.status === 'ok' ? 'Up' : data.status;
+    subEl.textContent = data.version
+      ? `v${data.version} · up ${fmtUptime(data.uptime_seconds)}`
+      : `up ${fmtUptime(data.uptime_seconds)}`;
+  }
+}
+
 async function refreshConsoleCaches() {
   const btn = document.querySelector('[onclick="refreshConsoleCaches()"]');
   const status = document.getElementById('cache-refresh-status');
@@ -107,3 +146,6 @@ async function refreshConsoleCaches() {
 
 loadHealth();
 setInterval(loadHealth, 10000);
+
+loadEdgeGateHealth();
+setInterval(loadEdgeGateHealth, 10000);

@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request, current_app, Response
 from sqlalchemy import text
 
+from app.audit import Action, write_event
 from app.database import db, EthosErrorLog
+from app.request_utils import get_json_body
 
 errors_bp = Blueprint("errors", __name__)
 
@@ -42,15 +44,18 @@ def _apply_filters(query, args):
 @errors_bp.get("/")
 def list_errors():
     args = request.args
-    # Accept limit/offset (JS convention) or page/per_page (SQLAlchemy convention)
-    if "limit" in args or "offset" in args:
-        limit = int(args.get("limit", 50))
-        offset = int(args.get("offset", 0))
-        per_page = limit
-        page = (offset // limit) + 1 if limit else 1
-    else:
-        page = int(args.get("page", 1))
-        per_page = int(args.get("per_page", 50))
+    try:
+        # Accept limit/offset (JS convention) or page/per_page (SQLAlchemy convention)
+        if "limit" in args or "offset" in args:
+            limit = int(args.get("limit", 50))
+            offset = int(args.get("offset", 0))
+            per_page = limit
+            page = (offset // limit) + 1 if limit else 1
+        else:
+            page = int(args.get("page", 1))
+            per_page = int(args.get("per_page", 50))
+    except ValueError:
+        return jsonify({"error": "limit/offset/page/per_page must be integers"}), 400
 
     q = EthosErrorLog.query.order_by(EthosErrorLog.timestamp.desc())
     q = _apply_filters(q, args)
@@ -112,7 +117,7 @@ def export_errors():
 
 @errors_bp.post("/")
 def create_error():
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     entry = EthosErrorLog(
         source=data.get("source"),
         endpoint=data.get("endpoint"),
@@ -144,4 +149,7 @@ def flush_errors():
         flushed += 1
 
     db.session.commit()
+    # One summary event for the whole flush, not one per row (Audit Emission
+    # Discipline: "never one event per fan-out item in a batch").
+    write_event(Action.FLUSH, "ethos_error_log", None, detail={"flushed": flushed})
     return jsonify({"flushed": flushed})

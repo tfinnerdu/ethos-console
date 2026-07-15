@@ -10,6 +10,7 @@ import requests as req
 import time
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
+from app.request_utils import get_json_body
 from app.routes.graphql_routes import _schema_cache, INTROSPECTION_QUERY, SCHEMA_CACHE_TTL
 
 schema_browser_bp = Blueprint("schema_browser", __name__)
@@ -147,7 +148,7 @@ def validate_payload():
     if not ethos.is_configured():
         return jsonify({"error": "Ethos API key not configured"}), 503
 
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     resource = data.get("resource", "").strip()
     version = data.get("version", "").strip()
     payload = data.get("payload")

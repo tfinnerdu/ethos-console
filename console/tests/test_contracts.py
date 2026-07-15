@@ -170,6 +170,8 @@ EXPECTED_PREFIXES = {
     "/api/phase3",
     "/api/cn",
     "/api/dob-repair",
+    "/api/colleague",
+    "/api/env",
 }
 
 

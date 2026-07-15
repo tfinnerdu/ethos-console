@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
+from app.audit import Action, write_event
 from app.database import db, ColleagueMnemonic
+from app.request_utils import get_json_body
 
 mnemonics_bp = Blueprint("mnemonics", __name__)
 
@@ -32,7 +34,7 @@ def get_mnemonic(item_id: int):
 
 @mnemonics_bp.post("/")
 def create_mnemonic():
-    data = request.get_json(force=True)
+    data = get_json_body(request)
     if not data.get("mnemonic"):
         return jsonify({"error": "mnemonic is required"}), 400
     if ColleagueMnemonic.query.filter_by(mnemonic=data["mnemonic"].upper()).first():
@@ -52,13 +54,14 @@ def create_mnemonic():
     )
     db.session.add(item)
     db.session.commit()
+    write_event(Action.CREATE, "colleague_mnemonic", item.mnemonic)
     return jsonify(item.to_dict()), 201
 
 
 @mnemonics_bp.put("/<int:item_id>")
 def update_mnemonic(item_id: int):
     item = ColleagueMnemonic.query.get_or_404(item_id)
-    data = request.get_json(force=True)
+    data = get_json_body(request)
 
     for field in ("colleague_file", "eedm_resource", "eedm_version", "cn_notes", "gotchas", "updated_by"):
         if field in data:
@@ -72,12 +75,15 @@ def update_mnemonic(item_id: int):
 
     item.last_updated = datetime.now(timezone.utc)
     db.session.commit()
+    write_event(Action.UPDATE, "colleague_mnemonic", item.mnemonic)
     return jsonify(item.to_dict())
 
 
 @mnemonics_bp.delete("/<int:item_id>")
 def delete_mnemonic(item_id: int):
     item = ColleagueMnemonic.query.get_or_404(item_id)
+    mnemonic = item.mnemonic
     db.session.delete(item)
     db.session.commit()
+    write_event(Action.DELETE, "colleague_mnemonic", mnemonic)
     return "", 204

@@ -172,3 +172,37 @@ def test_delete_removes_from_db(client):
 def test_delete_unknown_id_returns_404(client):
     r = client.delete("/api/mnemonics/999999")
     assert r.status_code == 404
+
+
+def test_create_non_object_json_body_returns_400_not_500(client):
+    r = client.post("/api/mnemonics/", data="null", content_type="application/json")
+    assert r.status_code == 400
+
+
+def test_update_non_object_json_body_is_a_no_op_not_a_500(client):
+    # update_mnemonic has no required-field check (unlike create) -- a
+    # non-dict body coerces to {}, which is a valid no-op update, not a
+    # validation error. The regression this guards is the unhandled 500 a
+    # bare scalar body used to cause, not a specific status code.
+    item_id = _create(client).get_json()["id"]
+    before = client.get(f"/api/mnemonics/{item_id}").get_json()
+    r = client.put(f"/api/mnemonics/{item_id}", data="42", content_type="application/json")
+    assert r.status_code == 200
+    after = client.get(f"/api/mnemonics/{item_id}").get_json()
+    assert after["colleague_file"] == before["colleague_file"]
+
+
+def test_create_update_delete_emit_audit_events(client, app):
+    from app.database import AuditEntry
+    r = _create(client)
+    mnemonic = r.get_json()["mnemonic"]
+    item_id = r.get_json()["id"]
+
+    client.put(f"/api/mnemonics/{item_id}", json={"gotchas": "updated"})
+    client.delete(f"/api/mnemonics/{item_id}")
+
+    with app.app_context():
+        actions = {
+            e.action for e in AuditEntry.query.filter_by(resource_id=mnemonic).all()
+        }
+    assert {"create", "update", "delete"} <= actions

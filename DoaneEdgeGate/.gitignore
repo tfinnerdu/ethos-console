@@ -1,0 +1,24 @@
+# .NET build output
+bin/
+obj/
+*.user
+.vs/
+
+# Publish output
+publish/
+*.pubxml.user
+
+# Local env
+.env
+*.local.json
+
+# Logs
+*.log
+.hub-logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build-only NuGet override (must not ship; VS needs nuget.org)
+NuGet.config

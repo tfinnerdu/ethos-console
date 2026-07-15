@@ -1,4 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app
+from app.audit import Action, Outcome, write_event
+from app.request_utils import get_json_body
 
 colleague_api_bp = Blueprint("colleague_api", __name__)
 
@@ -49,15 +51,20 @@ def call_transaction():
     client, err = _require_configured()
     if err:
         return err
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     transaction_id = (data.get("transactionId") or "").strip().upper()
     payload = data.get("payload") or {}
     if not transaction_id:
         return jsonify({"error": "transactionId is required"}), 400
     try:
         result = client.call_transaction(transaction_id, payload)
+        write_event(Action.CALL, "colleague_ctx_transaction", transaction_id)
         return jsonify(result)
     except Exception as exc:
+        write_event(
+            Action.CALL, "colleague_ctx_transaction", transaction_id,
+            outcome=Outcome.FAILURE, failure_reason=str(exc),
+        )
         return jsonify({"error": str(exc)}), 500
 
 

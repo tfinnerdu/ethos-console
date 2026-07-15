@@ -568,6 +568,15 @@ body {
   border: 1px solid #B9740A;
 }
 
+/* ── Live-mode badge (explicit counterpart to .mock-badge) ── */
+.live-badge {
+  background: #28a745;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .05em;
+  border: 1px solid #1e7e34;
+}
+
 /* ── Caustic-operation warning banner ── */
 .caustic-banner {
   background: #FBE8E6;

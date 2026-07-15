@@ -32,5 +32,15 @@ ENV PORT=8080
 
 EXPOSE 8080
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", \
+# --workers is pinned to 1, not scaled up: BusMonitor, the GraphQL schema
+# cache, and the resource caches (app/routes/graphql_routes.py,
+# app/routes/resources.py, app/routes/dob_repair.py) are all process-local
+# module/instance state with no shared backing store. With --preload absent,
+# each gunicorn worker forks its own independent copy of this state and its
+# own BusMonitor polling thread racing the same Ethos queue/credential —
+# start/stop/pause API calls would only affect whichever worker served that
+# request, and two workers could show different cached data to the same
+# operator. Scale for HA with k8s replicas (pods), not in-process workers —
+# concurrency within a pod already comes from --threads 4.
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "4", \
      "--worker-class", "gthread", "--timeout", "120", "run:app"]
