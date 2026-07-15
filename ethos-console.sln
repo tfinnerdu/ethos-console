@@ -15,11 +15,55 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A0000000-0
 	ProjectSection(SolutionItems) = preProject
 		docs\auth-gate-guide.md = docs\auth-gate-guide.md
 		docs\console-user-guide.md = docs\console-user-guide.md
-		docs\doane-edge-gate-deployment.md = docs\doane-edge-gate-deployment.md
 		docs\dob_reconcile_query.example.sql = docs\dob_reconcile_query.example.sql
 		docs\e2e-testing.md = docs\e2e-testing.md
 		docs\test-coverage-classification.md = docs\test-coverage-classification.md
 		docs\warning.md = docs\warning.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DoaneEdgeGate", "DoaneEdgeGate", "{A0000000-0000-0000-0000-000000000003}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D26DA263-930A-4932-BEE5-3F6AE8FC0F3E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DoaneEdgeGate.Core", "DoaneEdgeGate\src\DoaneEdgeGate.Core\DoaneEdgeGate.Core.csproj", "{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DoaneEdgeGate", "DoaneEdgeGate\src\DoaneEdgeGate\DoaneEdgeGate.csproj", "{FBE42525-0ADF-4943-8CB5-4A9944D32B19}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ACA60975-F06C-43C4-B09D-0FE3EF70DC35}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DoaneEdgeGate.Tests", "DoaneEdgeGate\tests\DoaneEdgeGate.Tests\DoaneEdgeGate.Tests.csproj", "{B12F1271-2CB9-434A-8E85-1A89D41B7025}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C0FFEE00-0000-0000-0000-000000000001}"
+	ProjectSection(SolutionItems) = preProject
+		DoaneEdgeGate\README.md = DoaneEdgeGate\README.md
+		DoaneEdgeGate\DoaneEdgeGate.sln = DoaneEdgeGate\DoaneEdgeGate.sln
+		DoaneEdgeGate\.gitignore = DoaneEdgeGate\.gitignore
+		DoaneEdgeGate\.env.example = DoaneEdgeGate\.env.example
+		DoaneEdgeGate\start-local.ps1 = DoaneEdgeGate\start-local.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{C0FFEE00-0000-0000-0000-000000000002}"
+	ProjectSection(SolutionItems) = preProject
+		DoaneEdgeGate\docs\architecture.md = DoaneEdgeGate\docs\architecture.md
+		DoaneEdgeGate\docs\deployment-iis.md = DoaneEdgeGate\docs\deployment-iis.md
+		DoaneEdgeGate\docs\deployment-standalone.md = DoaneEdgeGate\docs\deployment-standalone.md
+		DoaneEdgeGate\docs\deployment-container.md = DoaneEdgeGate\docs\deployment-container.md
+		DoaneEdgeGate\docs\bashCommands.txt = DoaneEdgeGate\docs\bashCommands.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deploy", "deploy", "{C0FFEE00-0000-0000-0000-000000000003}"
+	ProjectSection(SolutionItems) = preProject
+		DoaneEdgeGate\deploy\iis\web.config = DoaneEdgeGate\deploy\iis\web.config
+		DoaneEdgeGate\deploy\docker\Dockerfile = DoaneEdgeGate\deploy\docker\Dockerfile
+		DoaneEdgeGate\deploy\k8s\edge-gate.yaml = DoaneEdgeGate\deploy\k8s\edge-gate.yaml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "runbooks", "runbooks", "{A0000000-0000-0000-0000-000000000004}"
+	ProjectSection(SolutionItems) = preProject
+		DoaneEdgeGate-Deployment-Walkthrough.md = DoaneEdgeGate-Deployment-Walkthrough.md
+		DoaneEdgeGate-IIS-Deployment.md = DoaneEdgeGate-IIS-Deployment.md
+		DoaneEdgeGate-Pilot-and-Phase0.md = DoaneEdgeGate-Pilot-and-Phase0.md
+		DOB-Repair-Tandem-Flow.md = DOB-Repair-Tandem-Flow.md
 	EndProjectSection
 EndProject
 Global
@@ -30,9 +74,31 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{77777777-7777-7777-7777-777777777777}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{77777777-7777-7777-7777-777777777777}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D26DA263-930A-4932-BEE5-3F6AE8FC0F3E} = {A0000000-0000-0000-0000-000000000003}
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F} = {D26DA263-930A-4932-BEE5-3F6AE8FC0F3E}
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19} = {D26DA263-930A-4932-BEE5-3F6AE8FC0F3E}
+		{ACA60975-F06C-43C4-B09D-0FE3EF70DC35} = {A0000000-0000-0000-0000-000000000003}
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025} = {ACA60975-F06C-43C4-B09D-0FE3EF70DC35}
+		{C0FFEE00-0000-0000-0000-000000000001} = {A0000000-0000-0000-0000-000000000003}
+		{C0FFEE00-0000-0000-0000-000000000002} = {A0000000-0000-0000-0000-000000000003}
+		{C0FFEE00-0000-0000-0000-000000000003} = {A0000000-0000-0000-0000-000000000003}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D0000000-0000-0000-0000-000000000000}

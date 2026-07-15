@@ -9,6 +9,7 @@ from .unidata_client import UnidataClient
 from .cn_repository import CnRepository
 from .bus_monitor import BusMonitor
 from .health_monitor import EthosHealthMonitor
+from .edge_gate_client import EdgeGateClient
 from config import config
 
 
@@ -114,12 +115,14 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         from .mocks import (
             MockEthosClient, MockColleagueApiClient,
             MockConductorClient, MockUnidataClient, MockCnRepository,
+            MockEdgeGateClient,
         )
         ethos = MockEthosClient()
         colleague_api = MockColleagueApiClient()
         conductor = MockConductorClient()
         unidata = MockUnidataClient()
         cn_repository = MockCnRepository()
+        edge_gate = MockEdgeGateClient()
     else:
         ethos = EthosClient(
             api_key=active_env["key"] if active_env else "",
@@ -142,6 +145,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             account=app.config.get("UNIDATA_ACCOUNT", ""),
         )
         cn_repository = CnRepository(colleague_api_client=colleague_api)
+        edge_gate = EdgeGateClient(base_url=app.config.get("EDGE_GATE_URL", ""))
 
     monitor = BusMonitor(ethos)
     health_monitor = EthosHealthMonitor(ethos)
@@ -158,6 +162,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     app.extensions["cn_repository"] = cn_repository
     app.extensions["bus_monitor"] = monitor
     app.extensions["health_monitor"] = health_monitor
+    app.extensions["edge_gate_client"] = edge_gate
 
     app.extensions["current_env_name"] = active_env["name"] if active_env else ""
 
@@ -178,7 +183,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             # Every feature is exercisable in mock mode — clear all "off" badges.
             configured_features = {
                 k: True for k in
-                ("ethos", "conductor", "unidata", "colleague_api", "alerting")
+                ("ethos", "conductor", "unidata", "colleague_api", "alerting", "edge_gate")
             }
         else:
             configured_features = {
@@ -187,6 +192,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
                 "unidata":       bool(app.config.get("UNIDATA_HOST")),
                 "colleague_api": bool(app.config.get("COLLEAGUE_WEB_API_URL")),
                 "alerting":      bool(app.config.get("ALERT_WEBHOOK_URL")),
+                "edge_gate":     bool(app.config.get("EDGE_GATE_URL")),
             }
         return {
             "ethos_environments": environments,
@@ -248,3 +254,7 @@ def get_conductor(app: Flask) -> ConductorClient:
 
 def get_unidata(app: Flask) -> UnidataClient:
     return app.extensions["unidata_client"]
+
+
+def get_edge_gate(app: Flask) -> EdgeGateClient:
+    return app.extensions["edge_gate_client"]

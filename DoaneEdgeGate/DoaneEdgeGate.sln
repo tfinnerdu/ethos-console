@@ -1,0 +1,67 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D26DA263-930A-4932-BEE5-3F6AE8FC0F3E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DoaneEdgeGate.Core", "src\DoaneEdgeGate.Core\DoaneEdgeGate.Core.csproj", "{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DoaneEdgeGate", "src\DoaneEdgeGate\DoaneEdgeGate.csproj", "{FBE42525-0ADF-4943-8CB5-4A9944D32B19}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ACA60975-F06C-43C4-B09D-0FE3EF70DC35}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DoaneEdgeGate.Tests", "tests\DoaneEdgeGate.Tests\DoaneEdgeGate.Tests.csproj", "{B12F1271-2CB9-434A-8E85-1A89D41B7025}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C0FFEE00-0000-0000-0000-000000000001}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		.gitignore = .gitignore
+		.env.example = .env.example
+		start-local.ps1 = start-local.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{C0FFEE00-0000-0000-0000-000000000002}"
+	ProjectSection(SolutionItems) = preProject
+		docs\architecture.md = docs\architecture.md
+		docs\deployment-iis.md = docs\deployment-iis.md
+		docs\deployment-standalone.md = docs\deployment-standalone.md
+		docs\deployment-container.md = docs\deployment-container.md
+		docs\bashCommands.txt = docs\bashCommands.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deploy", "deploy", "{C0FFEE00-0000-0000-0000-000000000003}"
+	ProjectSection(SolutionItems) = preProject
+		deploy\iis\web.config = deploy\iis\web.config
+		deploy\docker\Dockerfile = deploy\docker\Dockerfile
+		deploy\k8s\edge-gate.yaml = deploy\k8s\edge-gate.yaml
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{02B4CA24-6559-460C-98D4-BBD9ED3B4B5F} = {D26DA263-930A-4932-BEE5-3F6AE8FC0F3E}
+		{FBE42525-0ADF-4943-8CB5-4A9944D32B19} = {D26DA263-930A-4932-BEE5-3F6AE8FC0F3E}
+		{B12F1271-2CB9-434A-8E85-1A89D41B7025} = {ACA60975-F06C-43C4-B09D-0FE3EF70DC35}
+	EndGlobalSection
+EndGlobal

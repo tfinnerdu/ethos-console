@@ -566,6 +566,17 @@ Operational health view for the Ethos connection and the console's internal stat
 | **Queue Depth** | Current Ethos message queue depth (same as Bus Monitor tile) |
 | **P50 Latency** | Median response time of Ethos API calls in the current session |
 | **Errors (session)** | Count of Ethos API errors since startup |
+| **DoaneEdgeGate** | Up/Unreachable/Not configured, polled from the gate's own `/health` — see below |
+
+### DoaneEdgeGate Tile
+
+Separate from the Ethos tiles above: this polls the DOB-shift prevention reverse proxy's (`../DoaneEdgeGate/`) own `GET /health` endpoint directly, via `GET /api/health/edge-gate` on the console side. Set `EDGE_GATE_URL` (base URL only, e.g. `http://localhost:5199`) to enable it — left unset, the tile reads "Not configured" rather than a false "down". It is polled on its own request/interval, deliberately isolated from the Ethos health payload, so a slow or unreachable gate can never hold up the tiles above it.
+
+| State | Meaning |
+|---|---|
+| **Not configured** (gray) | `EDGE_GATE_URL` is unset |
+| **Up** (green) | The gate responded 200 with `"status":"ok"` |
+| **Unreachable** (red) | The gate did not respond, timed out, or returned an error status |
 
 ### Resource Health Table
 

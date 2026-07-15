@@ -42,6 +42,13 @@ class Config:
     # not in that shared module.
     DOB_RECONCILE_IE_ORIGIN_CODES = os.environ.get("DOB_RECONCILE_IE_ORIGIN_CODES", "")
 
+    # DoaneEdgeGate — the DOB-shift prevention reverse proxy in front of the
+    # Colleague Web API (see DoaneEdgeGate/README.md). Base URL only, e.g.
+    # "http://localhost:5199" or "https://edge-gate.internal.doane.edu"; the
+    # console appends /health itself. Leave unset to show the Health tab tile
+    # as "not configured" rather than treating an unrelated deployment as down.
+    EDGE_GATE_URL = os.environ.get("EDGE_GATE_URL", "")
+
     BUS_POLL_INTERVAL = int(os.environ.get("BUS_POLL_INTERVAL", "2"))
     SILENCE_THRESHOLD_MINUTES = int(os.environ.get("SILENCE_THRESHOLD_MINUTES", "30"))
     ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "")

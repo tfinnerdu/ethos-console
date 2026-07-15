@@ -231,6 +231,24 @@ def test_unidata_subroutine_returns_args(mock_app):
     assert r["args"][1]["value"].startswith("MOCK_OUT_")
 
 
+# ── Provider characterization: DoaneEdgeGate ─────────────────────────────────
+
+def test_edge_gate_health_characterization(mock_app):
+    gate = mock_app.extensions["edge_gate_client"]
+    h = gate.check_health()
+    assert h["configured"] is True
+    assert h["reachable"] is True
+    assert h["status"] == "ok"
+
+
+def test_edge_gate_health_endpoint_in_mock_mode_never_calls_out(mc):
+    # A real requests.get would fail (no network) if the mock client didn't
+    # override check_health() — the 200 here is the assertion.
+    r = mc.get("/api/health/edge-gate")
+    assert r.status_code == 200
+    assert r.get_json()["configured"] is True
+
+
 # ── End-to-end smoke: every tab renders in mock mode ─────────────────────────
 
 @pytest.mark.parametrize("path", [
