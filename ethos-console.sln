@@ -1,8 +1,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11822.322 stable
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "EthosConsole", "console\console.pyproj", "{77777777-7777-7777-7777-777777777777}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "console", "console\console.pyproj", "{77777777-7777-7777-7777-777777777777}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A0000000-0000-0000-0000-000000000001}"
 	ProjectSection(SolutionItems) = preProject
@@ -13,7 +13,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A0000000-0000-0000-0000-000000000002}"
 	ProjectSection(SolutionItems) = preProject
+		docs\auth-gate-guide.md = docs\auth-gate-guide.md
 		docs\console-user-guide.md = docs\console-user-guide.md
+		docs\dob_reconcile_query.example.sql = docs\dob_reconcile_query.example.sql
 		docs\e2e-testing.md = docs\e2e-testing.md
 		docs\test-coverage-classification.md = docs\test-coverage-classification.md
 		docs\warning.md = docs\warning.md
