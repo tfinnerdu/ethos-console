@@ -1,14 +1,16 @@
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
+from app.audit import Action, Outcome, write_event
 from app.conductor_client import ConductorClient
 from app.database import db, ReplayHistory
+from app.request_utils import get_json_body
 
 replay_bp = Blueprint("replay", __name__)
 
 
 @replay_bp.post("/fetch")
 def fetch_message():
-    data = request.get_json(force=True)
+    data = get_json_body(request)
     message_id = data.get("message_id")
     if not message_id:
         return jsonify({"error": "message_id is required"}), 400
@@ -29,7 +31,7 @@ def fetch_message():
 
 @replay_bp.post("/trigger")
 def trigger_replay():
-    data = request.get_json(force=True)
+    data = get_json_body(request)
     payload = data.get("payload")
     workflow_name = data.get("workflow_name")
     conductor_url = data.get("conductor_url") or current_app.config.get("CONDUCTOR_URL", "")
@@ -66,6 +68,10 @@ def trigger_replay():
         history_entry.outcome = "success"
         db.session.add(history_entry)
         db.session.commit()
+        write_event(
+            Action.TRIGGER, "conductor_workflow", workflow_id,
+            detail={"workflow_name": workflow_name, "resource_name": resource_name, "operation": operation},
+        )
 
         return jsonify({
             "workflow_id": workflow_id,
@@ -77,6 +83,11 @@ def trigger_replay():
         history_entry.error_message = str(exc)
         db.session.add(history_entry)
         db.session.commit()
+        write_event(
+            Action.TRIGGER, "conductor_workflow", workflow_name,
+            outcome=Outcome.FAILURE, failure_reason=str(exc),
+            detail={"resource_name": resource_name, "operation": operation},
+        )
         import requests as _req
         status = 502 if isinstance(exc, _req.HTTPError) else 500
         return jsonify({"error": str(exc), "outcome": "error"}), status

@@ -171,6 +171,26 @@ def test_reject_records_no_correction(client):
     assert resp.get_json()["corrected_person_id"] is None
 
 
+def test_decision_emits_audit_event_without_dob_values(client, app):
+    # The audit entry must record that a decision happened (candidate_id,
+    # action, reviewer) without duplicating the DOB values themselves into a
+    # second, less-access-controlled table.
+    from app.database import AuditEntry
+    _upload(client)
+    client.post("/api/dob-repair/decision", json={
+        "candidate_id": LEE_REVIEW, "action": "reject", "reviewer": "pytest-reviewer",
+    })
+    with app.app_context():
+        entry = AuditEntry.query.filter_by(
+            action="update", resource_type="dob_decision", resource_id=LEE_REVIEW,
+        ).order_by(AuditEntry.occurred_at.desc()).first()
+    assert entry is not None
+    assert entry.detail["decision_action"] == "reject"
+    assert entry.detail["reviewer"] == "pytest-reviewer"
+    detail_values = set(entry.detail.values())
+    assert "1999-01-01" not in detail_values  # no DOB value leaked into audit detail
+
+
 def test_decision_persists_across_candidate_reload(client):
     _upload(client)
     client.post("/api/dob-repair/decision", json={

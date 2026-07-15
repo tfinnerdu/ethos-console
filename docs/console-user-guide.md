@@ -367,6 +367,8 @@ With a mnemonic selected in the detail panel:
 **URL:** `/field-diff`  
 **Requires:** a configured Ethos environment + `UNIDATA_HOST`
 
+**Known limitation:** the comparison logic is not implemented yet. The page and its Matched/EEDM-only/UniData-only layout are fully built, but `POST /api/phase3/field-diff/<resource>` currently returns empty arrays for all three sections with `"note": "Field diff not yet implemented."` (see `app/routes/phase3.py`) — an empty result here means "not yet computed," not "confirmed no differences." Treat this tab as a UI preview until the backend comparison ships.
+
 Compares the fields in an Ethos EEDM resource definition against the actual fields in the corresponding Colleague UniData file. Highlights fields that exist in one place but not the other — useful for diagnosing missing data in Ethos payloads.
 
 ### How to use
@@ -545,7 +547,7 @@ A timestamped log of every state-changing action recorded by `app/audit.py` — 
 
 ### Implementation note
 
-In non-mock mode the change-notification reads (`app/cn_repository.py`) are intentionally stubbed pending Colleague Web API endpoint confirmation. Run with `CONSOLE_MOCK_MODE=true` to see realistic CN data end-to-end while the real path is wired up.
+In non-mock mode the change-notification reads (`app/cn_repository.py`) call the real Colleague Web API `/api/event-configurations` endpoint. Field-name mapping from that response is best-effort against the documented shape — verify against a real tenant response if the CN list looks off. Run with `CONSOLE_MOCK_MODE=true` to see fixture CN data instead when no Colleague Web API is configured.
 
 ---
 
@@ -582,7 +584,7 @@ Percentile breakdown of Ethos API response times for the current session:
 
 ### Recent Errors
 
-A summary of the most recent Ethos API errors. Click **View all** to navigate to the full Errors page (`/errors`), which shows every error logged since the console started with timestamp, endpoint, and full error message.
+A summary of the most recent Ethos API errors. Click **View all** to navigate to the full Errors page (`/errors`), which shows every error ever persisted to the `EthosErrorLog` database table — unlike this tile's session-scoped in-memory counter, the Errors page survives a console restart and is only cleared via `POST /api/errors/flush` or a direct delete — with timestamp, endpoint, and full error message.
 
 ---
 

@@ -129,6 +129,68 @@ def test_get_events_empty_buffer():
     assert total == 0
 
 
+def test_get_events_total_keeps_growing_past_buffer_maxlen():
+    # Regression test: event_buffer is deque(maxlen=500), so len(buffer)
+    # alone plateaus at 500 once more than 500 events have occurred. `total`
+    # must keep counting past that point, or a long-lived SSE stream's
+    # `last_index = total` cursor (app/routes/bus.py) gets pinned at 500
+    # forever and the live stream silently stops showing new events.
+    m = _monitor()
+    for i in range(520):
+        m._process_message(_msg(msg_id=i))
+    events, total = m.get_events(since_index=0)
+    assert total == 520
+    assert len(m.event_buffer) == 500  # buffer itself is still capped
+    assert len(events) == 500          # only the still-buffered events return
+
+
+def test_get_events_since_index_past_buffer_still_advances():
+    # A client whose since_index is beyond the last poll must see the newest
+    # events on the next call, not get stuck re-requesting an index the
+    # buffer can no longer satisfy.
+    m = _monitor()
+    for i in range(520):
+        m._process_message(_msg(msg_id=i))
+    events, total = m.get_events(since_index=520)
+    assert total == 520
+    assert events == []
+    m._process_message(_msg(msg_id=520))
+    events, total = m.get_events(since_index=520)
+    assert total == 521
+    assert len(events) == 1
+
+
+def test_get_events_since_index_behind_eviction_window_returns_available_events():
+    # If a caller's since_index refers to an event that's already been
+    # evicted from the bounded buffer, return everything currently available
+    # instead of an empty/negative slice (which would look like a permanent
+    # freeze from the caller's perspective).
+    m = _monitor()
+    for i in range(520):
+        m._process_message(_msg(msg_id=i))
+    events, total = m.get_events(since_index=10)  # long since evicted
+    assert total == 520
+    assert len(events) == 500
+
+
+def test_clear_resets_total_events_not_just_buffer():
+    m = _monitor()
+    for i in range(5):
+        m._process_message(_msg(msg_id=i))
+    m.clear()
+    _, total = m.get_events()
+    assert total == 0
+
+
+def test_start_twice_only_spawns_one_poll_thread():
+    m = _monitor()
+    m.start(poll_interval=60)
+    first_thread = m._thread
+    m.start(poll_interval=60)
+    assert m._thread is first_thread
+    m.stop()
+
+
 # ── get_resource_stats ────────────────────────────────────────────────────────
 
 def test_get_resource_stats_empty():

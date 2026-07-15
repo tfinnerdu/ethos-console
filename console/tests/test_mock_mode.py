@@ -54,6 +54,13 @@ def test_mock_badge_present_in_nav(mc):
     assert "CONSOLE_MOCK_MODE" in html  # tooltip text identifies the source
 
 
+def test_no_live_badge_in_mock_mode(mc):
+    # Live/mock must never both be shown — the badge should be one or the
+    # other, never ambiguous or absent-by-omission in either state.
+    html = mc.get("/").get_data(as_text=True)
+    assert "live-badge" not in html
+
+
 def test_health_endpoint_reports_mock_true(mc):
     data = mc.get("/api/health/").get_json()
     assert data["mock"] is True
@@ -89,6 +96,15 @@ def test_live_mode_no_x_mock_header(live_app):
 def test_live_mode_no_mock_badge(live_app):
     html = live_app.test_client().get("/").get_data(as_text=True)
     assert "mock-badge" not in html
+
+
+def test_live_mode_shows_live_badge(live_app):
+    # Live state must be an explicit positive signal, not just "MOCK is
+    # absent" — an operator glancing at the nav should never have to infer
+    # live-ness from the absence of something else.
+    html = live_app.test_client().get("/").get_data(as_text=True)
+    assert "live-badge" in html
+    assert "LIVE" in html
 
 
 def test_live_mode_health_reports_mock_false(live_app):

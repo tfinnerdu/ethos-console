@@ -26,6 +26,22 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     if overrides:
         app.config.update(overrides)
 
+    # Fail-closed on the DB, mirroring the auth gate's own fail-closed posture
+    # (app/auth.py): a production run with no DATABASE_URL silently falls back
+    # to a local SQLite file (config.py) that does not survive a pod restart —
+    # every replay/audit/mnemonic/DOB-decision record would vanish on the next
+    # redeploy with no error, no warning. k8s/secret-template.yaml already
+    # documents "DATABASE_URL MUST be PostgreSQL in k8s" as a comment; this
+    # turns that comment into an actual boot-time check.
+    if app.config.get("ENV") == "production" and app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+        raise RuntimeError(
+            "Refusing to start with ENV=production and no DATABASE_URL (or a "
+            "sqlite:// DATABASE_URL). SQLite does not survive a pod restart — "
+            "every replay/audit/mnemonic/DOB-decision record would be silently "
+            "lost on the next redeploy. Set DATABASE_URL to a Postgres "
+            "connection string (see k8s/secret-template.yaml)."
+        )
+
     logging.basicConfig(
         level=logging.DEBUG if app.config["DEBUG"] else logging.INFO,
         format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",

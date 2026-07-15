@@ -2,7 +2,9 @@ import json
 import time
 from flask import Blueprint, Response, jsonify, request, current_app, stream_with_context
 from app import get_monitor, get_ethos
+from app.audit import Action, write_event
 from app.database import db, FilterPreset
+from app.request_utils import get_json_body
 
 bus_bp = Blueprint("bus", __name__)
 
@@ -104,7 +106,7 @@ def list_presets():
 
 @bus_bp.post("/presets")
 def create_preset():
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "name required"}), 400
@@ -115,21 +117,27 @@ def create_preset():
     )
     db.session.add(p)
     db.session.commit()
+    write_event(Action.CREATE, "filter_preset", str(p.id), detail={"name": p.name})
     return jsonify(p.to_dict()), 201
 
 
 @bus_bp.delete("/presets/<int:preset_id>")
 def delete_preset(preset_id):
     p = db.get_or_404(FilterPreset, preset_id)
+    name = p.name
     db.session.delete(p)
     db.session.commit()
+    write_event(Action.DELETE, "filter_preset", str(preset_id), detail={"name": name})
     return jsonify({"deleted": preset_id})
 
 
 @bus_bp.get("/export")
 def export():
     monitor = get_monitor(current_app._get_current_object())
-    limit = int(request.args.get("limit", 100))
+    try:
+        limit = int(request.args.get("limit", 100))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
     events = monitor.export_events(limit=limit)
     lines = []
     for e in events:

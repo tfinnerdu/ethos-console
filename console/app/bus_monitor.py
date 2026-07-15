@@ -11,6 +11,12 @@ class BusMonitor:
     def __init__(self, ethos_client):
         self.client = ethos_client
         self.event_buffer: deque = deque(maxlen=500)
+        # Monotonic count of every event ever appended, independent of the
+        # buffer's maxlen. get_events()/bus_stream() index against this, not
+        # len(event_buffer) — once total events exceed 500, the deque evicts
+        # from the left while len() stays pinned at 500, which previously
+        # pinned the SSE stream's cursor at 500 forever and silently froze it.
+        self._total_events: int = 0
         self.resource_stats: dict = defaultdict(
             lambda: {"count": 0, "last_seen": None, "first_seen": None}
         )
@@ -19,7 +25,10 @@ class BusMonitor:
         self.running = False
         self.paused = False
         self._thread: threading.Thread | None = None
-        self._lock = threading.Lock()
+        # RLock, not Lock: _check_silence_alerts takes this lock and then
+        # calls get_silent_resources(), which takes it again on the same
+        # thread — a plain Lock would deadlock there.
+        self._lock = threading.RLock()
         self._poll_interval: int = 2
         self._app = None
         self._webhook_url: str = ""
@@ -30,15 +39,16 @@ class BusMonitor:
         self._error_spike_alerted: bool = False
 
     def start(self, poll_interval: int = 2, app=None):
-        if self.running:
-            return
+        with self._lock:
+            if self.running:
+                return
+            self.running = True
         self._poll_interval = poll_interval
         self._app = app
         if app:
             self._webhook_url = app.config.get("ALERT_WEBHOOK_URL", "")
             self._silence_threshold_minutes = app.config.get("SILENCE_THRESHOLD_MINUTES", 30)
             self._error_threshold = app.config.get("ALERT_ERROR_THRESHOLD", 10)
-        self.running = True
         self._thread = threading.Thread(target=self._poll_loop, daemon=True, name="bus-monitor")
         self._thread.start()
         log.info("BusMonitor started (poll interval: %ds)", poll_interval)
@@ -55,6 +65,7 @@ class BusMonitor:
     def clear(self):
         with self._lock:
             self.event_buffer.clear()
+            self._total_events = 0
 
     def _poll_loop(self):
         while self.running:
@@ -80,6 +91,7 @@ class BusMonitor:
                             "timestamp": datetime.now(timezone.utc).strftime("%H:%M:%S"),
                             "message": str(exc),
                         })
+                        self._total_events += 1
                         self._error_timestamps.append(time.time())
                     log.warning("BusMonitor poll error: %s", exc)
                     if self._app:
@@ -119,6 +131,7 @@ class BusMonitor:
 
         with self._lock:
             self.event_buffer.append(event)
+            self._total_events += 1
             stats = self.resource_stats[resource]
             stats["count"] += 1
             stats["last_seen"] = now
@@ -126,9 +139,20 @@ class BusMonitor:
                 stats["first_seen"] = now
 
     def get_events(self, since_index: int = 0) -> tuple[list, int]:
+        """Return (new_events, total) where `total` is a monotonic event
+        count, not len(event_buffer) — the buffer is capped at maxlen=500 and
+        evicts from the left, so len() alone can't be compared against a
+        caller's previous `total` once more than 500 events have occurred.
+        If since_index falls before the oldest event still buffered (the
+        caller fell behind the eviction window), return everything currently
+        available rather than an empty/negative slice.
+        """
         with self._lock:
             buf = list(self.event_buffer)
-        return buf[since_index:], len(buf)
+            total = self._total_events
+        buffer_start = total - len(buf)
+        offset = max(since_index - buffer_start, 0)
+        return buf[offset:], total
 
     def get_resource_stats(self) -> list:
         now = time.time()
@@ -161,9 +185,16 @@ class BusMonitor:
         ]
 
     def _check_silence_alerts(self):
+        # Compute-and-reassign _silence_alerted atomically under the lock
+        # (get_silent_resources() re-enters the same RLock on this thread) so
+        # a concurrent reset() (e.g. from an environment switch) can't
+        # interleave between the read and the reassignment and silently
+        # resurrect an alert state reset() just cleared.
         from app.alerts import send_alert
-        now_silent = set(self.get_silent_resources(self._silence_threshold_minutes))
-        newly_silent = now_silent - self._silence_alerted
+        with self._lock:
+            now_silent = set(self.get_silent_resources(self._silence_threshold_minutes))
+            newly_silent = now_silent - self._silence_alerted
+            self._silence_alerted = now_silent
         for resource in newly_silent:
             send_alert(
                 self._webhook_url,
@@ -171,7 +202,6 @@ class BusMonitor:
                 f"No events received for **{resource}** in the last "
                 f"{self._silence_threshold_minutes} minutes.",
             )
-        self._silence_alerted = now_silent
 
     def _check_error_spike_alerts(self):
         from app.alerts import send_alert
@@ -179,19 +209,22 @@ class BusMonitor:
         with self._lock:
             self._error_timestamps = [t for t in self._error_timestamps if t > cutoff]
             count = len(self._error_timestamps)
-        if count >= self._error_threshold and not self._error_spike_alerted:
+            should_alert = count >= self._error_threshold and not self._error_spike_alerted
+            if should_alert:
+                self._error_spike_alerted = True
+            elif count < self._error_threshold:
+                self._error_spike_alerted = False
+        if should_alert:
             send_alert(
                 self._webhook_url,
                 "Ethos Error Spike",
                 f"{count} bus poll errors in the last hour. Check the Errors tab for details.",
             )
-            self._error_spike_alerted = True
-        elif count < self._error_threshold:
-            self._error_spike_alerted = False
 
     def reset(self):
         with self._lock:
             self.event_buffer.clear()
+            self._total_events = 0
             self.resource_stats.clear()
             self.queue_depth = 0
             self.last_poll = None

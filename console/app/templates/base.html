@@ -23,6 +23,11 @@
           title="CONSOLE_MOCK_MODE — every upstream call returns fixture data; no real services are reached.">
       <i class="bi bi-shield-exclamation me-1"></i>MOCK
     </span>
+    {% else %}
+    <span class="badge live-badge"
+          title="Live mode — API calls reach real upstream services (Ethos, Colleague, Conductor, UniData) using configured credentials.">
+      <i class="bi bi-broadcast me-1"></i>LIVE
+    </span>
     {% endif %}
     {% if ethos_environments|length > 1 %}
     <div class="dropdown">

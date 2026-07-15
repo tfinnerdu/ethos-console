@@ -130,3 +130,26 @@ def test_export_empty_when_no_events(client):
     client.post("/api/bus/clear")
     r = client.get("/api/bus/export")
     assert r.data == b""
+
+
+def test_export_non_numeric_limit_returns_400_not_500(client):
+    r = client.get("/api/bus/export?limit=abc")
+    assert r.status_code == 400
+
+
+# ── Filter presets: audit emission ───────────────────────────────────────────
+
+def test_create_and_delete_preset_emit_audit_events(client, app):
+    from app.database import AuditEntry
+    r = client.post("/api/bus/presets", json={"name": "Audit Preset Test"})
+    assert r.status_code == 201
+    preset_id = r.get_json()["id"]
+
+    client.delete(f"/api/bus/presets/{preset_id}")
+
+    with app.app_context():
+        actions = {
+            e.action for e in
+            AuditEntry.query.filter_by(resource_id=str(preset_id)).all()
+        }
+    assert {"create", "delete"} <= actions

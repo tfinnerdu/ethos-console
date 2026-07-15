@@ -23,6 +23,7 @@ from datetime import datetime, timezone, date
 
 from flask import Blueprint, Response, current_app, jsonify, request
 
+from app.audit import Action, write_event
 from app.database import db, DobDecision
 from app import dob_detector as detector
 from app import dob_sql_source
@@ -270,6 +271,14 @@ def record_decision():
         db.session.rollback()
         current_app.logger.error("dob_repair record_decision error: %s", exc, exc_info=True)
         return jsonify({"error": str(exc)}), 500
+
+    # Detail is deliberately minimal — candidate_id/action/reviewer only, no
+    # DOB values or names — the DobDecision row (not this audit entry) is the
+    # PII-bearing record of what changed.
+    write_event(
+        Action.UPDATE, "dob_decision", candidate_id,
+        detail={"decision_action": action, "reviewer": reviewer},
+    )
 
     current_app.logger.info(
         "dob_repair decision: candidate=%s action=%s corrected=%s reviewer=%s",

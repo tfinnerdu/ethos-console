@@ -1,5 +1,6 @@
 """Phase 3: UniData Field Diff and Colleague Direct Query via uopy."""
 from flask import Blueprint, jsonify, request, current_app
+from app.request_utils import get_json_body
 
 phase3_bp = Blueprint("phase3", __name__)
 
@@ -65,7 +66,7 @@ def run_colleague_query():
     if err:
         return err
 
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     statement = data.get("statement", "").strip()
     if not statement:
         return jsonify({"error": "statement is required"}), 400
@@ -82,7 +83,7 @@ def call_subroutine():
     if err:
         return err
 
-    data = request.get_json(force=True) or {}
+    data = get_json_body(request)
     sub_name = (data.get("name") or "").strip().upper()
     args = data.get("args") or []
 
