@@ -53,6 +53,7 @@
     <Compile Include="app\routes\bus.py" />
     <Compile Include="app\routes\cn_monitor.py" />
     <Compile Include="app\routes\colleague_api.py" />
+    <Compile Include="app\routes\dob_repair.py" />
     <Compile Include="app\routes\env.py" />
     <Compile Include="app\routes\errors.py" />
     <Compile Include="app\routes\graphql_routes.py" />
@@ -100,6 +101,7 @@
     <Content Include="app\templates\cn_monitor.html" />
     <Content Include="app\templates\colleague_api.html" />
     <Content Include="app\templates\colleague_query.html" />
+    <Content Include="app\templates\dob_repair.html" />
     <Content Include="app\templates\errors.html" />
     <Content Include="app\templates\field_diff.html" />
     <Content Include="app\templates\graphql.html" />
