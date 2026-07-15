@@ -8,23 +8,52 @@ Core idea
 ---------
 The bug only ever subtracts a day, and only for registrants east of the
 server (Doane = Central). So the corrupted value is always EARLIER than the
-true value by exactly one day. We look for two records that plausibly
-describe the same human whose DOBs are exactly one calendar day apart, then
-use the origin marker (Instant Enrollment vs an authoritative source like an
-application load) to decide which side is corrupted.
+true value by exactly one day. Two independent signals can surface this:
+
+1. Cross-person pairing (`_classify_pair`) - two records that plausibly
+   describe the same human whose DOBs are exactly one calendar day apart,
+   disambiguated by origin (Instant Enrollment vs authoritative).
+2. Same-person corroboration (`_classify_self_corroboration`) - a SINGLE
+   PERSON record whose current DOB differs by exactly one day from a DOB
+   independently resubmitted later on the same person_id via a different
+   channel (e.g. a transcript order, a financial aid application - anything
+   where the person restates their own DOB on a later, separate occasion).
+   No identity-matching is needed since it's definitionally the same person.
+
+CONFIRMED FINDING (direct data audit, not a design assumption): cross-person
+pairing has very low real-world yield for this specific bug. No duplicate
+PERSON records with differing birth dates are being created by IE - the
+original "shifted DOB fails a duplicate-check, IE creates a new twin PERSON"
+hypothesis does not describe what's actually happening in this data. For a
+brand-new registrant (no prior PERSON record), the shifted DOB is stored as
+the ONLY record of that value - there is no twin to pair against BY
+CONSTRUCTION, not just by bad luck. Given Instant Enrollment predominantly
+serves non-typical/new registrants rather than already-enrolled students,
+this unpaired population is likely most of the actual damage, not an edge
+case. Practical effect: `_classify_pair`'s HIGH/MEDIUM/REVIEW output should
+be treated as a real but low-yield signal (still worth running - it costs
+nothing and will catch genuine duplicates from other causes too), while
+same-person corroboration is the primary mechanism with any real reach into
+the historical backlog. The ELEVATED_RISK worklist (unpaired IE record, no
+corroboration available, Eastern-state address) is correspondingly a
+outreach/verification list for follow-up contact, NOT a correction list -
+nothing on it should ever be auto-applied or bulk-corrected.
 
 Confidence tiers
 ----------------
-HIGH     - strong identity match + exactly one-day gap + the EARLIER-dated
-           record is Instant-Enroll-created and the LATER-dated record is
-           authoritative (non-IE). Signature is unambiguous. We propose:
-           set the IE record's DOB to the later date (corrupted + 1 day).
-MEDIUM   - strong identity match + one-day gap, but origin is unknown or both
-           records share the same origin. Later date is a tentative "probably
-           true" hint. No auto-correction.
-REVIEW   - identity match but the IE record is the LATER one (gap points the
-           wrong way for this bug). Likely a plain data-entry typo or two
-           different people. Flag; do not propose +1.
+HIGH     - EITHER: strong cross-person identity match + exactly one-day gap +
+           the EARLIER-dated record is Instant-Enroll-created and the
+           LATER-dated record is authoritative (non-IE); OR a same-person
+           corroboration match (no identity-matching ambiguity, since it's
+           the same person_id by construction). We propose: set the DOB to
+           the later/corroborating date (corrupted + 1 day).
+MEDIUM   - strong cross-person identity match + one-day gap, but origin is
+           unknown or both records share the same origin. Later date is a
+           tentative "probably true" hint. No auto-correction.
+REVIEW   - identity match (cross-person OR same-person) but the IE-side date
+           is the LATER one (gap points the wrong way for this bug). Likely a
+           plain data-entry typo or two different people. Flag; do not
+           propose +1.
 
 Nothing here writes to Colleague. This module only classifies candidates; the
 routes layer (app/routes/dob_repair.py) is responsible for persisting human
@@ -33,12 +62,20 @@ decisions and exporting an approved-corrections CSV.
 Direction assumption: this engine encodes the "-1 day / backward" signature
 confirmed against real Instant Enrollment traffic. If that signature is ever
 shown to be different, flip SHIFT_DIRECTION below.
+
+Origin-code portability: IE_ORIGIN_VALUES below holds generic, portable text
+labels. A real Colleague extract's origin/operator-code column will usually
+carry institution-specific values instead (e.g. a numeric web-registration
+operator ID, or "GUEST"/"WEBCASHIER"-style process names) that will never
+match this default set. Pass `extra_ie_origin_values` to `analyze()` (wired
+to DOB_RECONCILE_IE_ORIGIN_CODES in app/routes/dob_repair.py) rather than
+hardcoding institution-specific operator codes into this shared module.
 """
 from __future__ import annotations
 
 import csv
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import Optional, Union, IO
 
@@ -79,6 +116,13 @@ WEIGHTS = {
     "phone_exact": 3,
 }
 IDENTITY_THRESHOLD = 6
+MAX_IDENTITY_SCORE = sum(WEIGHTS[k] for k in WEIGHTS if k != "first_initial")
+
+# Sentinel identity_score for same-person corroboration matches (see
+# _classify_self_corroboration). There is no identity-matching ambiguity to
+# score -- it's the same person_id by construction -- so this is set above
+# any possible cross-person pairing score, to sort first within a bucket.
+SELF_CORROBORATION_SCORE = MAX_IDENTITY_SCORE + 1
 
 # Date formats accepted on input. First match wins.
 DATE_FORMATS = [
@@ -95,6 +139,12 @@ DATE_FORMATS = [
 # Default column mapping. Override any of these via config so the detector
 # matches whatever export you have (ODS, Informer, Ethos-to-CSV, Colleague
 # export).
+#
+# corroborating_dob / corroborating_source are OPTIONAL -- omit them (or leave
+# the column blank/absent) for exports that don't have a same-person
+# corroboration source; _classify_self_corroboration() is a no-op when
+# corroborating_dob is unset. See the module docstring for why this signal
+# matters more than cross-person pairing for this specific bug.
 DEFAULT_COLUMNS = {
     "person_id": "person_id",
     "last_name": "last_name",
@@ -109,6 +159,8 @@ DEFAULT_COLUMNS = {
     "phone": "phone",
     "origin": "origin",
     "created_date": "created_date",
+    "corroborating_dob": "corroborating_dob",
+    "corroborating_source": "corroborating_source",
 }
 
 
@@ -168,6 +220,12 @@ class Record:
     origin: str
     created_date: str
     raw_birth_date: str = ""
+    # Optional: a DOB independently resubmitted later by the same person_id
+    # via a different channel (transcript order, financial aid application,
+    # etc.) -- see the module docstring. Blank/absent in exports that don't
+    # have one; _classify_self_corroboration() no-ops when this is None.
+    corroborating_dob: Optional[date] = None
+    corroborating_source: str = ""
 
     @property
     def is_ie(self) -> bool:
@@ -204,6 +262,8 @@ def record_from_row(row: dict, columns: dict) -> Record:
         origin=g("origin"),
         created_date=g("created_date"),
         raw_birth_date=raw_dob,
+        corroborating_dob=parse_date(g("corroborating_dob")),
+        corroborating_source=g("corroborating_source"),
     )
 
 
@@ -295,7 +355,19 @@ def _fmt(d: Optional[date]) -> str:
     return d.isoformat() if d else ""
 
 
-def _classify_pair(a: Record, b: Record, score: int) -> Optional[Candidate]:
+def _is_ie(r: Record, extra_ie_origin_values: Optional[frozenset] = None) -> bool:
+    """Like Record.is_ie, but also matches any institution-specific operator
+    codes passed in (see the module docstring's "Origin-code portability"
+    note). Does not mutate the shared IE_ORIGIN_VALUES module constant, so
+    concurrent analyze() calls with different extra values never interfere."""
+    if extra_ie_origin_values:
+        return r.is_ie or _clean(r.origin) in extra_ie_origin_values
+    return r.is_ie
+
+
+def _classify_pair(
+    a: Record, b: Record, score: int, extra_ie_origin_values: Optional[frozenset] = None,
+) -> Optional[Candidate]:
     """a and b are same-block; identity strength is `score`. Returns a
     Candidate if the DOB gap is exactly one day, else None."""
     if a.birth_date is None or b.birth_date is None:
@@ -309,8 +381,8 @@ def _classify_pair(a: Record, b: Record, score: int) -> Optional[Candidate]:
     earlier, later = (a, b) if a.birth_date < b.birth_date else (b, a)
     cid = _candidate_id(earlier.person_id, later.person_id)
 
-    ie_earlier = earlier.is_ie
-    ie_later = later.is_ie
+    ie_earlier = _is_ie(earlier, extra_ie_origin_values)
+    ie_later = _is_ie(later, extra_ie_origin_values)
 
     # HIGH: backward-shift signature. Earlier record is IE (corrupted), later
     # record is authoritative (not IE). True DOB = later date.
@@ -378,6 +450,84 @@ def _classify_pair(a: Record, b: Record, score: int) -> Optional[Candidate]:
     )
 
 
+def _classify_self_corroboration(
+    r: Record, extra_ie_origin_values: Optional[frozenset] = None,
+) -> Optional[Candidate]:
+    """Same-person corroboration: r.corroborating_dob is a DOB independently
+    resubmitted later, on the SAME person_id, via a different channel (a
+    transcript order, a financial aid application, etc.) -- not a second
+    PERSON record. See the module docstring for why this is the primary
+    detection mechanism with real reach into the historical backlog, unlike
+    cross-person pairing (_classify_pair).
+
+    Reuses the Candidate/record_a/record_b shape so the existing review UI,
+    decision persistence, and CSV export need no changes -- record_a and
+    record_b simply share the same person_id here, by construction.
+    """
+    if r.birth_date is None or r.corroborating_dob is None:
+        return None
+
+    delta = (r.birth_date - r.corroborating_dob).days
+    if delta == 0:
+        return None  # no discrepancy
+    if abs(delta) != 1:
+        # Not this bug's signature (exactly one day). A multi-day/multi-year
+        # gap is a different, unrelated data-quality issue -- out of scope
+        # for this detector; surfacing it here would bury the real PD0002124
+        # signal in noise. Flag separately outside this tool if needed.
+        return None
+
+    corroborated = replace(
+        r, birth_date=r.corroborating_dob,
+        origin=r.corroborating_source or "CORROBORATING_SOURCE",
+    )
+    cid = f"{r.person_id}__corroborated"
+    source_label = r.corroborating_source or "an independently submitted DOB"
+
+    if delta == SHIFT_DIRECTION:
+        # r.birth_date is exactly one day BEFORE the corroborating date --
+        # matches the -1 day timezone signature.
+        return Candidate(
+            candidate_id=cid,
+            bucket="HIGH",
+            identity_score=SELF_CORROBORATION_SCORE,
+            gap_days=1,
+            record_a=r,
+            record_b=corroborated,
+            suggested_true_dob=r.corroborating_dob,
+            proposed_person_id=r.person_id,
+            proposed_from=r.birth_date,
+            proposed_to=r.corroborating_dob,
+            rationale=(
+                f"PERSON DOB is exactly one day earlier than {source_label} "
+                f"for the SAME person_id -- no identity-matching uncertainty, "
+                f"since it's definitionally the same person. Matches the -1 "
+                f"day timezone signature. Proposed: correct the PERSON DOB "
+                f"to the corroborating date."
+            ),
+        )
+
+    # Wrong direction for this bug: current DOB is LATER than the
+    # corroborating date. Likely a typo on one side or an unrelated edit.
+    return Candidate(
+        candidate_id=cid,
+        bucket="REVIEW",
+        identity_score=SELF_CORROBORATION_SCORE,
+        gap_days=1,
+        record_a=corroborated,
+        record_b=r,
+        suggested_true_dob=None,
+        proposed_person_id=None,
+        proposed_from=None,
+        proposed_to=None,
+        rationale=(
+            f"One-day gap against {source_label} for the SAME person_id, "
+            f"but the current PERSON DOB is the LATER date, which does not "
+            f"fit the -1 day shift. Human decision required."
+        ),
+    )
+
+
 def _candidate_id(id1: str, id2: str) -> str:
     """Stable id for a pair regardless of argument order."""
     a, b = sorted([id1, id2])
@@ -396,8 +546,13 @@ class AnalysisResult:
     summary: dict = field(default_factory=dict)
 
 
-def analyze(records: list, identity_threshold: int = IDENTITY_THRESHOLD) -> AnalysisResult:
+def analyze(
+    records: list,
+    identity_threshold: int = IDENTITY_THRESHOLD,
+    extra_ie_origin_values: Optional[set] = None,
+) -> AnalysisResult:
     result = AnalysisResult()
+    extra_origin = frozenset(_clean(v) for v in extra_ie_origin_values) if extra_ie_origin_values else None
 
     # Group into blocks so we only compare plausibly related records.
     blocks: dict = {}
@@ -408,6 +563,19 @@ def analyze(records: list, identity_threshold: int = IDENTITY_THRESHOLD) -> Anal
 
     paired_person_ids: set = set()
 
+    # Same-person corroboration FIRST (see module docstring: this is the
+    # primary signal with real reach into the backlog). Runs before the
+    # cross-person pairing loop's paired_person_ids only matters for
+    # elevated_risk exclusion below, so order between the two loops doesn't
+    # otherwise matter -- but doing this one first means a record that's
+    # both self-corroborated AND cross-paired is excluded from elevated_risk
+    # regardless of which mechanism fires.
+    for r in records:
+        cand = _classify_self_corroboration(r, extra_origin)
+        if cand is not None:
+            result.candidates.append(cand)
+            paired_person_ids.add(r.person_id)
+
     for _key, group in blocks.items():
         for i in range(len(group)):
             for j in range(i + 1, len(group)):
@@ -417,21 +585,25 @@ def analyze(records: list, identity_threshold: int = IDENTITY_THRESHOLD) -> Anal
                 score = identity_score(a, b)
                 if score < identity_threshold:
                     continue
-                cand = _classify_pair(a, b, score)
+                cand = _classify_pair(a, b, score, extra_origin)
                 if cand is not None:
                     result.candidates.append(cand)
                     paired_person_ids.add(a.person_id)
                     paired_person_ids.add(b.person_id)
 
     # Elevated-risk lone records: Instant-Enroll-created, has a DOB, never
-    # paired, AND the address is in an Eastern-time state. Cannot be
-    # confirmed from data alone, but this is the population most likely
-    # silently shifted. Central/Western/unknown-state unpaired IE records are
-    # low prior and deliberately omitted to keep the worklist signal-heavy
-    # rather than the whole IE cohort.
+    # paired or corroborated, AND the address is in an Eastern-time state.
+    # CONFIRMED (see module docstring): cross-person pairing has very low
+    # real-world yield for this bug, and new registrants have no twin BY
+    # CONSTRUCTION -- so for most of the true backlog, this is the only
+    # bucket that will ever surface them, and it genuinely cannot be
+    # confirmed from data alone. Treat this as an outreach/verification
+    # contact list, not a correction list. Central/Western/unknown-state
+    # unpaired IE records are low prior and deliberately omitted to keep the
+    # worklist signal-heavy rather than the whole IE cohort.
     for r in records:
         if (
-            r.is_ie
+            _is_ie(r, extra_origin)
             and r.birth_date is not None
             and r.person_id not in paired_person_ids
             and is_eastern_state(r.state)

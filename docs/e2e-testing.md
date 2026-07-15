@@ -47,7 +47,7 @@ pytest tests/test_mock_mode.py
 | `test_mock_mode.py`         | The three required signals (badge / header / health key), per-provider fixture characterizations, every tab returns 200 in mock mode |
 | `test_mnemonics_api.py`     | CRUD, filter, uppercase, 404, 409 |
 | `test_bus_*.py`             | Bus REST + monitor pure-logic methods, incl. `/start`/`/stop` and no-auto-start-on-boot regression guard |
-| `test_dob_detector.py`      | PD0002124 detection engine: backward-shift HIGH case, year-boundary shift, same-zone clean records, forward-gap REVIEW, ambiguous-origin MEDIUM, elevated-risk worklist, identity scoring |
+| `test_dob_detector.py`      | PD0002124 detection engine: backward-shift HIGH case, year-boundary shift, same-zone clean records, forward-gap REVIEW, ambiguous-origin MEDIUM, elevated-risk worklist, identity scoring, institution-specific origin codes (`extra_ie_origin_values`), same-person corroboration (`_classify_self_corroboration`) |
 | `test_dob_repair_api.py`    | DOB Repair CRUD: analyze (CSV + SQL fetch), status, candidates, decision (accept/reject/defer), export corrections |
 | `test_dob_sql_source.py`    | SQL fetch read-only guard (rejects writes, multi-statement, `SELECT...INTO`), connection-string building, row mapping — no live SQL Server needed |
 | `test_contracts.py`         | Blueprint prefixes (all 15, incl. `/api/colleague` and `/api/env`), model shapes, error envelopes, seed counts, health keys |

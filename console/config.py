@@ -32,6 +32,16 @@ class Config:
     # alternative to CSV upload. Leave unset to keep DOB Repair CSV-only.
     DOB_RECONCILE_INPUT_CSV = os.environ.get("DOB_RECONCILE_INPUT_CSV", "")
 
+    # DOB Repair — institution-specific origin/operator codes that mark a
+    # PERSON record as Instant-Enroll-created, in ADDITION to the generic
+    # defaults in app/dob_detector.py's IE_ORIGIN_VALUES (e.g. a numeric web-
+    # registration operator ID, or "GUEST"/"WEBCASHIER"-style process names —
+    # whatever your Colleague PERSON_ADD_OPERATOR-equivalent column actually
+    # contains). Comma-separated. See the "Origin-code portability" note in
+    # app/dob_detector.py's module docstring for why these live in config,
+    # not in that shared module.
+    DOB_RECONCILE_IE_ORIGIN_CODES = os.environ.get("DOB_RECONCILE_IE_ORIGIN_CODES", "")
+
     BUS_POLL_INTERVAL = int(os.environ.get("BUS_POLL_INTERVAL", "2"))
     SILENCE_THRESHOLD_MINUTES = int(os.environ.get("SILENCE_THRESHOLD_MINUTES", "30"))
     ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "")

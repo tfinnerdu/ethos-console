@@ -118,6 +118,140 @@ class TestDetection(unittest.TestCase):
         self.assertEqual(s["elevated_risk"], 3)   # Park, Ford, Nolan-1
 
 
+class TestExtraIeOriginValues(unittest.TestCase):
+    """Institution-specific operator codes (e.g. a numeric web-registration
+    operator ID) that won't match the generic IE_ORIGIN_VALUES defaults."""
+
+    def _rec(self, **kw):
+        base = dict(
+            person_id="x", last_name="", first_name="", middle_name="",
+            birth_date=None, addr_line1="", city="", state="", zip="",
+            email="", phone="", origin="", created_date="",
+        )
+        base.update(kw)
+        return detector.Record(**base)
+
+    def test_default_origin_values_do_not_match_operator_code(self):
+        r = self._rec(origin="0420024")
+        self.assertFalse(r.is_ie)
+
+    def test_extra_origin_values_recognized_via_is_ie_helper(self):
+        r = self._rec(origin="0420024")
+        self.assertTrue(detector._is_ie(r, frozenset({"0420024"})))
+
+    def test_extra_origin_values_do_not_mutate_shared_default_set(self):
+        r = self._rec(origin="0420024")
+        detector._is_ie(r, frozenset({"0420024"}))
+        self.assertNotIn("0420024", detector.IE_ORIGIN_VALUES)
+
+    def test_analyze_with_extra_ie_origin_values_flags_elevated_risk(self):
+        r = self._rec(
+            person_id="9001", last_name="Rivera", first_name="Ana",
+            birth_date=date(1999, 3, 4), state="NY", origin="0420024",
+        )
+        result = detector.analyze([r], extra_ie_origin_values={"0420024"})
+        self.assertIn("9001", {rec.person_id for rec in result.elevated_risk})
+
+    def test_analyze_without_extra_ie_origin_values_misses_it(self):
+        r = self._rec(
+            person_id="9002", last_name="Rivera", first_name="Ana",
+            birth_date=date(1999, 3, 4), state="NY", origin="0420024",
+        )
+        result = detector.analyze([r])
+        self.assertNotIn("9002", {rec.person_id for rec in result.elevated_risk})
+
+
+class TestSelfCorroboration(unittest.TestCase):
+    """Same-person_id corroboration: an independently-resubmitted DOB from a
+    later event (transcript order, financial aid application, etc.) for the
+    SAME person, rather than a second person_id. See the module docstring —
+    this is the primary mechanism with real reach into the backlog, since a
+    direct audit found cross-person duplicate pairing has very low yield."""
+
+    def _rec(self, **kw):
+        base = dict(
+            person_id="p1", last_name="Alvarez", first_name="Maria",
+            middle_name="", birth_date=None, addr_line1="", city="",
+            state="", zip="", email="", phone="", origin="INSTANT_ENROLL",
+            created_date="",
+        )
+        base.update(kw)
+        return detector.Record(**base)
+
+    def test_backward_shift_matches_bug_signature_high(self):
+        # PERSON DOB is one day BEFORE the corroborating date -- the bug.
+        r = self._rec(
+            birth_date=date(2001, 7, 12), corroborating_dob=date(2001, 7, 13),
+            corroborating_source="transcript_order",
+        )
+        cand = detector._classify_self_corroboration(r)
+        self.assertIsNotNone(cand)
+        self.assertEqual(cand.bucket, "HIGH")
+        self.assertEqual(cand.proposed_person_id, "p1")
+        self.assertEqual(cand.proposed_from, date(2001, 7, 12))
+        self.assertEqual(cand.proposed_to, date(2001, 7, 13))
+        self.assertIn("transcript_order", cand.rationale)
+
+    def test_wrong_direction_is_review_not_proposal(self):
+        # PERSON DOB is one day AFTER the corroborating date -- wrong
+        # direction for this bug (typo or unrelated edit).
+        r = self._rec(
+            birth_date=date(2001, 7, 13), corroborating_dob=date(2001, 7, 12),
+        )
+        cand = detector._classify_self_corroboration(r)
+        self.assertIsNotNone(cand)
+        self.assertEqual(cand.bucket, "REVIEW")
+        self.assertIsNone(cand.proposed_person_id)
+
+    def test_matching_dates_not_flagged(self):
+        r = self._rec(birth_date=date(2001, 7, 12), corroborating_dob=date(2001, 7, 12))
+        self.assertIsNone(detector._classify_self_corroboration(r))
+
+    def test_multi_day_gap_out_of_scope_not_flagged(self):
+        # A 9-year gap is a different, unrelated data-quality issue, not this
+        # bug's -1-day signature -- must not be surfaced by this detector.
+        r = self._rec(birth_date=date(1976, 2, 23), corroborating_dob=date(1967, 2, 23))
+        self.assertIsNone(detector._classify_self_corroboration(r))
+
+    def test_no_corroborating_dob_is_a_noop(self):
+        r = self._rec(birth_date=date(2001, 7, 12), corroborating_dob=None)
+        self.assertIsNone(detector._classify_self_corroboration(r))
+
+    def test_no_birth_date_is_a_noop(self):
+        r = self._rec(birth_date=None, corroborating_dob=date(2001, 7, 13))
+        self.assertIsNone(detector._classify_self_corroboration(r))
+
+    def test_identity_score_is_sentinel_above_max_pair_score(self):
+        r = self._rec(birth_date=date(2001, 7, 12), corroborating_dob=date(2001, 7, 13))
+        cand = detector._classify_self_corroboration(r)
+        self.assertEqual(cand.identity_score, detector.SELF_CORROBORATION_SCORE)
+        self.assertGreater(detector.SELF_CORROBORATION_SCORE, detector.MAX_IDENTITY_SCORE)
+
+    def test_analyze_integrates_self_corroboration_and_excludes_from_elevated_risk(self):
+        # A self-corroborated record must appear in candidates as HIGH, and
+        # must NOT also double up in elevated_risk (it's already resolved).
+        r = self._rec(
+            person_id="p9", birth_date=date(2001, 7, 12),
+            corroborating_dob=date(2001, 7, 13), state="NY",
+        )
+        result = detector.analyze([r])
+        self.assertEqual(result.summary["high"], 1)
+        self.assertEqual(len(result.elevated_risk), 0)
+
+    def test_extra_ie_origin_values_threaded_into_self_corroboration(self):
+        r = self._rec(
+            person_id="p10", origin="0420024",
+            birth_date=date(2001, 7, 12), corroborating_dob=date(2001, 7, 13),
+        )
+        # Not IE by the generic defaults -- corroboration logic itself
+        # doesn't require is_ie (it's a DOB-delta check), but the rationale
+        # and elevated_risk interplay should still respect the configured
+        # origin codes elsewhere in analyze(). Confirm analyze() doesn't
+        # error and still classifies the corroboration correctly regardless.
+        result = detector.analyze([r], extra_ie_origin_values={"0420024"})
+        self.assertEqual(result.summary["high"], 1)
+
+
 class TestIdentityScoring(unittest.TestCase):
     def _rec(self, **kw):
         base = dict(

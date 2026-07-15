@@ -45,6 +45,11 @@ def _configured_input_path() -> str:
     return current_app.config.get("DOB_RECONCILE_INPUT_CSV", "").strip()
 
 
+def _extra_ie_origin_values() -> set:
+    raw = current_app.config.get("DOB_RECONCILE_IE_ORIGIN_CODES", "")
+    return {v.strip() for v in raw.split(",") if v.strip()}
+
+
 def _store_result(result, source: str, identity_threshold: int) -> None:
     _STATE["result"] = result
     _STATE["by_id"] = {c.candidate_id: c for c in result.candidates}
@@ -88,7 +93,7 @@ def analyze():
         current_app.logger.error("dob_repair analyze parse error: %s", exc, exc_info=True)
         return jsonify({"error": f"Could not parse CSV: {exc}"}), 400
 
-    result = detector.analyze(records, identity_threshold=threshold)
+    result = detector.analyze(records, identity_threshold=threshold, extra_ie_origin_values=_extra_ie_origin_values())
     _store_result(result, source, threshold)
 
     current_app.logger.info("dob_repair analyze: source=%s %s", source, result.summary)
@@ -132,7 +137,7 @@ def analyze_sql():
         return jsonify({"error": f"SQL fetch failed: {exc}"}), 502
 
     source = f"sql:{dob_sql_source.sql_file_path()}"
-    result = detector.analyze(records, identity_threshold=threshold)
+    result = detector.analyze(records, identity_threshold=threshold, extra_ie_origin_values=_extra_ie_origin_values())
     _store_result(result, source, threshold)
 
     current_app.logger.info(

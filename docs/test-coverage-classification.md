@@ -48,7 +48,7 @@ Every production source file must be accounted for by exactly one (or more) of:
 | `app/routes/replay.py` | ✅ | `test_replay_api.py` — fetch, trigger, history, DB persistence |
 | `app/routes/resources.py` | ✅ | `test_resources_api.py` — list, cn-enabled, annotate, annotations list |
 | `app/routes/schema_browser.py` | ✅ | `test_schema_browser_api.py` — types list, type detail, resource-schema, validate |
-| `app/dob_detector.py` | ✅ | `test_dob_detector.py` — pure-Python PD0002124 detection engine, no Flask/DB coupling |
+| `app/dob_detector.py` | ✅ | `test_dob_detector.py` — pure-Python PD0002124 detection engine, no Flask/DB coupling. Confirmed by direct data audit: cross-person twin pairing (`_classify_pair`) is real but low-yield for this bug's actual backlog (no duplicate PERSON records with differing birth dates are being created); same-person corroboration (`_classify_self_corroboration`) is the primary mechanism with real reach — see the module docstring |
 | `app/dob_sql_source.py` | ✅ | `test_dob_sql_source.py` — read-only guard (rejects writes/multi-statement/`SELECT...INTO`), connection-string building, row-to-Record mapping (mocked `pyodbc`, no live SQL Server) |
 | `config.py` | 📌 | `AUTH_USERNAME`/`AUTH_PASSWORD`/`SECRET_KEY`/`DOB_RECONCILE_INPUT_CSV` env-var wiring exercised by `test_auth.py` and `test_dob_repair_api.py` |
 | `run.py` | 🔧 | Flask `app.run()` entry point — no runtime logic to test |
@@ -137,7 +137,7 @@ All templates are **🔧 compile-verified** by Flask's Jinja2 template engine (s
 ## Running the Full Suite
 
 ```bash
-# Python (446 tests)
+# Python (460 tests)
 cd console && python -m pytest tests/ -v
 ```
 

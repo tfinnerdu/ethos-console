@@ -716,9 +716,14 @@ Detects and human-reviews PD0002124 — the Colleague Self-Service Instant Enrol
 
 This tab displays applicant PII — name, date of birth, address, email, phone — so restrict access to the review team, not the general console user base.
 
+**Important, confirmed by direct data audit:** the original design assumption — a shifted DOB causes Instant Enrollment's duplicate-check to fail and create a *second* PERSON record, giving a "twin pair" to compare against — does not describe what's actually happening. No duplicate PERSON records with differing birth dates are being created by this bug. For a brand-new registrant (the majority of Instant Enrollment traffic), the shifted DOB is the *only* record of that value — there is no twin to pair against by construction, not by bad luck. Practical effect:
+- The **Review Queue** (twin-pairing, below) is real but low-yield for this specific bug's backlog. Still worth running — it costs nothing and catches genuine duplicates from other causes too.
+- The **Elevated Risk Worklist** (below) is the mechanism with real reach into the backlog, but it cannot confirm anything from data alone — treat it as an outreach/verification contact list, not a correction list.
+- If your export includes a same-person corroboration source — a DOB the person independently resubmitted later via a different channel (a transcript order, a financial aid application, anything where they restate their own DOB on a separate later occasion) — populate the optional `corroborating_dob`/`corroborating_source` columns below. This is the one mechanism that can confirm a shift with no identity-matching ambiguity at all, since it's definitionally the same person_id.
+
 ### Load PERSON Export
 
-Export PERSON data from any source you have — an ODS/Colleague reporting view, an Informer report, or an Ethos-to-CSV export. Minimum useful columns: person id, last/first name, date of birth, and an origin field marking Instant Enrollment records (`INSTANT_ENROLL`, `INSTANT ENROLLMENT`, `IE`, or `SS_IE`). Address, email, and phone improve identity matching.
+Export PERSON data from any source you have — an ODS/Colleague reporting view, an Informer report, or an Ethos-to-CSV export. Minimum useful columns: person id, last/first name, date of birth, and an origin field marking Instant Enrollment records. A real Colleague extract's origin column usually carries an institution-specific operator/process code (e.g. a numeric web-registration operator ID, or `GUEST`/`WEBCASHIER`-style process names) rather than a human-readable label like `INSTANT_ENROLL` — set `DOB_RECONCILE_IE_ORIGIN_CODES` in `.env` to your own confirmed codes (see §15) rather than expecting the generic defaults (`INSTANT_ENROLL`, `INSTANT ENROLLMENT`, `IE`, `SS_IE`) to match. Address, email, and phone improve identity matching. Two additional OPTIONAL columns, `corroborating_dob` and `corroborating_source`, enable the same-person corroboration mechanism described above — omit them entirely if you have no such source.
 
 - Choose the CSV file and click **Analyze**.
 - If `DOB_RECONCILE_INPUT_CSV` is set, a **Reload from configured export** button appears.
@@ -727,19 +732,19 @@ Export PERSON data from any source you have — an ODS/Colleague reporting view,
 
 ### Review Queue
 
-Every candidate is a pair of records whose DOBs are exactly one calendar day apart, sorted worst-first:
+Every candidate's DOBs are exactly one calendar day apart, from one of two sources — a cross-person twin pair, OR a same-person corroboration (current PERSON DOB vs. `corroborating_dob` for the same person_id, when that column is populated) — sorted worst-first:
 
 | Bucket | Meaning |
 |---|---|
-| **HIGH** | The Instant-Enroll record is exactly one day *before* an authoritative (non-IE) twin — the classic bug signature. The later date is proposed as the true DOB. |
-| **MEDIUM** | Same one-day gap, but origin doesn't cleanly separate corrupted from authoritative. Later date is a tentative guess only — confirm before accepting. |
-| **REVIEW** | The Instant-Enroll record is the *later* one — the wrong direction for this bug, so it's more likely a typo or two different people. No date is pre-selected. |
+| **HIGH** | EITHER the Instant-Enroll record is exactly one day *before* an authoritative (non-IE) twin, OR a same-person corroboration matches the -1 day signature. Classic bug signature either way. The later/corroborating date is proposed as the true DOB. |
+| **MEDIUM** | Cross-person twin only: same one-day gap, but origin doesn't cleanly separate corrupted from authoritative. Later date is a tentative guess only — confirm before accepting. |
+| **REVIEW** | The Instant-Enroll-side date is the *later* one — the wrong direction for this bug, so it's more likely a typo, two different people, or an unrelated later edit. No date is pre-selected. |
 
-For each row, pick which date is true (pre-selected to the later date for HIGH and MEDIUM), then **Accept** (after a confirmation dialog), **Reject**, or **Defer**. Decisions persist across re-analysis: uploading a fresh export re-runs the detector, but a decision already made for the same pair of person IDs is preserved.
+A same-person corroboration row shows the same person_id on both sides of the table — that's expected, not a bug; it means the "twin" is the same PERSON record confirmed against an independent later resubmission, not a second person. For each row, pick which date is true (pre-selected to the later/corroborating date for HIGH and MEDIUM), then **Accept** (after a confirmation dialog), **Reject**, or **Defer**. Decisions persist across re-analysis.
 
 ### Elevated Risk Worklist
 
-Unpaired Instant-Enroll records with a DOB whose address is in an Eastern-time state — no authoritative twin exists to confirm the shift from data alone. This is a **risk-ranked worklist, not proof of corruption**: it tells you where to look, not what to change. Never correct this list wholesale.
+Instant-Enroll records with a DOB, no twin, no corroboration, and an address in an Eastern-time state. Per the confirmed finding above, this is expected to contain most of the actual backlog for new registrants — but it still **cannot be confirmed from data alone**. This is a **risk-ranked outreach/verification contact list, not proof of corruption**: it tells you who to contact to confirm their real DOB, not what to change. Never correct this list wholesale, and never bulk-apply anything from it.
 
 ### Export Corrections CSV
 
