@@ -45,10 +45,6 @@ class BusMonitor:
             self.running = True
         self._poll_interval = poll_interval
         self._app = app
-        if app:
-            self._webhook_url = app.config.get("ALERT_WEBHOOK_URL", "")
-            self._silence_threshold_minutes = app.config.get("SILENCE_THRESHOLD_MINUTES", 30)
-            self._error_threshold = app.config.get("ALERT_ERROR_THRESHOLD", 10)
         self._thread = threading.Thread(target=self._poll_loop, daemon=True, name="bus-monitor")
         self._thread.start()
         log.info("BusMonitor started (poll interval: %ds)", poll_interval)

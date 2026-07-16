@@ -14,6 +14,9 @@
     <LaunchProvider>Standard Python launcher</LaunchProvider>
     <DebugStdLib>False</DebugStdLib>
     <EnableUnmanagedDebugging>False</EnableUnmanagedDebugging>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <InterpreterId>Global|PythonCore|3.11</InterpreterId>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -29,6 +32,7 @@
     <Compile Include="app\dob_sql_source.py" />
     <Compile Include="app\edge_gate_client.py" />
     <Compile Include="app\help_guide.py" />
+    <Compile Include="debug.py" />
     <Compile Include="run.py" />
     <Compile Include="config.py" />
     <Compile Include="app\__init__.py" />
@@ -71,6 +75,7 @@
   </ItemGroup>
   <!-- ── Tests ──────────────────────────────────────────────────────────── -->
   <ItemGroup>
+    <Compile Include="test.py" />
     <Compile Include="tests\test_default_env.py" />
     <Compile Include="tests\test_dob_detector.py" />
     <Compile Include="tests\test_dob_repair_api.py" />
@@ -123,6 +128,9 @@
     <Content Include="app\templates\replay.html" />
     <Content Include="app\templates\resources.html" />
     <Content Include="app\templates\schema_browser.html" />
+    <Content Include="instance\dob_reconcile_query.sql" />
+    <Content Include="instance\ethos_console.db" />
+    <Content Include="logs\uopy.log" />
     <Content Include="tests\fixtures\dob_sample_persons.csv" />
   </ItemGroup>
   <ItemGroup>
@@ -171,13 +179,18 @@
     <Folder Include="app\routes\" />
     <Folder Include="app\templates\" />
     <Folder Include="docs\" />
+    <Folder Include="instance\" />
     <Folder Include="k8s\" />
+    <Folder Include="logs\" />
     <Folder Include="static\" />
     <Folder Include="static\css\" />
     <Folder Include="static\js\" />
     <Folder Include="tests\" />
     <Folder Include="tests\characterization\" />
     <Folder Include="tests\fixtures\" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="Global|PythonCore|3.11" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Fallback if PTVS targets are not installed (Rider / dotnet CLI) -->
