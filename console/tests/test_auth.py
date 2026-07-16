@@ -248,7 +248,7 @@ def _entra_env(app):
     app.config["ENTRA_TENANT_ID"] = "tenant-123"
     app.config["ENTRA_CLIENT_ID"] = "client-123"
     app.config["ENTRA_CLIENT_SECRET"] = "secret-123"
-    app.config["ENTRA_REDIRECT_URI"] = "http://localhost/auth/callback"
+    app.config["ENTRA_REDIRECT_URI"] = "http://localhost/api/v1/auth/callback"
 
 
 @pytest.fixture()
@@ -369,25 +369,25 @@ class TestLoginEntraRoute:
 
 class TestAuthCallbackRoute:
     def test_idp_error_param_redirects_to_local_login(self, entra_and_local_client):
-        resp = entra_and_local_client.get("/auth/callback?error=access_denied")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?error=access_denied")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/login")
 
     def test_state_mismatch_rejected(self, entra_and_local_client):
         _stash_entra_session(entra_and_local_client, state="expected-state")
-        resp = entra_and_local_client.get("/auth/callback?state=wrong-state&code=abc")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=wrong-state&code=abc")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/login")
 
     def test_missing_state_in_session_rejected(self, entra_and_local_client):
         # No /login/entra call happened first — nothing was ever stashed.
-        resp = entra_and_local_client.get("/auth/callback?state=whatever&code=abc")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=whatever&code=abc")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/login")
 
     def test_missing_code_rejected(self, entra_and_local_client):
         _stash_entra_session(entra_and_local_client)
-        resp = entra_and_local_client.get("/auth/callback?state=expected-state")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=expected-state")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/login")
 
@@ -402,7 +402,7 @@ class TestAuthCallbackRoute:
         fake.acquire_token_by_authorization_code = _raise
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/login")
 
@@ -411,7 +411,7 @@ class TestAuthCallbackRoute:
         fake = FakeMsalApp(token_result={"error": "invalid_grant", "error_description": "bad code"})
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/login")
 
@@ -422,7 +422,7 @@ class TestAuthCallbackRoute:
         })
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/login")
         with entra_and_local_client.session_transaction() as sess:
@@ -435,7 +435,7 @@ class TestAuthCallbackRoute:
         })
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/login")
 
@@ -446,7 +446,7 @@ class TestAuthCallbackRoute:
         }})
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/")
         with entra_and_local_client.session_transaction() as sess:
@@ -460,7 +460,7 @@ class TestAuthCallbackRoute:
         }})
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        resp = entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         assert resp.headers["Location"].endswith("/dob-repair")
 
     def test_claims_fallback_to_preferred_username_when_no_email(self, entra_and_local_client, monkeypatch):
@@ -470,7 +470,7 @@ class TestAuthCallbackRoute:
         }})
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         with entra_and_local_client.session_transaction() as sess:
             assert sess["username"] == "person@doane.edu"
 
@@ -481,7 +481,7 @@ class TestAuthCallbackRoute:
         }})
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         with entra_and_local_client.session_transaction() as sess:
             assert sess["username"] == "person@doane.edu"
 
@@ -492,7 +492,7 @@ class TestAuthCallbackRoute:
         }})
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
 
-        entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
         assert entra_and_local_client.get("/api/dob-repair/status").status_code == 200
 
 
@@ -511,7 +511,7 @@ class TestEntraAuditAttribution:
             "email": "person@doane.edu", "nonce": "expected-nonce",
         }})
         monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
-        entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        entra_and_local_client.get("/api/v1/auth/callback?state=expected-state&code=abc")
 
         with entra_and_local_client.session_transaction() as sess:
             assert sess["username"] == "person@doane.edu"

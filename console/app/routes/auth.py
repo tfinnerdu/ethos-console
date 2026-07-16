@@ -105,7 +105,7 @@ def login_entra():
     return redirect(auth_url)
 
 
-@auth_bp.get("/auth/callback")
+@auth_bp.get("/api/v1/auth/callback")  # matches the Doane-standard path used by SF Mission Control
 def auth_callback():
     next_path = auth.safe_next_path(session.pop("entra_next", "/"))
     expected_state = session.pop("entra_state", None)

@@ -38,10 +38,12 @@ DEFAULT_SECRET_KEY = "dev-secret-change-in-prod"
 # must never depend on auth being configured, or a misconfigured secret
 # turns into a crash-looping pod instead of an app that simply refuses to
 # serve the UI. /api/health/ (bare) and /api/health/token stay gated.
-# /login/entra and /auth/callback must work with no session at all too —
-# the callback is where Microsoft sends the browser back mid-handshake,
-# before anyone's signed in yet.
-_EXEMPT_PATHS = {"/login", "/logout", "/login/entra", "/auth/callback", "/api/health/live"}
+# /login/entra and /api/v1/auth/callback must work with no session at all
+# too — the callback is where Microsoft sends the browser back
+# mid-handshake, before anyone's signed in yet. The callback path starts
+# with /api/ but is exempt before the gate's is_api classification even
+# runs, so it's never mistaken for a gated JSON API route.
+_EXEMPT_PATHS = {"/login", "/logout", "/login/entra", "/api/v1/auth/callback", "/api/health/live"}
 _EXEMPT_PREFIXES = ("/static/",)
 
 _FAILED_LOGIN_DELAY_SECONDS = 1.0
