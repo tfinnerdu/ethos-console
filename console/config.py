@@ -1,6 +1,29 @@
 import os
 from datetime import timedelta
 
+
+def _normalize_database_url(raw: str) -> str:
+    """Accept either a full DB URI or a bare filesystem path for DATABASE_URL.
+
+    A bare path (no "://" — e.g. "sf_mission_control.db", "/data/foo.db",
+    "C:\\data\\foo.db") matches the SF Mission Control sibling app's simpler
+    DATABASE_PATH convention. Building the sqlite:/// URI here instead of
+    asking the operator to hand-count "how many slashes mean absolute" (4 on
+    Linux, 3 on Windows — a real footgun that broke a real deployment) means
+    they can just write a normal OS path. A full URI (postgresql://...,
+    sqlite://... already correctly slashed) passes through unchanged, aside
+    from the postgres:// -> postgresql:// SQLAlchemy dialect rename.
+    """
+    raw = raw.strip()
+    if not raw:
+        return ""
+    if "://" not in raw:
+        return "sqlite:///" + raw.replace("\\", "/")
+    if raw.startswith("postgres://"):
+        return raw.replace("postgres://", "postgresql://", 1)
+    return raw
+
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
     CONDUCTOR_API_KEY = os.environ.get("CONDUCTOR_API_KEY", "")
@@ -84,10 +107,7 @@ class Config:
     ]
     DEFAULT_ENV = os.environ.get("DEFAULT_ENV", "").strip()
 
-    _db_url = os.environ.get("DATABASE_URL", "")
-    if _db_url.startswith("postgres://"):
-        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
-    SQLALCHEMY_DATABASE_URI = _db_url or "sqlite:///ethos_console.db"
+    SQLALCHEMY_DATABASE_URI = _normalize_database_url(os.environ.get("DATABASE_URL", "")) or "sqlite:///ethos_console.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class DevelopmentConfig(Config):

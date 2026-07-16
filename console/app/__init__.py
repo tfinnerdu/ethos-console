@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from flask import Flask
 from .database import db, seed_mnemonics, seed_saved_queries
@@ -11,6 +12,21 @@ from .bus_monitor import BusMonitor
 from .health_monitor import EthosHealthMonitor
 from .edge_gate_client import EdgeGateClient
 from config import config
+
+_WINDOWS_ABS_PATH_RE = re.compile(r"^[A-Za-z]:[/\\]")
+
+
+def _is_absolute_sqlite_path(path: str) -> bool:
+    """True for a Unix-style ("/...") or Windows-style ("C:/..." / "C:\\...")
+    absolute filesystem path.
+
+    Checked against the string directly rather than via os.path.isabs() —
+    that only understands whichever OS convention the *current* process
+    happens to run on, but config.py's _normalize_database_url() can produce
+    either form regardless of what OS actually boots this app (e.g. a
+    Windows-style DATABASE_URL tested locally before a Linux k8s deploy).
+    """
+    return path.startswith("/") or bool(_WINDOWS_ABS_PATH_RE.match(path))
 
 
 def create_app(config_name: str | None = None, overrides: dict | None = None) -> Flask:
@@ -38,14 +54,17 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     # A deliberate SQLite-on-PVC deployment (matching DLM's real k8s pattern —
     # a mounted PersistentVolumeClaim, replicas: 1, strategy: Recreate) is
     # allowed through instead of blocked: an *absolute* filesystem path
-    # ("sqlite:////data/ethos_console.db" — four slashes) signals that
-    # someone deliberately pointed DATABASE_URL at a mounted volume, as
-    # opposed to the relative-path default ("sqlite:///ethos_console.db" —
-    # three slashes) that resolves to whatever directory the container
-    # happens to start in.
+    # signals that someone deliberately pointed DATABASE_URL at a mounted
+    # volume, as opposed to the relative-path default ("ethos_console.db")
+    # that resolves to whatever directory the container happens to start in.
     db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
     is_sqlite = db_uri.startswith("sqlite:")
-    is_absolute_path_sqlite = db_uri.startswith("sqlite:////")
+    db_path = ""
+    if is_sqlite:
+        from sqlalchemy.engine import make_url
+        db_path = make_url(db_uri).database or ""
+    is_absolute_path_sqlite = is_sqlite and db_path != ":memory:" and _is_absolute_sqlite_path(db_path)
+
     if app.config.get("ENV") == "production" and is_sqlite and not is_absolute_path_sqlite:
         raise RuntimeError(
             "Refusing to start with ENV=production and no DATABASE_URL (or a "
@@ -54,8 +73,8 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
             "DOB-decision record would be silently lost on the next redeploy. "
             "Set DATABASE_URL to a Postgres connection string, or — if you "
             "really want SQLite in k8s — an absolute path on a mounted PVC "
-            "(sqlite:////data/ethos_console.db, four slashes). See "
-            "k8s/secret-template.yaml."
+            "(e.g. DATABASE_URL=/data/ethos_console.db — see "
+            "k8s/secret-template.yaml)."
         )
     if app.config.get("ENV") == "production" and is_absolute_path_sqlite:
         logging.getLogger(__name__).warning(
@@ -73,15 +92,12 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     )
 
     # SQLite creates the db *file* on first connect, but never a missing
-    # parent directory — pointing DATABASE_URL at e.g. sqlite:///data/foo.db
-    # before a local ./data folder exists (or a malformed path — see the
-    # Windows vs. Unix slash-count note in .env.example) fails at
-    # db.create_all() below with an opaque "unable to open database file"
-    # and no indication of which path it tried. Best-effort only: if the
-    # path itself is bad, let SQLAlchemy's own error surface as before.
+    # parent directory — pointing DATABASE_URL at a not-yet-created
+    # subdirectory fails at db.create_all() below with an opaque "unable to
+    # open database file" and no indication of which path it tried.
+    # Best-effort only: if the path itself is bad, let SQLAlchemy's own error
+    # surface as before.
     if is_sqlite:
-        from sqlalchemy.engine import make_url
-        db_path = make_url(db_uri).database
         parent = os.path.dirname(db_path) if db_path else ""
         if parent:
             try:

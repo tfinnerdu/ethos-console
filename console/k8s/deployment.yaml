@@ -66,10 +66,10 @@ spec:
         # ── SQLite-on-PVC option (alternative to Postgres) ──────────────
         # Uncomment this container, the volumeMounts entry above, and the
         # volumes block below; apply k8s/pvc.yaml; set DATABASE_URL to an
-        # absolute path under /data (e.g. sqlite:////data/ethos_console.db,
-        # four slashes — see secret-template.yaml). This sidecar runs
-        # nothing but a shell — its only purpose is `kubectl exec` access
-        # to inspect the live db file (e.g. `apk add sqlite && sqlite3
+        # absolute path under /data (e.g. /data/ethos_console.db — see
+        # secret-template.yaml). This sidecar runs nothing but a shell —
+        # its only purpose is `kubectl exec` access to inspect the live
+        # db file (e.g. `apk add sqlite && sqlite3
         # /data/ethos_console.db ...`) without exec'ing into the app
         # container's own image.
         # - name: sqlite-data

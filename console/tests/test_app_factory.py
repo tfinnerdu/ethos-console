@@ -4,9 +4,10 @@ A production run with a relative-path sqlite:// DATABASE_URL (the accidental
 default, e.g. "sqlite:///ethos_console.db") must refuse to boot — that file
 lives in the container's ephemeral filesystem and disappears on every
 redeploy. An absolute-path sqlite:// DATABASE_URL (e.g.
-"sqlite:////data/ethos_console.db", four slashes) is a deliberate PVC-backed
-deployment (matching DLM's real k8s pattern) and must be allowed through,
-with a warning logged instead of a hard failure.
+"sqlite:////data/ethos_console.db" on Linux, or "sqlite:///C:/data/..." on
+Windows) is a deliberate PVC-backed deployment (matching DLM's real k8s
+pattern) and must be allowed through, with a warning logged instead of a
+hard failure.
 """
 import logging
 import os
@@ -14,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app import create_app
+from app import create_app, _is_absolute_sqlite_path
 
 
 def _create_production_app(database_uri: str):
@@ -68,6 +69,38 @@ class TestProductionDbFailClosed:
                 "TESTING": True,
             })
         assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///:memory:"
+
+    def test_windows_style_absolute_path_boots_with_warning(self, caplog):
+        # A bare Windows path (config.py's _normalize_database_url) produces
+        # 3 slashes, not 4 — is_absolute_path_sqlite must still recognize it
+        # as deliberate, not the accidental relative-path default.
+        with caplog.at_level(logging.WARNING), \
+             patch("app.database.db.create_all"), \
+             patch("app.seed_mnemonics"), \
+             patch("app.seed_saved_queries"):
+            app = _create_production_app("sqlite:///C:/data/ethos_console.db")
+        assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///C:/data/ethos_console.db"
+        assert any(
+            "PersistentVolumeClaim" in record.message
+            for record in caplog.records
+        )
+
+
+class TestIsAbsoluteSqlitePath:
+    def test_unix_absolute(self):
+        assert _is_absolute_sqlite_path("/data/ethos_console.db") is True
+
+    def test_windows_absolute_forward_slashes(self):
+        assert _is_absolute_sqlite_path("C:/data/ethos_console.db") is True
+
+    def test_windows_absolute_backslashes(self):
+        assert _is_absolute_sqlite_path("C:\\data\\ethos_console.db") is True
+
+    def test_relative_path(self):
+        assert _is_absolute_sqlite_path("ethos_console.db") is False
+
+    def test_relative_path_with_subdir(self):
+        assert _is_absolute_sqlite_path("data/ethos_console.db") is False
 
 
 class TestSqliteParentDirectoryAutoCreate:
