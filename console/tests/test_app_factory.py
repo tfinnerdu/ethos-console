@@ -11,6 +11,7 @@ hard failure.
 """
 import logging
 import os
+import shutil
 from unittest.mock import patch
 
 import pytest
@@ -137,3 +138,87 @@ class TestSqliteParentDirectoryAutoCreate:
         # Cleanup: this one lands in the CWD, unlike the tmp_path-scoped cases above.
         if os.path.exists("ethos_console_test_default.db"):
             os.remove("ethos_console_test_default.db")
+
+
+class TestDatabaseBackendLogging:
+    """The app boots identically on SQLite or Postgres — no visible
+    difference on screen — so without a boot-time log line, "why isn't my
+    sqlite file showing up" is only answerable by reading config.py."""
+
+    def test_sqlite_path_is_logged(self, caplog, tmp_path):
+        db_file = tmp_path / "ethos_console.db"
+        with caplog.at_level(logging.INFO), \
+             patch("app.ethos_client.EthosClient.is_configured", return_value=False):
+            create_app("development", overrides={
+                "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_file}",
+                "TESTING": True,
+            })
+        assert any(
+            "Database: SQLite" in record.message and str(db_file) in record.message
+            for record in caplog.records
+        )
+
+    def test_sqlite_in_memory_is_logged_distinctly(self, caplog):
+        with caplog.at_level(logging.INFO), \
+             patch("app.ethos_client.EthosClient.is_configured", return_value=False):
+            create_app("development", overrides={
+                "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+                "TESTING": True,
+            })
+        assert any(
+            "Database: SQLite" in record.message and "in-memory" in record.message
+            for record in caplog.records
+        )
+
+    def test_postgres_is_logged_with_password_hidden(self, caplog):
+        with caplog.at_level(logging.INFO), \
+             patch("app.ethos_client.EthosClient.is_configured", return_value=False), \
+             patch("app.database.db.create_all"), \
+             patch("app.seed_mnemonics"), \
+             patch("app.seed_saved_queries"):
+            create_app("development", overrides={
+                "SQLALCHEMY_DATABASE_URI": "postgresql://user:supersecret@localhost:5432/ethos_console",
+                "TESTING": True,
+            })
+        messages = [record.message for record in caplog.records if "Database:" in record.message]
+        assert messages, "expected a Database: log line"
+        assert not any("supersecret" in m for m in messages)
+        assert any("postgresql://user" in m for m in messages)
+
+
+class TestInstancePathResolution:
+    """Flask-SQLAlchemy >= 3.0 resolves a *relative* sqlite path against
+    app.instance_path, not the process's CWD — a real, easy-to-miss
+    surprise (DATABASE_URL=ethos_console.db does NOT land next to run.py).
+    create_app()'s logging and mkdir logic must account for that rewrite
+    instead of computing a directory relative to CWD that Flask-SQLAlchemy
+    never actually uses."""
+
+    def test_relative_path_is_logged_under_instance_path(self, caplog):
+        with caplog.at_level(logging.INFO), \
+             patch("app.ethos_client.EthosClient.is_configured", return_value=False):
+            app = create_app("development", overrides={
+                "SQLALCHEMY_DATABASE_URI": "sqlite:///ethos_console_instance_test.db",
+                "TESTING": True,
+            })
+        expected = os.path.join(app.instance_path, "ethos_console_instance_test.db")
+        try:
+            assert os.path.exists(expected)
+            assert any(expected in record.message for record in caplog.records)
+        finally:
+            if os.path.exists(expected):
+                os.remove(expected)
+
+    def test_relative_path_with_subdir_creates_directory_under_instance_path(self):
+        with patch("app.ethos_client.EthosClient.is_configured", return_value=False):
+            app = create_app("development", overrides={
+                "SQLALCHEMY_DATABASE_URI": "sqlite:///nested_subdir_test/ethos_console.db",
+                "TESTING": True,
+            })
+        expected_dir = os.path.join(app.instance_path, "nested_subdir_test")
+        expected_file = os.path.join(expected_dir, "ethos_console.db")
+        try:
+            assert os.path.exists(expected_file)
+        finally:
+            if os.path.exists(expected_dir):
+                shutil.rmtree(expected_dir)

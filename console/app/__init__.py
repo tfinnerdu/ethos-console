@@ -2,6 +2,7 @@ import os
 import re
 import logging
 from flask import Flask
+from sqlalchemy.engine import make_url
 from .database import db, seed_mnemonics, seed_saved_queries
 from .ethos_client import EthosClient
 from .colleague_api_client import ColleagueApiClient
@@ -61,9 +62,19 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     is_sqlite = db_uri.startswith("sqlite:")
     db_path = ""
     if is_sqlite:
-        from sqlalchemy.engine import make_url
         db_path = make_url(db_uri).database or ""
     is_absolute_path_sqlite = is_sqlite and db_path != ":memory:" and _is_absolute_sqlite_path(db_path)
+
+    # Flask-SQLAlchemy >= 3.0 silently rewrites a *relative* sqlite path to
+    # live under app.instance_path instead of the process's working
+    # directory — a real, easy-to-miss surprise (a bare
+    # DATABASE_URL=ethos_console.db does NOT land next to run.py). Resolve
+    # it the same way here so the log line below and the mkdir fix further
+    # down both point at where the file actually ends up, not where its
+    # raw configured value visually suggests.
+    resolved_db_path = db_path
+    if is_sqlite and db_path and db_path != ":memory:" and not is_absolute_path_sqlite:
+        resolved_db_path = os.path.join(app.instance_path, db_path)
 
     if app.config.get("ENV") == "production" and is_sqlite and not is_absolute_path_sqlite:
         raise RuntimeError(
@@ -91,14 +102,27 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
     )
 
+    # Always log which DB backend/location is actually in effect — the app
+    # boots identically either way (no visible difference on screen), so
+    # without this line "why isn't my sqlite file showing up" is only
+    # answerable by reading Flask-SQLAlchemy's own source. hide_password=True
+    # keeps a Postgres credential out of the log.
+    if is_sqlite:
+        shown = "in-memory (nothing persists across restarts)" if db_path == ":memory:" else resolved_db_path
+        logging.getLogger(__name__).info("Database: SQLite — %s", shown)
+    else:
+        logging.getLogger(__name__).info(
+            "Database: %s", make_url(db_uri).render_as_string(hide_password=True)
+        )
+
     # SQLite creates the db *file* on first connect, but never a missing
     # parent directory — pointing DATABASE_URL at a not-yet-created
     # subdirectory fails at db.create_all() below with an opaque "unable to
     # open database file" and no indication of which path it tried.
     # Best-effort only: if the path itself is bad, let SQLAlchemy's own error
     # surface as before.
-    if is_sqlite:
-        parent = os.path.dirname(db_path) if db_path else ""
+    if is_sqlite and resolved_db_path and resolved_db_path != ":memory:":
+        parent = os.path.dirname(resolved_db_path)
         if parent:
             try:
                 os.makedirs(parent, exist_ok=True)
