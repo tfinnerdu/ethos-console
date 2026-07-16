@@ -77,6 +77,7 @@
   <!-- ── Tests ──────────────────────────────────────────────────────────── -->
   <ItemGroup>
     <Compile Include="test.py" />
+    <Compile Include="tests\test_app_factory.py" />
     <Compile Include="tests\test_default_env.py" />
     <Compile Include="tests\test_dob_detector.py" />
     <Compile Include="tests\test_dob_repair_api.py" />

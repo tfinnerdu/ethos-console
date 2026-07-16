@@ -29,18 +29,42 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
 
     # Fail-closed on the DB, mirroring the auth gate's own fail-closed posture
     # (app/auth.py): a production run with no DATABASE_URL silently falls back
-    # to a local SQLite file (config.py) that does not survive a pod restart —
-    # every replay/audit/mnemonic/DOB-decision record would vanish on the next
-    # redeploy with no error, no warning. k8s/secret-template.yaml already
-    # documents "DATABASE_URL MUST be PostgreSQL in k8s" as a comment; this
-    # turns that comment into an actual boot-time check.
-    if app.config.get("ENV") == "production" and app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+    # to a relative-path SQLite file (config.py) that lands in the container's
+    # own ephemeral filesystem and does not survive a pod restart — every
+    # replay/audit/mnemonic/DOB-decision record would vanish on the next
+    # redeploy with no error, no warning. That accidental-default case still
+    # blocks boot.
+    #
+    # A deliberate SQLite-on-PVC deployment (matching DLM's real k8s pattern —
+    # a mounted PersistentVolumeClaim, replicas: 1, strategy: Recreate) is
+    # allowed through instead of blocked: an *absolute* filesystem path
+    # ("sqlite:////data/ethos_console.db" — four slashes) signals that
+    # someone deliberately pointed DATABASE_URL at a mounted volume, as
+    # opposed to the relative-path default ("sqlite:///ethos_console.db" —
+    # three slashes) that resolves to whatever directory the container
+    # happens to start in.
+    db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
+    is_sqlite = db_uri.startswith("sqlite:")
+    is_absolute_path_sqlite = db_uri.startswith("sqlite:////")
+    if app.config.get("ENV") == "production" and is_sqlite and not is_absolute_path_sqlite:
         raise RuntimeError(
             "Refusing to start with ENV=production and no DATABASE_URL (or a "
-            "sqlite:// DATABASE_URL). SQLite does not survive a pod restart — "
-            "every replay/audit/mnemonic/DOB-decision record would be silently "
-            "lost on the next redeploy. Set DATABASE_URL to a Postgres "
-            "connection string (see k8s/secret-template.yaml)."
+            "relative-path sqlite:// DATABASE_URL). That file lives in the "
+            "container's ephemeral filesystem — every replay/audit/mnemonic/"
+            "DOB-decision record would be silently lost on the next redeploy. "
+            "Set DATABASE_URL to a Postgres connection string, or — if you "
+            "really want SQLite in k8s — an absolute path on a mounted PVC "
+            "(sqlite:////data/ethos_console.db, four slashes). See "
+            "k8s/secret-template.yaml."
+        )
+    if app.config.get("ENV") == "production" and is_absolute_path_sqlite:
+        logging.getLogger(__name__).warning(
+            "DATABASE_URL is SQLite (%s) in production. This is only safe if "
+            "that path is on a mounted PersistentVolumeClaim, and the "
+            "Deployment is replicas: 1 with strategy: Recreate — SQLite "
+            "cannot be safely shared across multiple pods/writers. See DLM's "
+            "k8s manifests for the proven pattern.",
+            db_uri,
         )
 
     logging.basicConfig(

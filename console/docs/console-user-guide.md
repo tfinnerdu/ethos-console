@@ -694,7 +694,7 @@ ETHOS_ENV_2_KEY=<prod api key>
 
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | SQLite (`ethos_console.db`) | PostgreSQL connection string if not using SQLite (e.g. `postgresql://user:pass@localhost:5432/ethos_console`) |
+| `DATABASE_URL` | SQLite (`ethos_console.db`) | PostgreSQL connection string if not using SQLite (e.g. `postgresql://user:pass@localhost:5432/ethos_console`). In production (`FLASK_ENV=production`), the app refuses to boot on a relative-path `sqlite://` URL — that file lives in the container's ephemeral filesystem and vanishes on every redeploy. An absolute-path SQLite URL (e.g. `sqlite:////data/ethos_console.db`, four slashes) is allowed instead, for a deliberate PVC-backed deployment — see the note in `k8s/secret-template.yaml`. |
 | `PORT` | `5012` | HTTP port |
 | `FLASK_ENV` | `development` | `development` or `production` |
 | `BUS_POLL_INTERVAL` | `2` | Seconds between Ethos bus polls, once started (see §4 — the monitor no longer auto-starts) |
