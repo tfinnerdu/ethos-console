@@ -39,7 +39,7 @@ def test_check_health_reachable_parses_gate_shape(gate):
     with patch("app.edge_gate_client.requests.get", return_value=mock_resp) as mock_get:
         result = gate.check_health()
 
-    mock_get.assert_called_once_with("http://gate.local:5199/health", timeout=5)
+    mock_get.assert_called_once_with("http://gate.local:5199/health", timeout=5, allow_redirects=False)
     assert result == {
         "configured": True,
         "reachable": True,
@@ -56,7 +56,7 @@ def test_check_health_strips_trailing_slash_from_base_url():
     mock_resp.json.return_value = {"status": "ok"}
     with patch("app.edge_gate_client.requests.get", return_value=mock_resp) as mock_get:
         gate.check_health()
-    mock_get.assert_called_once_with("http://gate.local:5199/health", timeout=5)
+    mock_get.assert_called_once_with("http://gate.local:5199/health", timeout=5, allow_redirects=False)
 
 
 def test_check_health_unreachable_on_connection_error(gate):
@@ -73,5 +73,19 @@ def test_check_health_unreachable_on_http_error(gate):
     mock_resp.raise_for_status.side_effect = Exception("502 Bad Gateway")
     with patch("app.edge_gate_client.requests.get", return_value=mock_resp):
         result = gate.check_health()
+    assert result["reachable"] is False
+    assert result["status"] == "unreachable"
+
+
+@pytest.mark.parametrize("non_dict_body", [None, [], "ok", 42, True])
+def test_check_health_degrades_on_non_dict_json_body(gate, non_dict_body):
+    # A 200 with valid-but-non-object JSON (e.g. a captive portal or proxy
+    # error page that happens to emit valid JSON) must degrade to
+    # "unreachable", not raise AttributeError out of check_health().
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = non_dict_body
+    with patch("app.edge_gate_client.requests.get", return_value=mock_resp):
+        result = gate.check_health()
+    assert result["configured"] is True
     assert result["reachable"] is False
     assert result["status"] == "unreachable"

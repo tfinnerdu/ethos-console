@@ -24,9 +24,14 @@ class EdgeGateClient:
             return {"configured": False, "reachable": False, "status": "unconfigured"}
 
         try:
-            r = requests.get(f"{self.base_url}/health", timeout=5)
+            # A health endpoint should never legitimately redirect; without
+            # this, a misconfigured EDGE_GATE_URL that redirect-loops ties up
+            # the request for up to timeout * max_redirects instead of 5s.
+            r = requests.get(f"{self.base_url}/health", timeout=5, allow_redirects=False)
             r.raise_for_status()
             body = r.json()
+            if not isinstance(body, dict):
+                raise ValueError(f"expected a JSON object, got {type(body).__name__}")
         except Exception as exc:
             log.warning("DoaneEdgeGate health check failed: %s", exc)
             return {"configured": True, "reachable": False, "status": "unreachable", "error": str(exc)}

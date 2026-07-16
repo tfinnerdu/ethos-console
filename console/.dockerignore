@@ -1,0 +1,63 @@
+# Keep the build context small and free of dev cruft / secrets.
+#
+# NOTE the deliberate exception: docs/ is NOT excluded here, unlike every
+# other Doane service's .dockerignore. docs/console-user-guide.md is read at
+# runtime by app/help_guide.py for the in-app Help & User Guide — see that
+# file's DOC_PATH comment. Every other file under docs/ is fine to ship too;
+# it's a single small folder, not worth splitting.
+
+# VCS
+.git/
+.gitattributes
+.gitignore
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment and secrets
+.env
+*.env.local
+.env.example
+
+# Tests and coverage artifacts (not needed at runtime)
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.lcov
+pytest.ini
+
+# Kubernetes / local-dev tooling (not part of the image)
+k8s/
+start-local.ps1
+
+# Visual Studio project files
+*.sln
+*.pyproj
+.vs/
+.vscode/
+.idea/
+
+# Logs and local SQLite fallback DB
+*.log
+.hub-logs/
+logs/
+instance/
+ethos_console.db
+
+# Uploaded files
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

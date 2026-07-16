@@ -15,9 +15,12 @@ spec:
       labels:
         app: ethos-console
     spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
         - name: ethos-console
           image: doaneu/ethos-console:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:

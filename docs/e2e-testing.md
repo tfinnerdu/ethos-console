@@ -67,7 +67,7 @@ Run after starting the console with `.\console\start-local.ps1`.
 **Login required.** Every curl example below except Liveness needs an
 authenticated session cookie once `AUTH_USERNAME`/`AUTH_PASSWORD` are
 configured (they're fail-closed by default — see the "Authentication"
-subsection of §15 in `docs/console-user-guide.md`). Get a cookie jar once
+subsection of §15 in `console/docs/console-user-guide.md`). Get a cookie jar once
 and reuse it for the rest of this guide:
 
 ```powershell

@@ -1,5 +1,9 @@
 'use strict';
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 const DOB_BUCKET_BADGE = {
   HIGH: 'badge-error',
   MEDIUM: 'badge-silent',
@@ -112,8 +116,8 @@ function dobRenderSummary(s) {
 function dobDecisionBadge(decision) {
   if (!decision) return '<span class="badge badge-unknown">undecided</span>';
   const cls = decision.action === 'accept' ? 'badge-active' : decision.action === 'reject' ? 'badge-error' : 'badge-silent';
-  return '<span class="badge ' + cls + '">' + decision.action + '</span>' +
-    '<div class="text-muted" style="font-size:.72rem">' + (decision.reviewer || '') + '</div>';
+  return '<span class="badge ' + cls + '">' + escapeHtml(decision.action) + '</span>' +
+    '<div class="text-muted" style="font-size:.72rem">' + escapeHtml(decision.reviewer || '') + '</div>';
 }
 
 function dobRenderCandidates(candidates) {
@@ -123,24 +127,33 @@ function dobRenderCandidates(candidates) {
     return;
   }
 
+  // Every field below except c.bucket (a fixed HIGH/MEDIUM/REVIEW enum from
+  // our own detector) ultimately traces back to a Colleague PERSON record —
+  // for IE-origin rows, one a registrant filled in themselves via the
+  // public Self-Service form. Escaped before going into innerHTML so a
+  // registrant typing HTML/script into a name field can't execute in a
+  // reviewer's session.
   tbody.innerHTML = candidates.map(function (c) {
     const badgeCls = DOB_BUCKET_BADGE[c.bucket] || 'badge-unknown';
     const earlierChecked = c.suggested_true_dob && c.suggested_true_dob === c.earlier_dob ? 'checked' : '';
     const laterChecked = c.suggested_true_dob && c.suggested_true_dob === c.later_dob ? 'checked' : '';
-    const radioName = 'dob-true-' + c.candidate_id;
+    const candidateId = escapeHtml(c.candidate_id);
+    const radioName = 'dob-true-' + candidateId;
+    const earlierDob = escapeHtml(c.earlier_dob);
+    const laterDob = escapeHtml(c.later_dob);
 
-    return '<tr data-candidate-id="' + c.candidate_id + '">' +
-      '<td><span class="badge ' + badgeCls + '">' + c.bucket + '</span></td>' +
-      '<td>' + c.name + '</td>' +
-      '<td>' + c.earlier_dob + ' <span class="text-muted small">(' + c.earlier_origin + ')</span></td>' +
-      '<td>' + c.later_dob + ' <span class="text-muted small">(' + c.later_origin + ')</span></td>' +
-      '<td>' + c.identity_score + '</td>' +
-      '<td class="small" style="max-width:280px">' + c.rationale + '</td>' +
+    return '<tr data-candidate-id="' + candidateId + '">' +
+      '<td><span class="badge ' + badgeCls + '">' + escapeHtml(c.bucket) + '</span></td>' +
+      '<td>' + escapeHtml(c.name) + '</td>' +
+      '<td>' + earlierDob + ' <span class="text-muted small">(' + escapeHtml(c.earlier_origin) + ')</span></td>' +
+      '<td>' + laterDob + ' <span class="text-muted small">(' + escapeHtml(c.later_origin) + ')</span></td>' +
+      '<td>' + escapeHtml(c.identity_score) + '</td>' +
+      '<td class="small" style="max-width:280px">' + escapeHtml(c.rationale) + '</td>' +
       '<td style="min-width:220px">' +
         '<div class="mb-1">' + dobDecisionBadge(c.decision) + '</div>' +
         '<div class="d-flex flex-column gap-1 small">' +
-          '<label><input type="radio" name="' + radioName + '" class="dob-true-radio" value="' + c.earlier_dob + '" ' + earlierChecked + '/> Earlier is true</label>' +
-          '<label><input type="radio" name="' + radioName + '" class="dob-true-radio" value="' + c.later_dob + '" ' + laterChecked + '/> Later is true</label>' +
+          '<label><input type="radio" name="' + radioName + '" class="dob-true-radio" value="' + earlierDob + '" ' + earlierChecked + '/> Earlier is true</label>' +
+          '<label><input type="radio" name="' + radioName + '" class="dob-true-radio" value="' + laterDob + '" ' + laterChecked + '/> Later is true</label>' +
         '</div>' +
         '<div class="d-flex gap-1 mt-1">' +
           '<button class="btn btn-sm btn-doane dob-decide-btn" data-action="accept">Accept</button>' +
@@ -160,7 +173,7 @@ function dobRenderElevated(list) {
     return;
   }
   tbody.innerHTML = list.map(function (r) {
-    return '<tr><td>' + r.person_id + '</td><td>' + r.name + '</td><td>' + r.dob + '</td><td>' + r.state + '</td></tr>';
+    return '<tr><td>' + escapeHtml(r.person_id) + '</td><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.dob) + '</td><td>' + escapeHtml(r.state) + '</td></tr>';
   }).join('');
 }
 
@@ -173,7 +186,7 @@ function dobRenderUnparseable(list) {
   }
   card.classList.remove('d-none');
   tbody.innerHTML = list.map(function (r) {
-    return '<tr><td>' + r.person_id + '</td><td>' + r.name + '</td><td>' + r.raw_birth_date + '</td></tr>';
+    return '<tr><td>' + escapeHtml(r.person_id) + '</td><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.raw_birth_date) + '</td></tr>';
   }).join('');
 }
 

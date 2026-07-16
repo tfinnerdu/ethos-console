@@ -1,4 +1,4 @@
-"""Renders docs/console-user-guide.md as the in-app Help & User Guide.
+"""Renders console/docs/console-user-guide.md as the in-app Help & User Guide.
 
 Single source of truth stays the markdown file — this only renders it, with a
 per-tab/per-feature sidebar nav built from the file's real headers, so the
@@ -20,7 +20,16 @@ import markdown
 
 log = logging.getLogger(__name__)
 
-DOC_PATH = Path(__file__).resolve().parent.parent.parent / "docs" / "console-user-guide.md"
+
+# Lives INSIDE console/ (not the repo-root docs/ where DoaneEdgeGate's
+# runbooks live) deliberately: every Doane service's Dockerfile build
+# context is that service's own directory (confirmed against DLM/PII/OCR/
+# Follett's real Dockerfiles — none of them reach outside their own folder),
+# so anything read at runtime, like this one, has to physically live inside
+# console/ or it silently isn't in the built image. Every other doc in this
+# repo is pure human reference with no runtime reader, which is why they
+# stay at the repo-root docs/ instead — this file is the one exception.
+DOC_PATH = Path(__file__).resolve().parent.parent / "docs" / "console-user-guide.md"
 
 _MD_EXTENSIONS = ["toc", "tables", "fenced_code", "attr_list", "sane_lists"]
 _MD_EXTENSION_CONFIGS = {"toc": {"permalink": False, "anchorlink": False}}

@@ -27,6 +27,8 @@
   <ItemGroup>
     <Compile Include="app\dob_detector.py" />
     <Compile Include="app\dob_sql_source.py" />
+    <Compile Include="app\edge_gate_client.py" />
+    <Compile Include="app\help_guide.py" />
     <Compile Include="run.py" />
     <Compile Include="config.py" />
     <Compile Include="app\__init__.py" />
@@ -46,6 +48,7 @@
     <Compile Include="app\mocks\cn_repository.py" />
     <Compile Include="app\mocks\colleague_api.py" />
     <Compile Include="app\mocks\conductor.py" />
+    <Compile Include="app\mocks\edge_gate.py" />
     <Compile Include="app\mocks\ethos.py" />
     <Compile Include="app\mocks\fixtures.py" />
     <Compile Include="app\mocks\unidata.py" />
@@ -72,6 +75,8 @@
     <Compile Include="tests\test_dob_detector.py" />
     <Compile Include="tests\test_dob_repair_api.py" />
     <Compile Include="tests\test_dob_sql_source.py" />
+    <Compile Include="tests\test_edge_gate_client.py" />
+    <Compile Include="tests\test_help_guide.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
     <Compile Include="tests\test_audit.py" />
@@ -112,12 +117,20 @@
     <Content Include="app\templates\field_diff.html" />
     <Content Include="app\templates\graphql.html" />
     <Content Include="app\templates\health.html" />
+    <Content Include="app\templates\help.html" />
     <Content Include="app\templates\login.html" />
     <Content Include="app\templates\mnemonics.html" />
     <Content Include="app\templates\replay.html" />
     <Content Include="app\templates\resources.html" />
     <Content Include="app\templates\schema_browser.html" />
     <Content Include="tests\fixtures\dob_sample_persons.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The one doc that lives inside console/ rather than the repo-root
+         docs/ folder — read at runtime by app/help_guide.py, so it has to
+         be inside the Docker build context. See help_guide.py's DOC_PATH
+         comment. -->
+    <Content Include="docs\console-user-guide.md" />
   </ItemGroup>
   <!-- ── Static assets ──────────────────────────────────────────────────── -->
   <ItemGroup>
@@ -132,6 +145,7 @@
     <Content Include="static\js\field_diff.js" />
     <Content Include="static\js\graphql_builder.js" />
     <Content Include="static\js\health.js" />
+    <Content Include="static\js\help.js" />
     <Content Include="static\js\mnemonics.js" />
     <Content Include="static\js\replay.js" />
     <Content Include="static\js\resources.js" />
@@ -142,6 +156,7 @@
     <None Include="requirements.txt" />
     <None Include="pytest.ini" />
     <None Include="Dockerfile" />
+    <None Include=".dockerignore" />
     <None Include="start-local.ps1" />
     <None Include=".env.example" />
     <None Include="k8s\deployment.yaml" />
@@ -155,6 +170,7 @@
     <Folder Include="app\mocks\" />
     <Folder Include="app\routes\" />
     <Folder Include="app\templates\" />
+    <Folder Include="docs\" />
     <Folder Include="k8s\" />
     <Folder Include="static\" />
     <Folder Include="static\css\" />
