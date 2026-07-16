@@ -101,14 +101,16 @@ def _connection_string() -> str:
     password = os.environ.get("DOB_RECONCILE_DB_PASSWORD", "")
     encrypt = os.environ.get("DOB_RECONCILE_DB_ENCRYPT", "yes")
     trust_cert = os.environ.get("DOB_RECONCILE_DB_TRUST_SERVER_CERT", "yes")
+    conn_string = os.environ["DOB_RECONCILE_DB"]
 
-    parts = [f"DRIVER={{{driver}}}", f"SERVER={server}", f"DATABASE={database}"]
+    """parts = [f"DRIVER={{{driver}}}", f"SERVER={server}", f"DATABASE={database}"]
     if user:
         parts += [f"UID={user}", f"PWD={password}"]
     else:
         parts.append("Trusted_Connection=yes")
     parts += [f"Encrypt={encrypt}", f"TrustServerCertificate={trust_cert}"]
-    return ";".join(parts)
+    return ";".join(parts)"""
+    return conn_string
 
 
 def _row_to_dict(columns: list, row) -> dict:

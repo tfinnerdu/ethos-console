@@ -34,6 +34,7 @@
     <Compile Include="app\help_guide.py" />
     <Compile Include="app\mocks\edge_gate.py" />
     <Compile Include="app\routes\dob_repair.py" />
+    <Compile Include="debug.py" />
     <Compile Include="run.py" />
     <Compile Include="config.py" />
     <Compile Include="app\__init__.py" />
