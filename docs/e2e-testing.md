@@ -162,7 +162,8 @@ Open `http://localhost:5012` and verify:
 - [ ] Bus Monitor loads **stopped** by default (no auto-poll); clicking **Start Monitor** connects the SSE stream (status dot animates) and the button turns into **Stop Monitor**
 - [ ] Resources page loads, table renders (empty without a configured `ETHOS_ENV_n`)
 - [ ] GraphQL page loads, saved query chips appear (5 preloaded)
-- [ ] Health page loads without JS console errors
+- [ ] Health page loads without JS console errors; DoaneEdgeGate tile shows "Not configured" unless `EDGE_GATE_URL` is set
+- [ ] Help icon (navbar, left of Sign out) opens `/help`; sidebar nav covers every tab section; typing in the search box filters the sidebar and highlights matches in the content; clearing the search restores everything
 - [ ] Error Log page loads, metric tiles show `0` or `—`
 - [ ] DOB Repair page loads; uploading the bundled sample CSV populates the summary tiles and review queue; Export Corrections CSV downloads after accepting a HIGH candidate
 - [ ] "View all →" link from Health navigates to `/errors`

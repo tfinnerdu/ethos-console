@@ -41,3 +41,31 @@ def test_edge_gate_health_does_not_affect_main_health_payload(client):
     r = client.get("/api/health/")
     assert r.status_code == 200
     assert "edge_gate" not in r.get_json()
+
+
+def test_refresh_caches_response_shape(client):
+    r = client.post("/api/health/caches/refresh")
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["refreshed"] is True
+    assert set(data["cleared"]) == {"graphql_schema", "available_resources", "cn_resources"}
+
+
+def test_refresh_caches_actually_clears_module_state(client):
+    import app.routes.graphql_routes as gr
+    import app.routes.resources as rr
+
+    gr._schema_cache = {"stale": "schema"}
+    gr._schema_cache_time = 123.0
+    rr._resource_cache = [{"stale": "resource"}]
+    rr._resource_source = "stale-source"
+    rr._cn_resource_cache = [{"stale": "cn"}]
+
+    r = client.post("/api/health/caches/refresh")
+    assert r.status_code == 200
+
+    assert gr._schema_cache is None
+    assert gr._schema_cache_time == 0.0
+    assert rr._resource_cache == []
+    assert rr._resource_source == ""
+    assert rr._cn_resource_cache == []

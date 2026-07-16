@@ -673,11 +673,17 @@ ETHOS_ENV_2_KEY=<prod api key>
 | `CONDUCTOR_URL` | Netflix Conductor API base URL |
 | `CONDUCTOR_API_KEY` | Conductor API key |
 
+### DoaneEdgeGate
+
+| Variable | Default | Description |
+|---|---|---|
+| `EDGE_GATE_URL` | _(unset)_ | Base URL of the DoaneEdgeGate proxy (see §17), e.g. `http://localhost:5058`. The console appends `/health` itself. Leave unset to show the Health tab tile as "Not configured" rather than a false "down". |
+
 ### Alerting
 
 | Variable | Default | Description |
 |---|---|---|
-| `SILENCE_THRESHOLD_MINUTES` | `30` | Minutes without activity on a resource before a silence alert fires |
+| `SILENCE_THRESHOLD_MINUTES` | `30` | Minutes without activity on a resource before it's flagged silent (Bus Monitor / resource health) |
 
 ### Database & Server
 

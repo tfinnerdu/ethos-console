@@ -5,7 +5,6 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
     CONDUCTOR_API_KEY = os.environ.get("CONDUCTOR_API_KEY", "")
     CONDUCTOR_URL = os.environ.get("CONDUCTOR_URL", "")
-    UNIDATA_CONN_STR = os.environ.get("UNIDATA_CONN_STR", "")
     COLLEAGUE_WEB_API_URL = os.environ.get("COLLEAGUE_WEB_API_URL", "")
     COLLEAGUE_WEB_API_USER = os.environ.get("COLLEAGUE_WEB_API_USER", "")
     COLLEAGUE_WEB_API_PASS = os.environ.get("COLLEAGUE_WEB_API_PASS", "")

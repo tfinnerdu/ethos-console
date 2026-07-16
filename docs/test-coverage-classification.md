@@ -29,6 +29,9 @@ Every production source file must be accounted for by exactly one (or more) of:
 | `app/conductor_client.py` | ✅ | `test_replay_api.py` swaps the extension to a MagicMock for trigger paths |
 | `app/database.py` | ✅ 📌 | Model to_dict() shapes pinned in `test_contracts.py`; CRUD exercised via API tests; seed counts pinned |
 | `app/ethos_client.py` | ✅ | `test_ethos_client.py` — all methods mocked with `requests`; `get_resource_by_id` and `publish_notification` exercised via `test_cn_monitor_api.py` push tests |
+| `app/edge_gate_client.py` | ✅ | `test_edge_gate_client.py` — unconfigured, reachable/parsed shape, trailing-slash normalization, connection error, HTTP error, non-dict-JSON body (the bug that crashed `/api/health/edge-gate` before this pass), no-redirect-following; previously absent from this doc despite having real coverage |
+| `app/help_guide.py` | ✅ | `test_help_guide.py` — manual-TOC stripping, toc-extension ampersand-unescaping (synthetic-input tests, since the real doc rarely has an `&` in a heading), H1-unwrapping, full render pipeline against a synthetic doc, plus integration tests against the real `console/docs/console-user-guide.md`; previously absent from this doc despite having real coverage |
+| `app/alerts.py` | ✅ | `test_alerts.py` — no-op on empty webhook URL, Teams vs. generic payload shape, and that an HTTP error or connection failure is swallowed rather than propagated (this fires from `bus_monitor.py`'s silence/error-spike checks — it must never break those); previously entirely untested |
 | `app/health_monitor.py` | ✅ | `test_health_monitor.py` — latency percentiles, thresholds, resource health |
 | `app/request_utils.py` | ✅ | `test_request_utils.py` — `get_json_body()` coerces every non-dict JSON body (falsy AND truthy: null/[]/""/0/false and 42/"str"/[1,2]/true) to `{}`, unlike the `or {}` idiom it replaced |
 | `app/unidata_client.py` | ✅ | `tests/characterization/test_unidata_client_characterization.py` — `_parse_list_ids()` (pure function), connection param passthrough, `run_command`/`call_subroutine` argument marshalling (mocked `_uopy`, mirroring the `pyodbc`-mock pattern in `test_dob_sql_source.py`); previously entirely unaccounted for in this doc |
@@ -40,11 +43,11 @@ Every production source file must be accounted for by exactly one (or more) of:
 | `app/routes/dob_repair.py` | ✅ | `test_dob_repair_api.py` — analyze (CSV upload + configured-path fallback + SQL fetch), status, candidates, decision (incl. audit emission, deliberately excluding DOB values from the audit `detail` blob), export corrections |
 | `app/routes/env.py` | ✅ | `test_env.py` — list, switch (success/404/non-object body), credential swap, cache invalidation, audit emission; previously not listed in this doc and only exercised incidentally as a cache-invalidation side effect from `test_resources_api.py` |
 | `app/routes/errors.py` | ✅ | `test_errors_api.py` — list, filter, spikes, flush (one summary audit event per batch, not one per row), export, non-numeric paging-param guards |
-| `app/routes/graphql_routes.py` | ✅ 📌 | `test_graphql_api.py`; cache TTL value pinned in `test_contracts.py` |
-| `app/routes/health.py` | ✅ 📌 | `test_health.py`; liveness probe contract in `test_contracts.py`; `/` and `/token` gating (now global, not per-route) exercised in `test_auth.py` |
-| `app/routes/main.py` | ✅ 📋 | Page routes (incl. `/dob-repair`) exercised by `test_auth.py`'s gate tests; tab rendering and navigation are 📋 (§4 frontend smoke test) |
+| `app/routes/graphql_routes.py` | ✅ 📌 | `test_graphql_api.py` — schema, execute (incl. audit emission on success/failure and that mutation `variables` never land in the audit `detail` blob), `/schema/raw`, `DELETE /schema` cache invalidation, saved queries; cache TTL value pinned in `test_contracts.py` |
+| `app/routes/health.py` | ✅ 📌 | `test_health.py` — main payload, DoaneEdgeGate tile (`/api/health/edge-gate`, incl. that it can't affect the main payload), cache-refresh endpoint (response shape + that it actually clears the module-level caches); liveness probe contract in `test_contracts.py`; `/` and `/token` gating (now global, not per-route) exercised in `test_auth.py` |
+| `app/routes/main.py` | ✅ 📋 | Page routes (incl. `/dob-repair`, `/help`) exercised by `test_auth.py`'s gate tests and `test_help_guide.py`; tab rendering and navigation are 📋 (§4 frontend smoke test) |
 | `app/routes/mnemonics.py` | ✅ | `test_mnemonics_api.py` — full CRUD, filter, uppercase, 404, 409 |
-| `app/routes/phase3.py` | ✅ 📌 | All four 503 responses in `test_contracts.py`; full UI is 📋 (§4 Phase 3 — requires UNIDATA_CONN_STR) |
+| `app/routes/phase3.py` | ✅ 📌 | `test_phase3.py` — colleague-query and subroutine success/failure paths incl. audit emission (subroutine arg *values* deliberately excluded from the audit `detail` blob, only arg count), statement truncation at the audit row's 512-char limit; all four 503 responses additionally pinned in `test_contracts.py`; full UI (requires `UNIDATA_HOST`/`_USER`/`_PASSWORD`/`_ACCOUNT`) is 📋 (§4 Phase 3) |
 | `app/routes/replay.py` | ✅ | `test_replay_api.py` — fetch, trigger, history, DB persistence |
 | `app/routes/resources.py` | ✅ | `test_resources_api.py` — list, cn-enabled, annotate, annotations list |
 | `app/routes/schema_browser.py` | ✅ | `test_schema_browser_api.py` — types list, type detail, resource-schema, validate |
@@ -68,7 +71,8 @@ JavaScript is not unit-testable in the current test setup (no Jest/browser harne
 | `errors.js` | `test_errors_api.py` — list/spikes/flush shapes | §4 Errors tab — tile counts, spike chart, CSV download |
 | `field_diff.js` | `test_contracts.py` phase3 503 shape | §4 Phase 3 setup guide renders correctly |
 | `graphql_builder.js` | `test_graphql_api.py` — schema, execute, saved query shapes | §4 GraphQL Builder — schema tree, query run, save/delete |
-| `health.js` | `test_health.py` — full health response key contract | §4 Health tab — token badge, queue bar, resource rows |
+| `health.js` | `test_health.py` — full health response key contract, DoaneEdgeGate tile shape | §4 Health tab — token badge, queue bar, resource rows, DoaneEdgeGate tile |
+| `help.js` | `test_help_guide.py` — `/help` route shape (sidebar nav + content present) | §4 Help & User Guide — sidebar nav highlighting while scrolling, search filter/highlight |
 | `mnemonics.js` | `test_mnemonics_api.py` shapes | §4 Mnemonics tab — list, search, create, edit, delete |
 | `replay.js` | `test_replay_api.py` shapes | §4 Replay tab — fetch message, trigger, history |
 | `resources.js` | `test_resources_api.py` shapes | §4 Resources tab — list renders, annotation modal saves |
@@ -91,7 +95,8 @@ All templates are **🔧 compile-verified** by Flask's Jinja2 template engine (s
 | `errors.html` | 📋 §4 Errors tab |
 | `field_diff.html` | 📋 §4 Phase 3 |
 | `graphql.html` | 📋 §4 GraphQL Builder |
-| `health.html` | 📋 §4 Health tab |
+| `health.html` | 📋 §4 Health tab (incl. DoaneEdgeGate tile) |
+| `help.html` | ✅ 📋 `test_help_guide.py` renders the route and asserts sidebar/content are present; sidebar highlighting and search are 📋 §4 Help & User Guide |
 | `mnemonics.html` | 📋 §4 Mnemonics tab |
 | `relay.html` | 📋 §4 Replay tab |
 | `resources.html` | 📋 §4 Resources tab |
@@ -128,7 +133,7 @@ All templates are **🔧 compile-verified** by Flask's Jinja2 template engine (s
 |---|---|---|
 | `BusMonitor` daemon thread loop | Threading + blocking I/O; cannot test without live Ethos | Pure-logic methods are 100% unit-tested; thread behavior is 📋 §4 Bus Monitor SSE dot |
 | `bus.py /stream` SSE endpoint | Streaming requires a real WSGI server (not Flask test client) | Bus logic tested via `test_bus_api.py`; stream verified by 📋 §4 |
-| Phase 3 configured path | Requires UNIDATA ODBC driver and DSN | 503 path fully tested; configured stub returns valid shape |
+| Phase 3 configured path (`app/unidata_client.py`'s real uopy calls) | Requires the UniData native driver + a live UniData/UniVerse account | 503 path and the route logic around `run_command`/`call_subroutine` (incl. audit emission) are fully tested with a mocked client; `unidata_client.py` itself has characterization coverage against a mocked `uopy`; live connection verified manually |
 | DOB SQL fetch — requires ODBC driver | Requires Microsoft ODBC Driver 18 for SQL Server and a live SQL Server; not available in the test sandbox | `is_configured()`/`fetch_records()` mocked in `test_dob_repair_api.py` and `test_dob_sql_source.py`; connection-string building and read-only guard fully unit-tested; live fetch verified manually against a real server |
 | JS behavior | No browser/Jest harness in this project | API shape contracts ensure JS receives correct data; 📋 manual test covers rendering |
 

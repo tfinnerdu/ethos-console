@@ -79,9 +79,11 @@
     <Compile Include="tests\test_default_env.py" />
     <Compile Include="tests\test_dob_detector.py" />
     <Compile Include="tests\test_dob_repair_api.py" />
+    <Compile Include="tests\test_alerts.py" />
     <Compile Include="tests\test_dob_sql_source.py" />
     <Compile Include="tests\test_edge_gate_client.py" />
     <Compile Include="tests\test_help_guide.py" />
+    <Compile Include="tests\test_phase3.py" />
     <Compile Include="tests\__init__.py" />
     <Compile Include="tests\conftest.py" />
     <Compile Include="tests\test_audit.py" />

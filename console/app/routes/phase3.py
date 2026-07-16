@@ -1,5 +1,6 @@
 """Phase 3: UniData Field Diff and Colleague Direct Query via uopy."""
 from flask import Blueprint, jsonify, request, current_app
+from app.audit import Action, Outcome, write_event
 from app.request_utils import get_json_body
 
 phase3_bp = Blueprint("phase3", __name__)
@@ -71,9 +72,20 @@ def run_colleague_query():
     if not statement:
         return jsonify({"error": "statement is required"}), 400
 
+    # This runs an arbitrary TCL/UniQuery statement directly against
+    # Colleague with no further restriction beyond login — that's the
+    # feature. The audit trail is the accountability for it: who ran what,
+    # even though the statement text itself isn't secret the way applicant
+    # PII is.
     try:
-        return jsonify({"output": _get_unidata().run_command(statement)})
+        output = _get_unidata().run_command(statement)
+        write_event(Action.CALL, "unidata_command", statement[:500])
+        return jsonify({"output": output})
     except Exception as exc:
+        write_event(
+            Action.CALL, "unidata_command", statement[:500],
+            outcome=Outcome.FAILURE, failure_reason=str(exc),
+        )
         return jsonify({"error": str(exc)}), 500
 
 
@@ -90,9 +102,20 @@ def call_subroutine():
     if not sub_name:
         return jsonify({"error": "name is required"}), 400
 
+    # arg values often carry live Colleague record data (e.g. a person id or
+    # name passed to CALC.PERSON) - log the subroutine name and arg count
+    # only, not the argument values themselves, matching the PII-minimal
+    # discipline used elsewhere in the audit trail.
     try:
-        return jsonify(_get_unidata().call_subroutine(sub_name, args))
+        result = _get_unidata().call_subroutine(sub_name, args)
+        write_event(Action.CALL, "unidata_subroutine", sub_name, detail={"arg_count": len(args)})
+        return jsonify(result)
     except Exception as exc:
+        write_event(
+            Action.CALL, "unidata_subroutine", sub_name,
+            outcome=Outcome.FAILURE, failure_reason=str(exc),
+            detail={"arg_count": len(args)},
+        )
         return jsonify({"error": str(exc)}), 500
 
 

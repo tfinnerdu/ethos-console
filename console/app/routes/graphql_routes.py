@@ -1,7 +1,7 @@
 import time
 from flask import Blueprint, jsonify, request, current_app
 from app import get_ethos
-from app.audit import Action, write_event
+from app.audit import Action, Outcome, write_event
 from app.database import db, EthosErrorLog, SavedQuery
 from app.request_utils import get_json_body
 
@@ -193,8 +193,17 @@ def execute_query():
     query = data.get("query", "")
     variables = data.get("variables")
 
+    # This runs arbitrary GraphQL against a real Ethos environment, including
+    # mutations - audited on every call regardless of query/mutation, same as
+    # colleague_api.py's CTX transaction call. variables can carry real
+    # record data (e.g. a mutation's input), so only its presence/size is
+    # logged, never its contents.
     try:
         result = ethos.graphql(query, variables)
+        write_event(
+            Action.CALL, "ethos_graphql", query.strip()[:500],
+            detail={"has_variables": bool(variables)},
+        )
         return jsonify(result)
     except Exception as exc:
         try:
@@ -207,6 +216,11 @@ def execute_query():
             db.session.commit()
         except Exception:
             pass
+        write_event(
+            Action.CALL, "ethos_graphql", query.strip()[:500],
+            outcome=Outcome.FAILURE, failure_reason=str(exc),
+            detail={"has_variables": bool(variables)},
+        )
         return jsonify({"error": str(exc)}), 502
 
 
