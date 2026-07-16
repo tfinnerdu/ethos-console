@@ -8,8 +8,10 @@ rows came from.
 
 The query text is drafted and owned by whoever configures this feature — this
 module never builds or edits SQL. It only runs whatever is in that file
-against DOB_RECONCILE_DB_*, and refuses to run anything but a single
-read-only SELECT/WITH statement.
+against DOB_RECONCILE_DB (a complete ODBC connection string, e.g.
+"DRIVER={ODBC Driver 17 for SQL Server};SERVER=...;DATABASE=...;UID=...;
+PWD=...;Encrypt=yes;TrustServerCertificate=yes"), and refuses to run
+anything but a single read-only SELECT/WITH statement.
 
 Design notes
 ------------
@@ -19,8 +21,9 @@ Design notes
   unixODBC on Linux hosts) can still import this module and run every other
   Conductor Companion tab; only fetch_records() requires it to be present.
 - The read-only guard here is a footgun-catcher, NOT the real security
-  boundary. The real boundary is granting DOB_RECONCILE_DB_USER a read-only
-  (SELECT-only) role on whatever reporting views it touches. See warning.md.
+  boundary. The real boundary is granting the connection string's own DB
+  login a read-only (SELECT-only) role on whatever reporting views it
+  touches. See warning.md.
 - Values come back from pyodbc as native Python types (date, datetime,
   Decimal, etc.). Everything is stringified before handing rows to
   detector.record_from_row() — Python's date/datetime __str__() already
@@ -46,8 +49,7 @@ _WRITE_KEYWORDS = re.compile(
 def is_configured() -> bool:
     return bool(
         os.environ.get("DOB_RECONCILE_SQL_FILE", "").strip()
-        and os.environ.get("DOB_RECONCILE_DB_SERVER", "").strip()
-        and os.environ.get("DOB_RECONCILE_DB_NAME", "").strip()
+        and os.environ.get("DOB_RECONCILE_DB", "").strip()
     )
 
 
@@ -94,23 +96,9 @@ def read_query() -> str:
 
 
 def _connection_string() -> str:
-    driver = os.environ.get("DOB_RECONCILE_DB_DRIVER", "ODBC Driver 18 for SQL Server")
-    server = os.environ["DOB_RECONCILE_DB_SERVER"]
-    database = os.environ["DOB_RECONCILE_DB_NAME"]
-    user = os.environ.get("DOB_RECONCILE_DB_USER", "").strip()
-    password = os.environ.get("DOB_RECONCILE_DB_PASSWORD", "")
-    encrypt = os.environ.get("DOB_RECONCILE_DB_ENCRYPT", "yes")
-    trust_cert = os.environ.get("DOB_RECONCILE_DB_TRUST_SERVER_CERT", "yes")
-    conn_string = os.environ["DOB_RECONCILE_DB"]
-
-    """parts = [f"DRIVER={{{driver}}}", f"SERVER={server}", f"DATABASE={database}"]
-    if user:
-        parts += [f"UID={user}", f"PWD={password}"]
-    else:
-        parts.append("Trusted_Connection=yes")
-    parts += [f"Encrypt={encrypt}", f"TrustServerCertificate={trust_cert}"]
-    return ";".join(parts)"""
-    return conn_string
+    """A complete ODBC connection string, owned and built by whoever
+    configures this feature — this module never assembles one from parts."""
+    return os.environ["DOB_RECONCILE_DB"]
 
 
 def _row_to_dict(columns: list, row) -> dict:

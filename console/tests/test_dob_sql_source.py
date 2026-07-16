@@ -15,22 +15,22 @@ from app import dob_sql_source
 class TestIsConfigured:
     def test_false_when_nothing_set(self, monkeypatch):
         monkeypatch.delenv("DOB_RECONCILE_SQL_FILE", raising=False)
-        monkeypatch.delenv("DOB_RECONCILE_DB_SERVER", raising=False)
-        monkeypatch.delenv("DOB_RECONCILE_DB_NAME", raising=False)
+        monkeypatch.delenv("DOB_RECONCILE_DB", raising=False)
         assert dob_sql_source.is_configured() is False
 
     def test_true_when_all_required_vars_set(self, monkeypatch, tmp_path):
         sql_file = tmp_path / "q.sql"
         sql_file.write_text("SELECT 1")
         monkeypatch.setenv("DOB_RECONCILE_SQL_FILE", str(sql_file))
-        monkeypatch.setenv("DOB_RECONCILE_DB_SERVER", "sqlserver.doane.edu")
-        monkeypatch.setenv("DOB_RECONCILE_DB_NAME", "ODS")
+        monkeypatch.setenv(
+            "DOB_RECONCILE_DB",
+            "DRIVER={ODBC Driver 17 for SQL Server};SERVER=sqlserver.doane.edu;DATABASE=ODS",
+        )
         assert dob_sql_source.is_configured() is True
 
     def test_false_when_partially_set(self, monkeypatch):
         monkeypatch.setenv("DOB_RECONCILE_SQL_FILE", "/tmp/q.sql")
-        monkeypatch.delenv("DOB_RECONCILE_DB_SERVER", raising=False)
-        monkeypatch.delenv("DOB_RECONCILE_DB_NAME", raising=False)
+        monkeypatch.delenv("DOB_RECONCILE_DB", raising=False)
         assert dob_sql_source.is_configured() is False
 
 
@@ -99,22 +99,18 @@ class TestReadQuery:
 
 
 class TestConnectionString:
-    def test_uses_sql_auth_when_user_set(self, monkeypatch):
-        monkeypatch.setenv("DOB_RECONCILE_DB_SERVER", "sqlserver.doane.edu")
-        monkeypatch.setenv("DOB_RECONCILE_DB_NAME", "ODS")
-        monkeypatch.setenv("DOB_RECONCILE_DB_USER", "svc")
-        monkeypatch.setenv("DOB_RECONCILE_DB_PASSWORD", "secret")
-        conn_str = dob_sql_source._connection_string()
-        assert "UID=svc" in conn_str
-        assert "PWD=secret" in conn_str
-        assert "Trusted_Connection" not in conn_str
+    def test_returns_the_configured_connection_string_verbatim(self, monkeypatch):
+        conn_str = (
+            "DRIVER={ODBC Driver 17 for SQL Server};SERVER=sqlserver.doane.edu;"
+            "DATABASE=ODS;UID=svc;PWD=secret;Encrypt=yes;TrustServerCertificate=yes"
+        )
+        monkeypatch.setenv("DOB_RECONCILE_DB", conn_str)
+        assert dob_sql_source._connection_string() == conn_str
 
-    def test_uses_trusted_connection_when_no_user(self, monkeypatch):
-        monkeypatch.setenv("DOB_RECONCILE_DB_SERVER", "sqlserver.doane.edu")
-        monkeypatch.setenv("DOB_RECONCILE_DB_NAME", "ODS")
-        monkeypatch.delenv("DOB_RECONCILE_DB_USER", raising=False)
-        conn_str = dob_sql_source._connection_string()
-        assert "Trusted_Connection=yes" in conn_str
+    def test_raises_when_unset(self, monkeypatch):
+        monkeypatch.delenv("DOB_RECONCILE_DB", raising=False)
+        with pytest.raises(KeyError):
+            dob_sql_source._connection_string()
 
 
 class TestFetchRecords:
@@ -122,8 +118,7 @@ class TestFetchRecords:
         sql_file = tmp_path / "q.sql"
         sql_file.write_text("SELECT 1")
         monkeypatch.setenv("DOB_RECONCILE_SQL_FILE", str(sql_file))
-        monkeypatch.setenv("DOB_RECONCILE_DB_SERVER", "s")
-        monkeypatch.setenv("DOB_RECONCILE_DB_NAME", "d")
+        monkeypatch.setenv("DOB_RECONCILE_DB", "DRIVER={ODBC Driver 17 for SQL Server};SERVER=s;DATABASE=d")
         monkeypatch.setattr(dob_sql_source, "pyodbc", None)
         with pytest.raises(RuntimeError):
             dob_sql_source.fetch_records()
@@ -134,10 +129,7 @@ class TestFetchRecords:
             "SELECT person_id, last_name, first_name, birth_date, origin FROM persons"
         )
         monkeypatch.setenv("DOB_RECONCILE_SQL_FILE", str(sql_file))
-        monkeypatch.setenv("DOB_RECONCILE_DB_SERVER", "s")
-        monkeypatch.setenv("DOB_RECONCILE_DB_NAME", "d")
-        monkeypatch.setenv("DOB_RECONCILE_DB_USER", "svc")
-        monkeypatch.setenv("DOB_RECONCILE_DB_PASSWORD", "secret")
+        monkeypatch.setenv("DOB_RECONCILE_DB", "DRIVER={ODBC Driver 17 for SQL Server};SERVER=s;DATABASE=d;UID=svc;PWD=secret")
 
         mock_cursor = MagicMock()
         mock_cursor.description = [
@@ -166,8 +158,7 @@ class TestFetchRecords:
         sql_file = tmp_path / "q.sql"
         sql_file.write_text("SELECT person_id, last_name, middle_name FROM persons")
         monkeypatch.setenv("DOB_RECONCILE_SQL_FILE", str(sql_file))
-        monkeypatch.setenv("DOB_RECONCILE_DB_SERVER", "s")
-        monkeypatch.setenv("DOB_RECONCILE_DB_NAME", "d")
+        monkeypatch.setenv("DOB_RECONCILE_DB", "DRIVER={ODBC Driver 17 for SQL Server};SERVER=s;DATABASE=d")
 
         mock_cursor = MagicMock()
         mock_cursor.description = [("person_id",), ("last_name",), ("middle_name",)]
@@ -185,8 +176,7 @@ class TestFetchRecords:
         sql_file = tmp_path / "q.sql"
         sql_file.write_text("DELETE FROM persons")
         monkeypatch.setenv("DOB_RECONCILE_SQL_FILE", str(sql_file))
-        monkeypatch.setenv("DOB_RECONCILE_DB_SERVER", "s")
-        monkeypatch.setenv("DOB_RECONCILE_DB_NAME", "d")
+        monkeypatch.setenv("DOB_RECONCILE_DB", "DRIVER={ODBC Driver 17 for SQL Server};SERVER=s;DATABASE=d")
 
         mock_pyodbc = MagicMock()
         monkeypatch.setattr(dob_sql_source, "pyodbc", mock_pyodbc)

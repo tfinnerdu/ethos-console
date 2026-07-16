@@ -122,7 +122,7 @@ def analyze_sql():
     if not dob_sql_source.is_configured():
         return jsonify({
             "error": "SQL fetch is not configured",
-            "setup": "Set DOB_RECONCILE_SQL_FILE and DOB_RECONCILE_DB_SERVER/DOB_RECONCILE_DB_NAME in .env",
+            "setup": "Set DOB_RECONCILE_SQL_FILE and DOB_RECONCILE_DB in .env",
         }), 503
 
     try:

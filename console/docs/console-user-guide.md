@@ -701,23 +701,16 @@ Optional, alternative to CSV upload on the DOB Repair tab (see §16). Leave all 
 ```
 DOB_RECONCILE_INPUT_CSV=
 DOB_RECONCILE_SQL_FILE=
-DOB_RECONCILE_DB_SERVER=
-DOB_RECONCILE_DB_NAME=
-DOB_RECONCILE_DB_USER=
-DOB_RECONCILE_DB_PASSWORD=
-DOB_RECONCILE_DB_DRIVER=ODBC Driver 18 for SQL Server
-DOB_RECONCILE_DB_ENCRYPT=yes
-DOB_RECONCILE_DB_TRUST_SERVER_CERT=yes
+DOB_RECONCILE_DB=DRIVER={ODBC Driver 17 for SQL Server};Server={serverNameHere};Database={databaseNameHere};UId={userNameHere};PWD={passwordHere};
 ```
 
 | Variable | Description |
 |---|---|
 | `DOB_RECONCILE_INPUT_CSV` | Path to a PERSON export CSV that a nightly job refreshes on the server. Shows a "Reload from configured export" button when set. |
 | `DOB_RECONCILE_SQL_FILE` | Path to a `.sql` file you draft and own — a single read-only SELECT/WITH statement whose output columns match `app/dob_detector.py`'s `DEFAULT_COLUMNS`. See `docs/dob_reconcile_query.example.sql`. |
-| `DOB_RECONCILE_DB_SERVER` / `DOB_RECONCILE_DB_NAME` | The SQL Server host and database (your Colleague reporting view / ODS mirror). |
-| `DOB_RECONCILE_DB_USER` / `DOB_RECONCILE_DB_PASSWORD` | SQL authentication credentials. Leave both blank to fall back to a trusted (Windows-integrated) connection. |
-| `DOB_RECONCILE_DB_DRIVER` | Installed ODBC driver name (default matches the driver installed in the Dockerfile). |
-| `DOB_RECONCILE_DB_ENCRYPT` / `DOB_RECONCILE_DB_TRUST_SERVER_CERT` | Default `yes`/`yes` — works against a typical internal SQL Server with a self-signed certificate. |
+| `DOB_RECONCILE_DB` | A complete ODBC connection string for the SQL Server reporting connection (your Colleague reporting view / ODS mirror) — this app never assembles one from parts, so include everything your driver needs (`Encrypt=yes;TrustServerCertificate=yes` for a typical internal SQL Server with a self-signed certificate; omit `UId`/`PWD` for a trusted/Windows-integrated connection). |
+
+Grant that connection string's DB login **SELECT-only** permission on whatever reporting views the query touches — that's the real safety boundary, not the app's own read-only-statement guard.
 
 **Grant the configured DB login SELECT-only permission** on whatever views the query touches — that's the real safety boundary, not the app's own read-only-statement guard (`app/dob_sql_source.py` rejects multiple statements and write keywords, but that's a footgun-catcher, not a substitute for database permissions).
 
