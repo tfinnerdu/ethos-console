@@ -624,13 +624,18 @@ AUTH_USERNAME=
 AUTH_PASSWORD=
 AUTH_COOKIE_SECURE=true
 AUTH_SESSION_LIFETIME_HOURS=8
+ENTRA_TENANT_ID=
+ENTRA_CLIENT_ID=
+ENTRA_CLIENT_SECRET=
+ENTRA_REDIRECT_URI=
 ```
 
 | Variable | Default | Description |
 |---|---|---|
-| `AUTH_USERNAME` / `AUTH_PASSWORD` | — | The single shared login credential, delivered to the container as plaintext env vars from a Kubernetes secret (the secret itself is encrypted at rest). **Fail-closed:** unset either one and every route except health checks is blocked, not silently ungated. |
+| `AUTH_USERNAME` / `AUTH_PASSWORD` | — | The single shared login credential, delivered to the container as plaintext env vars from a Kubernetes secret (the secret itself is encrypted at rest). **Fail-closed:** unset either one (and Entra, below, isn't configured either) and every route except health checks is blocked, not silently ungated. |
 | `AUTH_COOKIE_SECURE` | `true` | Cookie only sent over HTTPS. Set `false` only for local `http://localhost` dev. |
 | `AUTH_SESSION_LIFETIME_HOURS` | `8` | How long a login lasts before you're asked to sign in again. |
+| `ENTRA_TENANT_ID` / `ENTRA_CLIENT_ID` / `ENTRA_CLIENT_SECRET` / `ENTRA_REDIRECT_URI` | — | Optional Entra ID (Azure AD) SSO. When **all four** are set, an unauthenticated visit to any page auto-redirects straight to Microsoft's sign-in page instead of the local form — which stays reachable directly at `/login` as a fallback (Entra outage, or before the app registration/admin consent is finished). Register a Web-platform app in entra.microsoft.com, add a client secret, and register `ENTRA_REDIRECT_URI` byte-for-byte (protocol/host/port/path, no trailing-slash difference) or Microsoft refuses with `AADSTS50011`. Signed-in users get their real Entra identity (`session["username"]`, and the audit trail's actor) instead of the shared credential's literal username string. |
 
 Define `ETHOS_ENV_2_*` through `ETHOS_ENV_5_*` the same way to expose the nav-bar environment switcher.
 

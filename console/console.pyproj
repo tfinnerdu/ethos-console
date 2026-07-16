@@ -39,6 +39,7 @@
     <Compile Include="app\alerts.py" />
     <Compile Include="app\audit.py" />
     <Compile Include="app\auth.py" />
+    <Compile Include="app\auth_entra.py" />
     <Compile Include="app\bus_monitor.py" />
     <Compile Include="app\cn_repository.py" />
     <Compile Include="app\colleague_api_client.py" />

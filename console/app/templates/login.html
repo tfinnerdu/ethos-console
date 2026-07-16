@@ -26,6 +26,14 @@
       Contact an administrator.
     </div>
     {% else %}
+    {% if entra_configured %}
+    <a href="{{ url_for('auth.login_entra', next=next) }}" class="btn btn-outline-secondary w-100 mb-3">
+      <i class="bi bi-box-arrow-in-right me-1"></i>Sign in with Microsoft
+    </a>
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <hr class="flex-grow-1" /><span class="text-muted small">or</span><hr class="flex-grow-1" />
+    </div>
+    {% endif %}
     <h6 class="fw-semibold mb-3" style="color:#1F3864">Sign in</h6>
     {% if error %}
     <div class="alert alert-danger small py-2">{{ error }}</div>

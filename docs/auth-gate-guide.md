@@ -249,3 +249,14 @@ When you're ready:
 4. Now's the time to revisit CSRF protection and any per-user
    authorization/roles you were deferring — you finally have a real identity
    to attach them to.
+
+**This has now actually happened in this repo** — Ethos Dev Console added
+Entra ID (Azure AD) SSO via MSAL alongside (not yet replacing) the shared
+credential: `app/auth_entra.py` (the MSAL client factory), the
+`login_entra`/`auth_callback` routes in `app/routes/auth.py`, and the gate's
+auto-redirect-to-Entra-when-configured logic in `app/auth.py`. It kept step 3
+optional rather than mandatory — `AUTH_USERNAME`/`AUTH_PASSWORD` stayed as a
+fallback reachable at `/login` — since a hard cutover the same day Entra
+goes live leaves no manual override if the app registration or admin consent
+isn't fully sorted yet. A live, tested reference if you're porting this
+pattern into a fourth Flask app.

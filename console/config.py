@@ -27,6 +27,18 @@ class Config:
         hours=float(os.environ.get("AUTH_SESSION_LIFETIME_HOURS", "8"))
     )
 
+    # Entra ID (Azure AD) SSO — optional. When all four are set, the login
+    # gate auto-redirects unauthenticated browser requests straight to
+    # Microsoft's sign-in page instead of the local username/password form
+    # (which stays reachable directly at /login as a fallback — e.g. if
+    # Entra has an outage, or during initial setup before the app
+    # registration/admin consent is done). See docs/auth-gate-guide.md's
+    # "Migrating to SSO" section and app/auth_entra.py.
+    ENTRA_TENANT_ID = os.environ.get("ENTRA_TENANT_ID", "")
+    ENTRA_CLIENT_ID = os.environ.get("ENTRA_CLIENT_ID", "")
+    ENTRA_CLIENT_SECRET = os.environ.get("ENTRA_CLIENT_SECRET", "")
+    ENTRA_REDIRECT_URI = os.environ.get("ENTRA_REDIRECT_URI", "")
+
     # DOB Repair — optional SQL Server fetch source (app/dob_sql_source.py),
     # alternative to CSV upload. Leave unset to keep DOB Repair CSV-only.
     DOB_RECONCILE_INPUT_CSV = os.environ.get("DOB_RECONCILE_INPUT_CSV", "")

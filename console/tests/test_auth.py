@@ -224,3 +224,295 @@ class TestLoginFlow:
         assert logout_resp.headers["Location"].endswith("/login")
 
         assert configured_client.get("/api/dob-repair/status").status_code == 401
+
+
+# ── Entra ID (Azure AD) SSO ───────────────────────────────────────────────────
+# See docs/auth-gate-guide.md's "Migrating to SSO" section. Per the
+# reference pattern's own testing guidance: patch build_msal_app to return a
+# fake client — the two routes never talk to msal directly, so nothing else
+# needs mocking, and none of this touches the network or a real tenant.
+
+class FakeMsalApp:
+    def __init__(self, auth_url="https://login.microsoftonline.com/fake?mock=1", token_result=None):
+        self.auth_url = auth_url
+        self.token_result = token_result if token_result is not None else {}
+
+    def get_authorization_request_url(self, scopes, **kwargs):
+        return self.auth_url
+
+    def acquire_token_by_authorization_code(self, code, **kwargs):
+        return self.token_result
+
+
+def _entra_env(app):
+    app.config["ENTRA_TENANT_ID"] = "tenant-123"
+    app.config["ENTRA_CLIENT_ID"] = "client-123"
+    app.config["ENTRA_CLIENT_SECRET"] = "secret-123"
+    app.config["ENTRA_REDIRECT_URI"] = "http://localhost/auth/callback"
+
+
+@pytest.fixture()
+def entra_only_client(monkeypatch):
+    """Entra configured; local username/password deliberately left unset —
+    exercises the "SSO only, no fallback credential" deployment shape."""
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    app = _make_app(REAL_SECRET_KEY)
+    app.config["AUTH_USERNAME"] = ""
+    app.config["AUTH_PASSWORD"] = ""
+    _entra_env(app)
+    return app.test_client()
+
+
+@pytest.fixture()
+def entra_and_local_client(monkeypatch):
+    """Both Entra and local credentials configured — the "fallback available"
+    deployment shape this was actually built for."""
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    app = _make_app(REAL_SECRET_KEY)
+    app.config["AUTH_USERNAME"] = "admin"
+    app.config["AUTH_PASSWORD"] = "correct-horse"
+    _entra_env(app)
+    return app.test_client()
+
+
+def _stash_entra_session(client, state="expected-state", nonce="expected-nonce", next_path="/"):
+    with client.session_transaction() as sess:
+        sess["entra_state"] = state
+        sess["entra_nonce"] = nonce
+        sess["entra_next"] = next_path
+
+
+class TestGateAutoRedirectsToEntra:
+    def test_home_page_redirects_to_entra_not_local_login(self, entra_and_local_client):
+        resp = entra_and_local_client.get("/")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login/entra?next=/")
+
+    def test_api_route_still_returns_401_json_not_a_redirect(self, entra_and_local_client):
+        resp = entra_and_local_client.get("/api/dob-repair/status")
+        assert resp.status_code == 401
+
+    def test_gate_does_not_fail_closed_when_only_entra_is_configured(self, entra_only_client):
+        # Local credentials are unset here — without Entra this fixture
+        # would 503 (see TestFailClosedWhenUnconfigured). Confirms Entra
+        # alone is enough to satisfy the gate's "is auth configured" check.
+        resp = entra_only_client.get("/")
+        assert resp.status_code == 302
+        assert "/login/entra" in resp.headers["Location"]
+
+    def test_local_login_page_redirects_to_entra_when_local_creds_unset(self, entra_only_client):
+        # Visiting /login directly with no local credentials configured
+        # shouldn't show a form guaranteed to fail — go straight to Entra.
+        resp = entra_only_client.get("/login")
+        assert resp.status_code == 302
+        assert "/login/entra" in resp.headers["Location"]
+
+    def test_local_login_page_still_works_when_both_configured(self, entra_and_local_client):
+        # /login stays a reachable manual fallback when local creds ARE set,
+        # even though the gate itself prefers Entra.
+        resp = entra_and_local_client.get("/login")
+        assert resp.status_code == 200
+        assert b"Sign in with Microsoft" in resp.data
+        assert b"username" in resp.data.lower()
+
+    def test_gate_falls_back_to_local_login_when_entra_not_configured(self, configured_client):
+        # Regression guard: existing (no-Entra) fixture must redirect to the
+        # LOCAL page specifically, not just "somewhere containing /login".
+        resp = configured_client.get("/")
+        assert resp.headers["Location"].endswith("/login?next=/")
+        assert "/login/entra" not in resp.headers["Location"]
+
+
+class TestLoginEntraRoute:
+    def test_redirects_to_microsoft(self, entra_and_local_client, monkeypatch):
+        fake = FakeMsalApp(auth_url="https://login.microsoftonline.com/fake?mock=1")
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        resp = entra_and_local_client.get("/login/entra")
+        assert resp.status_code == 302
+        assert resp.headers["Location"] == "https://login.microsoftonline.com/fake?mock=1"
+
+    def test_stashes_state_nonce_and_next_in_session(self, entra_and_local_client, monkeypatch):
+        fake = FakeMsalApp()
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        entra_and_local_client.get("/login/entra?next=/dob-repair")
+        with entra_and_local_client.session_transaction() as sess:
+            assert sess["entra_state"]
+            assert sess["entra_nonce"]
+            assert sess["entra_next"] == "/dob-repair"
+
+    def test_next_param_open_redirect_rejected_at_stash_time(self, entra_and_local_client, monkeypatch):
+        fake = FakeMsalApp()
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        entra_and_local_client.get("/login/entra?next=http://evil.example.com/steal")
+        with entra_and_local_client.session_transaction() as sess:
+            assert sess["entra_next"] == "/"
+
+    def test_redirects_to_local_login_when_entra_not_configured(self, configured_client):
+        resp = configured_client.get("/login/entra")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_network_error_building_auth_url_falls_back_to_local_login_not_500(
+        self, entra_and_local_client, monkeypatch,
+    ):
+        def _raise(*a, **k):
+            raise RuntimeError("tenant discovery failed")
+        monkeypatch.setattr("app.routes.auth.build_msal_app", _raise)
+
+        resp = entra_and_local_client.get("/login/entra")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+
+class TestAuthCallbackRoute:
+    def test_idp_error_param_redirects_to_local_login(self, entra_and_local_client):
+        resp = entra_and_local_client.get("/auth/callback?error=access_denied")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_state_mismatch_rejected(self, entra_and_local_client):
+        _stash_entra_session(entra_and_local_client, state="expected-state")
+        resp = entra_and_local_client.get("/auth/callback?state=wrong-state&code=abc")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_missing_state_in_session_rejected(self, entra_and_local_client):
+        # No /login/entra call happened first — nothing was ever stashed.
+        resp = entra_and_local_client.get("/auth/callback?state=whatever&code=abc")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_missing_code_rejected(self, entra_and_local_client):
+        _stash_entra_session(entra_and_local_client)
+        resp = entra_and_local_client.get("/auth/callback?state=expected-state")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_token_exchange_exception_falls_back_to_local_login_not_500(
+        self, entra_and_local_client, monkeypatch,
+    ):
+        _stash_entra_session(entra_and_local_client)
+
+        def _raise(*a, **k):
+            raise RuntimeError("network blip")
+        fake = FakeMsalApp()
+        fake.acquire_token_by_authorization_code = _raise
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_token_exchange_error_result_rejected(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client)
+        fake = FakeMsalApp(token_result={"error": "invalid_grant", "error_description": "bad code"})
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_nonce_mismatch_rejected(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client, nonce="expected-nonce")
+        fake = FakeMsalApp(token_result={
+            "id_token_claims": {"email": "person@doane.edu", "nonce": "wrong-nonce"},
+        })
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+        with entra_and_local_client.session_transaction() as sess:
+            assert "authenticated" not in sess
+
+    def test_missing_email_claim_rejected(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client)
+        fake = FakeMsalApp(token_result={
+            "id_token_claims": {"nonce": "expected-nonce"},  # no email/preferred_username/upn
+        })
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+
+    def test_successful_callback_logs_in(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client)
+        fake = FakeMsalApp(token_result={"id_token_claims": {
+            "email": "person@doane.edu", "nonce": "expected-nonce",
+        }})
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/")
+        with entra_and_local_client.session_transaction() as sess:
+            assert sess["authenticated"] is True
+            assert sess["username"] == "person@doane.edu"
+
+    def test_successful_callback_honors_next_path(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client, next_path="/dob-repair")
+        fake = FakeMsalApp(token_result={"id_token_claims": {
+            "email": "person@doane.edu", "nonce": "expected-nonce",
+        }})
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        resp = entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        assert resp.headers["Location"].endswith("/dob-repair")
+
+    def test_claims_fallback_to_preferred_username_when_no_email(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client)
+        fake = FakeMsalApp(token_result={"id_token_claims": {
+            "preferred_username": "person@doane.edu", "nonce": "expected-nonce",
+        }})
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        with entra_and_local_client.session_transaction() as sess:
+            assert sess["username"] == "person@doane.edu"
+
+    def test_claims_fallback_to_upn_when_no_email_or_preferred_username(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client)
+        fake = FakeMsalApp(token_result={"id_token_claims": {
+            "upn": "person@doane.edu", "nonce": "expected-nonce",
+        }})
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        with entra_and_local_client.session_transaction() as sess:
+            assert sess["username"] == "person@doane.edu"
+
+    def test_successful_login_unlocks_gated_routes(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client)
+        fake = FakeMsalApp(token_result={"id_token_claims": {
+            "email": "person@doane.edu", "nonce": "expected-nonce",
+        }})
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+
+        entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+        assert entra_and_local_client.get("/api/dob-repair/status").status_code == 200
+
+
+class TestEntraAuditAttribution:
+    # The gate-level g.current_user wiring itself (i.e. that write_event()
+    # picks up g.current_user when set) is unit-tested directly in
+    # test_audit.py — decoupled from a real HTTP round trip so it isn't
+    # sensitive to running many independent non-TESTING Flask app instances
+    # (this file's _make_app() pattern) in the same test process. What's
+    # specific to Entra and worth checking here is just that a successful
+    # login results in the real email landing in the session, which the
+    # gate then copies into g.current_user on every subsequent request.
+    def test_successful_login_stores_real_identity_not_a_shared_string(self, entra_and_local_client, monkeypatch):
+        _stash_entra_session(entra_and_local_client)
+        fake = FakeMsalApp(token_result={"id_token_claims": {
+            "email": "person@doane.edu", "nonce": "expected-nonce",
+        }})
+        monkeypatch.setattr("app.routes.auth.build_msal_app", lambda *a, **k: fake)
+        entra_and_local_client.get("/auth/callback?state=expected-state&code=abc")
+
+        with entra_and_local_client.session_transaction() as sess:
+            assert sess["username"] == "person@doane.edu"
+            assert sess["username"] != "admin"  # not the shared local-login string

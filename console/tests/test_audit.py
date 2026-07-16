@@ -55,6 +55,30 @@ def test_write_event_actor_falls_back_to_system_outside_request(app):
         assert entry.actor == "system"
 
 
+def test_write_event_actor_uses_g_current_user_when_set(app):
+    # app/auth.py's gate sets g.current_user from the session (local
+    # username, or a real Entra identity) on every authenticated request —
+    # this is what gives audit entries real per-user attribution instead of
+    # falling back to "anonymous".
+    from flask import g
+    with app.test_request_context():
+        g.current_user = "person@doane.edu"
+        entry = write_event(Action.VIEW, "console.health")
+    assert entry.actor == "person@doane.edu"
+
+
+def test_write_event_actor_falls_back_to_anonymous_in_request_with_no_user(app):
+    from flask import g
+    with app.test_request_context():
+        # g is scoped to the app context, which test_request_context() can
+        # reuse rather than always creating fresh — clear defensively so
+        # this test doesn't depend on running before/after any other test
+        # that sets g.current_user on this same shared `app` fixture.
+        g.pop("current_user", None)
+        entry = write_event(Action.VIEW, "console.health")
+    assert entry.actor == "anonymous"
+
+
 def test_query_events_pagination_shape(app):
     with app.app_context():
         for i in range(5):

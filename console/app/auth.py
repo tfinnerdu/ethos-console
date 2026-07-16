@@ -1,25 +1,34 @@
-"""Single-credential login gate.
+"""Single-credential login gate, with optional Entra ID (Azure AD) SSO.
 
 A shared username/password (sourced from a Kubernetes secret via
 AUTH_USERNAME / AUTH_PASSWORD, delivered to the container as plaintext env
 vars) gates every route except health checks, static assets, and the login
-page itself. There is no per-user identity here — this is one credential for
-the whole app, meant to be replaced by SSO later. See
-docs/auth-gate-guide.md for the general pattern and the SSO swap-out point.
+page itself. There is no per-user identity in this path — one credential for
+the whole app. See docs/auth-gate-guide.md for the general pattern.
 
-Fail-closed: if AUTH_USERNAME/AUTH_PASSWORD aren't both set, or SECRET_KEY is
-still the known dev default, every non-exempt route is blocked rather than
-silently left open. This replaces the previous CONSOLE_KEY-based gate, which
-was fail-open (unrestricted access whenever CONSOLE_KEY was unset) and only
-applied via per-route decorators — 8 of the app's ~13 API blueprints,
-including ones that execute arbitrary GraphQL and raw UniData/Colleague
-commands, had zero decorator coverage. This module's before_request hook
-protects everything by default instead.
+When ENTRA_TENANT_ID/ENTRA_CLIENT_ID/ENTRA_CLIENT_SECRET/ENTRA_REDIRECT_URI
+are all set (see app/auth_entra.py), the gate auto-redirects unauthenticated
+browser requests straight to Microsoft's sign-in page instead of the local
+form — giving real per-user identity via login()'s username argument. The
+local form stays reachable directly at /login as a fallback (Entra outage,
+or before the app registration/admin consent is finished) rather than being
+retired outright; see docs/auth-gate-guide.md's "Migrating to SSO" section
+for the fuller swap-out if you want to retire AUTH_USERNAME/AUTH_PASSWORD
+entirely later.
+
+Fail-closed: if NEITHER local credentials (safely, i.e. also a non-default
+SECRET_KEY) NOR Entra are configured, every non-exempt route is blocked
+rather than silently left open. This replaces the previous CONSOLE_KEY-based
+gate, which was fail-open (unrestricted access whenever CONSOLE_KEY was
+unset) and only applied via per-route decorators — 8 of the app's ~13 API
+blueprints, including ones that execute arbitrary GraphQL and raw
+UniData/Colleague commands, had zero decorator coverage. This module's
+before_request hook protects everything by default instead.
 """
 import hmac
 import time
 
-from flask import current_app, jsonify, redirect, request, session, url_for
+from flask import current_app, g, jsonify, redirect, request, session, url_for
 
 DEFAULT_SECRET_KEY = "dev-secret-change-in-prod"
 
@@ -29,7 +38,10 @@ DEFAULT_SECRET_KEY = "dev-secret-change-in-prod"
 # must never depend on auth being configured, or a misconfigured secret
 # turns into a crash-looping pod instead of an app that simply refuses to
 # serve the UI. /api/health/ (bare) and /api/health/token stay gated.
-_EXEMPT_PATHS = {"/login", "/logout", "/api/health/live"}
+# /login/entra and /auth/callback must work with no session at all too —
+# the callback is where Microsoft sends the browser back mid-handshake,
+# before anyone's signed in yet.
+_EXEMPT_PATHS = {"/login", "/logout", "/login/entra", "/auth/callback", "/api/health/live"}
 _EXEMPT_PREFIXES = ("/static/",)
 
 _FAILED_LOGIN_DELAY_SECONDS = 1.0
@@ -54,6 +66,15 @@ def is_safely_configured() -> bool:
     'authenticated' cookie without ever calling verify_credentials().
     """
     return is_configured() and not secret_key_is_default()
+
+
+def is_entra_configured() -> bool:
+    return bool(
+        current_app.config.get("ENTRA_TENANT_ID", "").strip()
+        and current_app.config.get("ENTRA_CLIENT_ID", "").strip()
+        and current_app.config.get("ENTRA_CLIENT_SECRET", "")
+        and current_app.config.get("ENTRA_REDIRECT_URI", "").strip()
+    )
 
 
 def verify_credentials(username: str, password: str) -> bool:
@@ -120,8 +141,9 @@ def register_auth_gate(app) -> None:
             return None
 
         is_api = path.startswith("/api/")
+        entra_ready = is_entra_configured()
 
-        if not is_safely_configured():
+        if not is_safely_configured() and not entra_ready:
             if is_api:
                 return jsonify({
                     "error": "Authentication is not configured on this deployment",
@@ -131,6 +153,13 @@ def register_auth_gate(app) -> None:
         if not is_authenticated():
             if is_api:
                 return jsonify({"error": "Authentication required"}), 401
+            if entra_ready:
+                return redirect(url_for("auth.login_entra", next=path))
             return redirect(url_for("auth.login_page", next=path))
+
+        # Real per-user identity (Entra) or the shared username (local
+        # login) — either way, this is what app/audit.py's write_event()
+        # attributes the action to instead of falling back to "anonymous".
+        g.current_user = session.get("username")
 
         return None
