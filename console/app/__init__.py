@@ -72,6 +72,26 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
     )
 
+    # SQLite creates the db *file* on first connect, but never a missing
+    # parent directory — pointing DATABASE_URL at e.g. sqlite:///data/foo.db
+    # before a local ./data folder exists (or a malformed path — see the
+    # Windows vs. Unix slash-count note in .env.example) fails at
+    # db.create_all() below with an opaque "unable to open database file"
+    # and no indication of which path it tried. Best-effort only: if the
+    # path itself is bad, let SQLAlchemy's own error surface as before.
+    if is_sqlite:
+        from sqlalchemy.engine import make_url
+        db_path = make_url(db_uri).database
+        parent = os.path.dirname(db_path) if db_path else ""
+        if parent:
+            try:
+                os.makedirs(parent, exist_ok=True)
+            except OSError as exc:
+                logging.getLogger(__name__).warning(
+                    "Could not create directory %r for DATABASE_URL=%r: %s",
+                    parent, db_uri, exc,
+                )
+
     db.init_app(app)
 
     # Single-credential login gate (see app/auth.py) — fail-closed if

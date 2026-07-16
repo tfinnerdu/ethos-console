@@ -9,6 +9,7 @@ deployment (matching DLM's real k8s pattern) and must be allowed through,
 with a warning logged instead of a hard failure.
 """
 import logging
+import os
 from unittest.mock import patch
 
 import pytest
@@ -67,3 +68,39 @@ class TestProductionDbFailClosed:
                 "TESTING": True,
             })
         assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///:memory:"
+
+
+class TestSqliteParentDirectoryAutoCreate:
+    """SQLite creates the db *file* on first connect but never a missing
+    parent directory — a DATABASE_URL pointing at an as-yet-uncreated
+    subdirectory used to fail at db.create_all() with an opaque "unable to
+    open database file" and no indication of which path it tried."""
+
+    def test_creates_missing_nested_parent_directory(self, tmp_path):
+        db_file = tmp_path / "nested" / "sub" / "ethos_console.db"
+        assert not db_file.parent.exists()
+        with patch("app.ethos_client.EthosClient.is_configured", return_value=False):
+            create_app("development", overrides={
+                "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_file}",
+                "TESTING": True,
+            })
+        assert db_file.exists()
+
+    def test_in_memory_sqlite_is_unaffected(self):
+        with patch("app.ethos_client.EthosClient.is_configured", return_value=False):
+            app = create_app("development", overrides={
+                "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+                "TESTING": True,
+            })
+        assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///:memory:"
+
+    def test_relative_default_path_is_unaffected(self):
+        with patch("app.ethos_client.EthosClient.is_configured", return_value=False):
+            app = create_app("development", overrides={
+                "SQLALCHEMY_DATABASE_URI": "sqlite:///ethos_console_test_default.db",
+                "TESTING": True,
+            })
+        assert app.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///ethos_console_test_default.db"
+        # Cleanup: this one lands in the CWD, unlike the tmp_path-scoped cases above.
+        if os.path.exists("ethos_console_test_default.db"):
+            os.remove("ethos_console_test_default.db")
