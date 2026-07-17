@@ -50,12 +50,28 @@
 let apiBaseUrl = "";
 
 async function loadConfig() {
-  const res = await fetch("/config");
-  const cfg = await res.json();
-  apiBaseUrl = (cfg.apiBaseUrl || "").replace(/\/$/, "");
-  document.getElementById("target").textContent = apiBaseUrl
-    ? `Submitting to: ${apiBaseUrl}/api/persons`
-    : "ApiBaseUrl is not configured (see appsettings.json) — submit will fail.";
+  const targetEl = document.getElementById("target");
+  try {
+    // Relative, not "/config" — an absolute root-relative path would go to
+    // the site's root and miss /config entirely if this app is ever hosted
+    // as an IIS sub-application under a path prefix rather than a site root.
+    const res = await fetch("config");
+    if (!res.ok) {
+      targetEl.textContent = `Could not load config: HTTP ${res.status} from ${res.url}`;
+      return;
+    }
+    const cfg = await res.json();
+    apiBaseUrl = (cfg.apiBaseUrl || "").replace(/\/$/, "");
+    targetEl.textContent = apiBaseUrl
+      ? `Submitting to: ${apiBaseUrl}/api/persons`
+      : "ApiBaseUrl is not configured (see appsettings.json) — submit will fail.";
+  } catch (err) {
+    // Distinct from "not configured" — this means the /config request
+    // itself never got a usable response (network error, bad JSON, wrong
+    // path under a sub-application binding, etc.), not that the server
+    // returned an empty value.
+    targetEl.textContent = `Could not load config: ${err.message}`;
+  }
 }
 
 function buggyIsoFromLocalMidnight(dateStr, offsetHours) {
