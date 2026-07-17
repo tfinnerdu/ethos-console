@@ -37,6 +37,9 @@
     <option value="0">UTC — no bug (control case)</option>
   </select>
 
+  <label for="timestamp">Timestamp</label>
+  <input type="datetime-local" id="timestamp" step="1">
+
   <button id="submit" type="button">Submit enrollment</button>
   <div class="target" id="target"></div>
 
@@ -74,6 +77,12 @@ async function loadConfig() {
   }
 }
 
+function toDatetimeLocalValue(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 function buggyIsoFromLocalMidnight(dateStr, offsetHours) {
   // The actual bug signature: local midnight in a timezone west of UTC,
   // serialized as a UTC instant a few hours into the morning of the SAME
@@ -102,9 +111,18 @@ document.getElementById("submit").addEventListener("click", async () => {
     return;
   }
 
+  const timestampStr = document.getElementById("timestamp").value;
+
   const payload = {
     birthDate: buggyIsoFromLocalMidnight(dateStr, offset),
-    timestamp: new Date().toISOString(),
+    // A genuine timestamp, not a bug reproduction — a datetime-local value
+    // with no offset is parsed in the browser's own real local timezone
+    // (unlike a bare date, which JS parses as UTC), so this stays a
+    // correctly-formed instant. Kept distinct from birthDate on purpose:
+    // it's the contrast case showing the gate's FieldAllowlist strategy
+    // leaves a real timestamp untouched even if it also lands in the
+    // "morning UTC" window RequireMorningUtcForZ checks for.
+    timestamp: timestampStr ? new Date(timestampStr).toISOString() : new Date().toISOString(),
     timezone: tzLabel
   };
 
@@ -126,6 +144,7 @@ document.getElementById("submit").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("timestamp").value = toDatetimeLocalValue(new Date());
 loadConfig();
 </script>
 </body>
