@@ -64,8 +64,28 @@
   <h2>Sent</h2>
   <pre id="sent">(nothing yet)</pre>
 
-  <h2>Response</h2>
+  <h2 id="response-heading">Response (actual)</h2>
   <pre id="response">(nothing yet)</pre>
+
+  <p class="hint">
+    The three boxes below are computed instantly from the same submission —
+    no extra request, no need to flip the gate's mode and resubmit. Each one
+    predicts what that mode would produce for <em>this exact payload</em>,
+    using the same rewrite rule and the same downstream Central-time-
+    truncation logic as the real gate and <code>AddPersonApi</code>. Off and
+    Shadow predict identically on purpose — Shadow never mutates what's
+    forwarded, so there's nothing for it to change in the stored outcome
+    either.
+  </p>
+
+  <h2>Would show (Off)</h2>
+  <pre id="would-off">(nothing yet)</pre>
+
+  <h2>Would show (Shadow)</h2>
+  <pre id="would-shadow">(nothing yet)</pre>
+
+  <h2>Would show (Active)</h2>
+  <pre id="would-active">(nothing yet)</pre>
 
 <script>
 let apiBaseUrl = "";
@@ -92,6 +112,74 @@ async function loadConfig() {
     // path under a sub-application binding, etc.), not that the server
     // returned an empty value.
     targetEl.textContent = `Could not load config: ${err.message}`;
+  }
+}
+
+// Mirrors DoaneEdgeGate.Core/DateInstantTransformer.cs's actual regex and
+// decision (see that file for the full doc comment on why the date
+// substring is the right answer). Predicts what Mode: Active would rewrite
+// birthDate to, WITHOUT calling the real gate — this is what lets the demo
+// show all three "would" outcomes from a single submission.
+function predictGateRewrite(raw, requireMorningUtcForZ = true) {
+  if (!raw) return raw;
+  const trimmed = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed; // already bare -- no-op
+  const m = trimmed.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):\d{2}(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})?$/);
+  if (!m) return raw; // not a recognized ISO instant shape -- leave alone
+  const [, datePart, , zone] = m;
+  if ((zone || "") === "Z" && requireMorningUtcForZ) {
+    const hour = parseInt(m[2], 10);
+    if (hour >= 12) return raw; // afternoon Z -- not the bug signature
+  }
+  return datePart;
+}
+
+// Mirrors AddPersonApi's SimulateColleagueDateStorage (same idea, browser's
+// own IANA timezone support instead of .NET's TimeZoneInfo) -- what the
+// real Colleague Web API would actually end up storing after converting a
+// received instant to server-local (Central) time and truncating to a date.
+function predictStoredDate(raw) {
+  if (!raw || !raw.trim()) return raw;
+  const trimmed = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed; // bare -- nothing to convert
+  const parsed = new Date(trimmed);
+  if (isNaN(parsed.getTime())) return raw; // not parseable -- leave alone
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(parsed);
+  const get = (type) => parts.find(p => p.type === type).value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function renderPrediction(birthDateAsForwarded) {
+  return JSON.stringify({
+    receivedBirthDate: birthDateAsForwarded,
+    storedBirthDate: predictStoredDate(birthDateAsForwarded)
+  }, null, 2);
+}
+
+// Off and Shadow forward the SAME unmodified birthDate -- Shadow never
+// mutates what's sent downstream, it only logs what it would have done.
+// Only Active actually rewrites the payload before forwarding.
+function updatePredictionBoxes(sentBirthDate) {
+  document.getElementById("would-off").textContent = renderPrediction(sentBirthDate);
+  document.getElementById("would-shadow").textContent = renderPrediction(sentBirthDate);
+  document.getElementById("would-active").textContent = renderPrediction(predictGateRewrite(sentBirthDate));
+}
+
+// Best-effort: labels the "actual" Response box with whatever mode the
+// gate itself reports right now (GET /api/v1/status), purely for display —
+// this box already showed the real result before this ever resolves.
+async function labelActualResponseWithCurrentMode() {
+  try {
+    const statusRes = await fetch(`${apiBaseUrl}/api/v1/status`);
+    if (!statusRes.ok) return;
+    const status = await statusRes.json();
+    if (status.mode) {
+      document.getElementById("response-heading").textContent = `Response (actual — Mode: ${status.mode})`;
+    }
+  } catch {
+    // Gate's status endpoint unreachable -- leave the heading unlabeled.
   }
 }
 
@@ -163,6 +251,8 @@ document.getElementById("submit").addEventListener("click", async () => {
 
   sentEl.textContent = JSON.stringify(payload, null, 2);
   responseEl.textContent = "Sending...";
+  document.getElementById("response-heading").textContent = "Response (actual)";
+  updatePredictionBoxes(birthDate);
 
   try {
     const res = await fetch(`${apiBaseUrl}/api/persons`, {
@@ -174,6 +264,7 @@ document.getElementById("submit").addEventListener("click", async () => {
     let pretty = body;
     try { pretty = JSON.stringify(JSON.parse(body), null, 2); } catch { /* not JSON, show raw */ }
     responseEl.textContent = `HTTP ${res.status}\n\n${pretty}`;
+    await labelActualResponseWithCurrentMode();
   } catch (err) {
     responseEl.textContent = `Request failed: ${err.message}\n\n(Is ${apiBaseUrl} actually running and reachable?)`;
   }
