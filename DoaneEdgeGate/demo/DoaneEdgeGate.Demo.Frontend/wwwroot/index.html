@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Instant Enrollment — DoaneEdgeGate Demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #222; }
+  label { display: block; margin-top: 1.25rem; font-weight: 600; }
+  input, select, button { font-size: 1rem; padding: 0.4rem; margin-top: 0.35rem; }
+  button { margin-top: 1.75rem; padding: 0.6rem 1.4rem; cursor: pointer; }
+  pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; border-radius: 4px; }
+  h2 { margin-top: 2rem; }
+  .hint { color: #555; font-size: 0.9rem; }
+  .target { color: #555; font-size: 0.85rem; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+  <h1>Instant Enrollment — Demo</h1>
+  <p class="hint">
+    Reproduces the browser DOB-shift bug that <code>DoaneEdgeGate</code> exists to
+    catch: a date picker builds a <code>Date</code> at local midnight, then
+    <code>.toISOString()</code> serializes it as a UTC instant a few hours into the
+    <em>morning</em> for any timezone west of UTC. Nothing here is real — no data is
+    stored anywhere, this just POSTs JSON to whatever address is configured below.
+  </p>
+
+  <label for="birthDate">Birth date</label>
+  <input type="date" id="birthDate" required>
+
+  <label for="timezone">Browser timezone (simulated)</label>
+  <select id="timezone">
+    <option value="-4">Eastern — UTC-4 (EDT)</option>
+    <option value="-5" selected>Eastern — UTC-5 (EST) / Central — UTC-5 (CDT)</option>
+    <option value="-6">Central — UTC-6 (CST) / Mountain — UTC-6 (MDT)</option>
+    <option value="-7">Mountain — UTC-7 (MST) / Pacific — UTC-7 (PDT)</option>
+    <option value="-8">Pacific — UTC-8 (PST)</option>
+    <option value="0">UTC — no bug (control case)</option>
+  </select>
+
+  <button id="submit" type="button">Submit enrollment</button>
+  <div class="target" id="target"></div>
+
+  <h2>Sent</h2>
+  <pre id="sent">(nothing yet)</pre>
+
+  <h2>Response</h2>
+  <pre id="response">(nothing yet)</pre>
+
+<script>
+let apiBaseUrl = "";
+
+async function loadConfig() {
+  const res = await fetch("/config");
+  const cfg = await res.json();
+  apiBaseUrl = (cfg.apiBaseUrl || "").replace(/\/$/, "");
+  document.getElementById("target").textContent = apiBaseUrl
+    ? `Submitting to: ${apiBaseUrl}/api/persons`
+    : "ApiBaseUrl is not configured (see appsettings.json) — submit will fail.";
+}
+
+function buggyIsoFromLocalMidnight(dateStr, offsetHours) {
+  // The actual bug signature: local midnight in a timezone west of UTC,
+  // serialized as a UTC instant a few hours into the morning of the SAME
+  // calendar day. This is exactly what RequireMorningUtcForZ checks for.
+  // "-00:00" is a real parsing footgun in some engines — treat exactly zero
+  // as "+00:00" so the UTC control case is unambiguous.
+  const sign = offsetHours < 0 ? "-" : "+";
+  const abs = Math.abs(offsetHours).toString().padStart(2, "0");
+  const localMidnight = new Date(`${dateStr}T00:00:00${sign}${abs}:00`);
+  return localMidnight.toISOString();
+}
+
+document.getElementById("submit").addEventListener("click", async () => {
+  const dateStr = document.getElementById("birthDate").value;
+  const offset = parseInt(document.getElementById("timezone").value, 10);
+  const tzLabel = document.getElementById("timezone").selectedOptions[0].text;
+  const sentEl = document.getElementById("sent");
+  const responseEl = document.getElementById("response");
+
+  if (!dateStr) {
+    sentEl.textContent = "Pick a birth date first.";
+    return;
+  }
+  if (!apiBaseUrl) {
+    responseEl.textContent = "ApiBaseUrl is not configured — nothing to submit to.";
+    return;
+  }
+
+  const payload = {
+    birthDate: buggyIsoFromLocalMidnight(dateStr, offset),
+    timestamp: new Date().toISOString(),
+    timezone: tzLabel
+  };
+
+  sentEl.textContent = JSON.stringify(payload, null, 2);
+  responseEl.textContent = "Sending...";
+
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/persons`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const body = await res.text();
+    let pretty = body;
+    try { pretty = JSON.stringify(JSON.parse(body), null, 2); } catch { /* not JSON, show raw */ }
+    responseEl.textContent = `HTTP ${res.status}\n\n${pretty}`;
+  } catch (err) {
+    responseEl.textContent = `Request failed: ${err.message}\n\n(Is ${apiBaseUrl} actually running and reachable?)`;
+  }
+});
+
+loadConfig();
+</script>
+</body>
+</html>

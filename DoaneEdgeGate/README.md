@@ -29,6 +29,7 @@ short version.
     src/DoaneEdgeGate.Core/     Pure, dependency-free logic (transform, rewriter, options)
     src/DoaneEdgeGate/          ASP.NET Core web host (middleware, forwarder, endpoints)
     tests/DoaneEdgeGate.Tests/  Dependency-free test harness (Core + in-process HTTP path)
+    demo/                       Throwaway Self-Service + Web API stand-ins for demos (see demo/README.md)
     docs/                       Architecture and deployment guides
     deploy/                     IIS web.config, Dockerfile, K8s manifest
 

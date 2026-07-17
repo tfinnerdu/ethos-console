@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DoaneEdgeGate.Demo.AddPersonApi</RootNamespace>
+    <AssemblyName>DoaneEdgeGate.Demo.AddPersonApi</AssemblyName>
+  </PropertyGroup>
+
+</Project>
