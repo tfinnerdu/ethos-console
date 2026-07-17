@@ -106,6 +106,16 @@ document.getElementById("submit").addEventListener("click", async () => {
     sentEl.textContent = "Pick a birth date first.";
     return;
   }
+
+  // Retry, don't just re-read: loadConfig() only ever ran once, at page
+  // load. If that first fetch failed (or hasn't resolved yet — a click
+  // landing before it settles is a real race, not just a slow demo box) an
+  // already-open tab would otherwise be stuck showing "not configured"
+  // forever, immune to any later server-side fix, until a full reload.
+  if (!apiBaseUrl) {
+    responseEl.textContent = "Checking configuration...";
+    await loadConfig();
+  }
   if (!apiBaseUrl) {
     responseEl.textContent = "ApiBaseUrl is not configured — nothing to submit to.";
     return;
