@@ -17,11 +17,19 @@
 <body>
   <h1>Instant Enrollment — Demo</h1>
   <p class="hint">
-    Reproduces the browser DOB-shift bug that <code>DoaneEdgeGate</code> exists to
-    catch: a date picker builds a <code>Date</code> at local midnight, then
-    <code>.toISOString()</code> serializes it as a UTC instant a few hours into the
-    <em>morning</em> for any timezone west of UTC. Nothing here is real — no data is
-    stored anywhere, this just POSTs JSON to whatever address is configured below.
+    Reproduces the actual two-stage bug that <code>DoaneEdgeGate</code> exists to
+    catch. Stage 1 (browser): a date picker builds a <code>Date</code> at local
+    midnight, then <code>.toISOString()</code> serializes it as a UTC instant a
+    few hours into the <em>morning</em> for any timezone west of UTC — the date
+    itself is still correct at this point. Stage 2 (Web API, simulated by
+    "AddPerson demo endpoint" below): the real Colleague Web API converts that
+    instant back to server-local (Central) time and truncates to a date — that
+    conversion, not the browser alone, is where the calendar day actually gets
+    lost. Watch the response's <code>storedBirthDate</code> field for what
+    Stage 2 would actually store; <code>Mode: Active</code> on the gate fixes it
+    by stripping to a bare date before Stage 2 ever runs. Nothing here is real —
+    no data is stored anywhere, this just POSTs JSON to whatever address is
+    configured below.
   </p>
 
   <label for="birthDate">Birth date</label>
@@ -34,7 +42,17 @@
     <option value="-6">Central — UTC-6 (CST) / Mountain — UTC-6 (MDT)</option>
     <option value="-7">Mountain — UTC-7 (MST) / Pacific — UTC-7 (PDT)</option>
     <option value="-8">Pacific — UTC-8 (PST)</option>
-    <option value="0">UTC — no bug (control case)</option>
+    <!-- Midnight UTC is NOT actually safe: hour 0 doesn't clear the real
+         gate's own "hour >= 12" morning-check exemption, and it still gets
+         shifted back a day by the downstream Central-time truncation
+         (worse, in fact — a bigger backward jump than the Western-offset
+         cases above). Labeled honestly instead of as a false "no bug" case. -->
+    <option value="0">UTC (browser timezone) — still buggy; hour 0 counts as "morning" too</option>
+    <!-- The actual no-bug case: a client already fixed to send a bare date
+         has nothing for the gate to do, in any mode, and nothing for the
+         downstream Central-time conversion to touch either (no time
+         component to convert) — this is the real control case. -->
+    <option value="bare">Bare date, no time — simulates an already-fixed client</option>
   </select>
 
   <label for="timestamp">Timestamp</label>
@@ -97,7 +115,7 @@ function buggyIsoFromLocalMidnight(dateStr, offsetHours) {
 
 document.getElementById("submit").addEventListener("click", async () => {
   const dateStr = document.getElementById("birthDate").value;
-  const offset = parseInt(document.getElementById("timezone").value, 10);
+  const offsetValue = document.getElementById("timezone").value;
   const tzLabel = document.getElementById("timezone").selectedOptions[0].text;
   const sentEl = document.getElementById("sent");
   const responseEl = document.getElementById("response");
@@ -123,8 +141,15 @@ document.getElementById("submit").addEventListener("click", async () => {
 
   const timestampStr = document.getElementById("timestamp").value;
 
+  // "bare" = already a bare date, no time/offset at all — the actual
+  // no-bug control case (see the <option> comment above). Anything else
+  // goes through the buggy local-midnight-to-UTC reproduction as before.
+  const birthDate = offsetValue === "bare"
+    ? dateStr
+    : buggyIsoFromLocalMidnight(dateStr, parseInt(offsetValue, 10));
+
   const payload = {
-    birthDate: buggyIsoFromLocalMidnight(dateStr, offset),
+    birthDate,
     // A genuine timestamp, not a bug reproduction — a datetime-local value
     // with no offset is parsed in the browser's own real local timezone
     // (unlike a bare date, which JS parses as UTC), so this stays a

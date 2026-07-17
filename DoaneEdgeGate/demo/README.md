@@ -14,10 +14,22 @@ DoaneEdgeGate.Demo.Frontend  --(ApiBaseUrl)-->  DoaneEdgeGate  --(Downstream:Bas
 
 ### `DoaneEdgeGate.Demo.AddPersonApi` — stands in for the Web API
 
-One endpoint, `POST /api/persons`, that persists nothing — it just echoes
-back whatever `birthDate` / `timestamp` / `timezone` it received, plus a
-fake `id`. That's enough to prove, in the response itself, exactly what
-value the "Web API" received — not just what the gate's own logs say it did.
+One endpoint, `POST /api/persons`, that persists nothing. It echoes back
+whatever `birthDate` / `timestamp` / `timezone` it received (`receivedBirthDate`
+etc.) plus a fake `id` — enough to prove, in the response itself, exactly
+what value the "Web API" received, not just what the gate's own logs say
+it did.
+
+It also simulates the *second* half of the real bug, per the doc comment
+on `DoaneEdgeGate.Core/DateInstantTransformer.cs`: the browser's local-
+midnight-to-UTC serialization alone doesn't lose the date (the date
+substring of a morning-UTC instant is still correct) — the day is only
+actually lost when the real Colleague Web API converts that instant to
+server-local (Central) time and truncates to a date. `storedBirthDate` in
+the response reproduces exactly that conversion, so `Mode: Off`/`Shadow`
+show the *actually*-corrupted stored date (not just the unmodified wire
+value), and `Mode: Active` shows it matching `receivedBirthDate` once the
+gate has stripped the field to a bare date before this conversion ever runs.
 
 `birthDate` and `id` are already covered by DoaneEdgeGate's own default
 `DateFieldNames` / `ResponseIdFieldNames` (see `appsettings.json` in
@@ -33,9 +45,12 @@ hit submit. The page's JS deliberately reproduces the actual bug —
 constructs a `Date` at local midnight in the picked timezone, then
 `.toISOString()`s it, which lands on a UTC instant a few hours into the
 *morning* of the same day for any zone west of UTC. That's the exact
-signature `RequireMorningUtcForZ` checks for. The page shows both the
-buggy JSON it sent and the raw response it got back, side by side — no
-devtools needed for a live demo.
+signature `RequireMorningUtcForZ` checks for. The timezone dropdown's last
+option sends a bare date instead (no time component at all) — the actual
+no-bug control case, since even UTC midnight still gets shifted by the
+Web API's own local-time-truncation step (see above) and isn't safe either.
+The page shows the buggy JSON it sent and the raw response it got back
+side by side — no devtools needed for a live demo.
 
 Where it POSTs to is the **one setting you repoint** — `ApiBaseUrl` in
 `appsettings.json` (already defaulted to `http://localhost:5058`, the
@@ -52,10 +67,15 @@ gate's own local port). Default port: **5066**.
    default `ApiBaseUrl` already points at step 2's port, so nothing to
    change for a local run.
 4. Open `http://localhost:5066`, pick a date + timezone, submit. With the
-   gate's default `Mode: Off` you'll see the buggy payload pass straight
-   through unchanged. Flip `EdgeGate__Mode=Shadow` (check
-   `GET /api/v1/rewrites/recent`) or `Active` (check the "Response" box
-   shows the corrected date) to show the fix itself.
+   gate's default `Mode: Off` the buggy payload passes straight through
+   unchanged, and the response's `storedBirthDate` shows the actually-wrong
+   date the real Web API would end up storing. `Mode: Shadow` looks
+   *identical* in the response — Shadow never mutates what's forwarded, it
+   only logs what it would have done (check `GET /api/v1/rewrites/recent`
+   and `shadow_would_rewrite` on `GET /api/v1/status` on the gate itself).
+   Only `Mode: Active` actually changes the forwarded payload — that's the
+   one where the response's `storedBirthDate` finally matches
+   `receivedBirthDate`, showing the fix took effect.
 
 ## Wiring it up in IIS
 
