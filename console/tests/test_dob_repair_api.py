@@ -341,3 +341,22 @@ def test_analyze_sql_db_connectivity_error_returns_502(client, monkeypatch):
     monkeypatch.setattr(dob_repair_routes.dob_sql_source, "fetch_records", lambda: _raise_db_error())
     resp = client.post("/api/dob-repair/analyze/sql", json={})
     assert resp.status_code == 502
+
+
+def test_analyze_sql_connection_error_does_not_leak_credentials(client, monkeypatch):
+    """Some ODBC drivers embed the full connection string — including the
+    DOB_RECONCILE_DB password — directly in a connection-failure exception
+    message. The client-facing error must never echo that raw text."""
+    monkeypatch.setattr(dob_repair_routes.dob_sql_source, "is_configured", lambda: True)
+
+    def _raise_db_error():
+        raise Exception(
+            "Login failed; connection string was "
+            "'DRIVER={ODBC Driver 17};SERVER=sqlserver.doane.edu;UID=svc_dobrepair;PWD=hunter2;'"
+        )
+
+    monkeypatch.setattr(dob_repair_routes.dob_sql_source, "fetch_records", lambda: _raise_db_error())
+    resp = client.post("/api/dob-repair/analyze/sql", json={})
+    assert resp.status_code == 502
+    assert b"hunter2" not in resp.data
+    assert b"PWD=" not in resp.data

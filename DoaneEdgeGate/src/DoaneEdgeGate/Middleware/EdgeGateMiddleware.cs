@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using DoaneEdgeGate.Core;
 using DoaneEdgeGate.Forwarding;
 using Microsoft.Extensions.Options;
@@ -157,7 +158,17 @@ public sealed class EdgeGateMiddleware
     {
         context.Response.StatusCode = status;
         context.Response.ContentType = "application/json";
-        await context.Response.WriteAsync(
-            $"{{\"error\":\"edge gate could not process the request\",\"code\":\"{code}\",\"request_id\":\"{requestId}\"}}");
+        // Serialized, not hand-built via string interpolation: requestId can
+        // come from a client-supplied X-Request-Id header (RequestIdMiddleware),
+        // which HTTP permits to contain '"' or '\' — interpolating it directly
+        // into a JSON literal risked a malformed response body on exactly the
+        // FailMode.Closed error path that's supposed to be the most reliable.
+        var payload = JsonSerializer.Serialize(new
+        {
+            error = "edge gate could not process the request",
+            code,
+            request_id = requestId
+        });
+        await context.Response.WriteAsync(payload);
     }
 }

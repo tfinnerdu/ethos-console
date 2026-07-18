@@ -210,6 +210,27 @@ class TestLoginFlow:
         assert resp.headers["Location"].endswith("/")
         assert "evil.example.com" not in resp.headers["Location"]
 
+    @pytest.mark.parametrize("payload", [
+        "/\\evil.example.com/steal",
+        "\\/evil.example.com/steal",
+        "\\\\evil.example.com/steal",
+    ])
+    def test_next_param_backslash_protocol_relative_rejected(self, configured_client, payload):
+        # Browsers normalize '\' to '/' when resolving http(s) URLs, so each
+        # of these is equivalent to '//evil.example.com/steal' even though
+        # none literally starts with "//" — a naive .startswith("//") check
+        # would let them through.
+        resp = _login(configured_client, next_path=payload)
+        assert resp.headers["Location"].endswith("/")
+        assert "evil.example.com" not in resp.headers["Location"]
+
+    def test_next_param_single_backslash_same_origin_path_allowed(self, configured_client):
+        # A single leading backslash normalizes to a single leading slash —
+        # a same-origin absolute path, not a protocol-relative redirect —
+        # so this one should be preserved rather than rejected.
+        resp = _login(configured_client, next_path="\\dob-repair")
+        assert resp.headers["Location"].endswith("/dob-repair")
+
     def test_already_authenticated_login_page_redirects_away(self, configured_client):
         _login(configured_client)
         resp = configured_client.get("/login")
@@ -275,6 +296,25 @@ def entra_and_local_client(monkeypatch):
     return app.test_client()
 
 
+@pytest.fixture()
+def entra_configured_default_secret_key_client(monkeypatch):
+    """Entra IS configured, but SECRET_KEY is still the public default.
+
+    Regression fixture for the auth-bypass-via-forged-session bug: previously
+    the gate's fail-closed check only looked at SECRET_KEY via
+    is_safely_configured(), which only gates the *local credentials* path —
+    so this exact combination sailed straight past the gate with Entra never
+    contacted, and a session cookie forged with the well-known default key
+    was accepted as authenticated.
+    """
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    app = _make_app(auth.DEFAULT_SECRET_KEY)
+    app.config["AUTH_USERNAME"] = "admin"
+    app.config["AUTH_PASSWORD"] = "correct-horse"
+    _entra_env(app)
+    return app.test_client()
+
+
 def _stash_entra_session(client, state="expected-state", nonce="expected-nonce", next_path="/"):
     with client.session_transaction() as sess:
         sess["entra_state"] = state
@@ -321,6 +361,53 @@ class TestGateAutoRedirectsToEntra:
         resp = configured_client.get("/")
         assert resp.headers["Location"].endswith("/login?next=/")
         assert "/login/entra" not in resp.headers["Location"]
+
+
+class TestFailClosedWhenEntraConfiguredButSecretKeyIsDefault:
+    """Regression coverage: Entra configured + default SECRET_KEY must still
+    fail closed, and /login must not loop by redirecting to Entra (which
+    would just hit this same gate again after a successful Entra login)."""
+
+    def test_home_page_blocked_not_redirected_to_entra(self, entra_configured_default_secret_key_client):
+        resp = entra_configured_default_secret_key_client.get("/")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/login")
+        assert "/login/entra" not in resp.headers["Location"]
+
+    def test_api_route_returns_503(self, entra_configured_default_secret_key_client):
+        resp = entra_configured_default_secret_key_client.get("/api/dob-repair/status")
+        assert resp.status_code == 503
+        assert "not configured" in resp.get_json()["error"].lower()
+
+    def test_login_page_shows_not_configured_notice_without_redirecting_to_entra(
+        self, entra_configured_default_secret_key_client,
+    ):
+        # This is the crux of the loop-avoidance fix: with local creds AND
+        # Entra both configured, login_page() would normally prefer Entra
+        # once is_safely_configured() fails — but is_safely_configured()
+        # doesn't fail here (local creds are set), so the *unconditional*
+        # secret_key_is_default() check has to be the thing that catches it,
+        # ahead of any Entra redirect.
+        resp = entra_configured_default_secret_key_client.get("/login")
+        assert resp.status_code == 503
+        assert b"not configured" in resp.data.lower()
+
+    def test_health_live_still_exempt(self, entra_configured_default_secret_key_client):
+        resp = entra_configured_default_secret_key_client.get("/api/health/live")
+        assert resp.status_code == 200
+
+    def test_forged_session_cookie_does_not_grant_access(
+        self, entra_configured_default_secret_key_client,
+    ):
+        # The actual exploit this closes: sign a session with the
+        # well-known default key and confirm it's still refused, because the
+        # gate now blocks on secret_key_is_default() before ever consulting
+        # is_authenticated().
+        with entra_configured_default_secret_key_client.session_transaction() as sess:
+            sess["authenticated"] = True
+            sess["username"] = "forged-admin"
+        resp = entra_configured_default_secret_key_client.get("/api/dob-repair/status")
+        assert resp.status_code == 503
 
 
 class TestLoginEntraRoute:

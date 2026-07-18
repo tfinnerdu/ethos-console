@@ -133,8 +133,14 @@ def analyze_sql():
     except RuntimeError as exc:
         return jsonify({"error": str(exc), "setup": "Install pyodbc and the system ODBC driver"}), 503
     except Exception as exc:
+        # Deliberately not echoing str(exc) to the client here, unlike the
+        # other except-Exception branches in this file: pyodbc/ODBC driver
+        # connection failures can embed the full connection string —
+        # including the DOB_RECONCILE_DB password — directly in the
+        # exception message. Full detail still goes to the server log via
+        # exc_info=True.
         current_app.logger.error("dob_repair analyze_sql error: %s", exc, exc_info=True)
-        return jsonify({"error": f"SQL fetch failed: {exc}"}), 502
+        return jsonify({"error": "SQL fetch failed — check server logs for details"}), 502
 
     source = f"sql:{dob_sql_source.sql_file_path()}"
     result = detector.analyze(records, identity_threshold=threshold, extra_ie_origin_values=_extra_ie_origin_values())

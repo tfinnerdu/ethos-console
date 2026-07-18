@@ -20,6 +20,16 @@ auth_bp = Blueprint("auth", __name__)
 def login_page():
     entra_configured = auth.is_entra_configured()
 
+    if auth.secret_key_is_default():
+        # Redirecting to Entra here would just loop back to the gate's own
+        # fail-closed block (app/auth.py's _auth_gate) on the very next
+        # request — SECRET_KEY signs the session for either auth path, so a
+        # default key needs a real fix, not a different login mechanism.
+        current_app.logger.warning(
+            "login attempted but SECRET_KEY is still the default — see docs/auth-gate-guide.md"
+        )
+        return render_template("login.html", not_configured=True), 503
+
     if not auth.is_safely_configured():
         if entra_configured:
             # Local credentials aren't set up, but Entra is — go straight

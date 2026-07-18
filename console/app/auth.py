@@ -115,10 +115,20 @@ def safe_next_path(value: str) -> str:
     Rejects anything with a scheme (http://...) or a protocol-relative
     '//host/...' — both of which some browsers would treat as an external
     redirect — to avoid an open-redirect via a crafted `next=`.
+
+    Checked against a backslash-normalized copy first: browsers treat '\'
+    as '/' when resolving http(s) URLs (the WHATWG URL Standard's "special
+    scheme" backslash normalization), so '/\\evil.com', '\\/evil.com', and
+    '\\\\evil.com' all resolve to the same protocol-relative '//evil.com' a
+    browser would follow off-site, even though none of them literally
+    starts with "//".
     """
-    if not value or not value.startswith("/") or value.startswith("//"):
+    if not value:
         return "/"
-    return value
+    normalized = value.replace("\\", "/")
+    if not normalized.startswith("/") or normalized.startswith("//"):
+        return "/"
+    return normalized
 
 
 def _is_exempt(path: str) -> bool:
@@ -145,7 +155,17 @@ def register_auth_gate(app) -> None:
         is_api = path.startswith("/api/")
         entra_ready = is_entra_configured()
 
-        if not is_safely_configured() and not entra_ready:
+        # SECRET_KEY signs the Flask session cookie used by BOTH auth
+        # paths (local login and Entra) — a default/known key lets anyone
+        # forge a valid "authenticated" session regardless of which
+        # mechanism is otherwise configured. This check is therefore
+        # unconditional: previously it was only folded into
+        # is_safely_configured() (which only gates the *local credentials*
+        # path), so a deployment with Entra configured but SECRET_KEY still
+        # at its default sailed straight past the fail-closed check below —
+        # a session forged with the well-known default key would pass
+        # is_authenticated() without Entra ever being contacted.
+        if secret_key_is_default() or (not is_configured() and not entra_ready):
             if is_api:
                 return jsonify({
                     "error": "Authentication is not configured on this deployment",

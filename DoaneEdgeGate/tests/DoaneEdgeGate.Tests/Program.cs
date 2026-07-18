@@ -201,6 +201,30 @@ t.ExtractsNothing("no field names configured", new HashSet<string>(), """{"id":"
 t.ExtractsNothing("depth beyond MaxDepth is not searched",
     idFields, """{"a":{"b":{"c":{"d":{"e":{"id":"too-deep"}}}}}}""");
 
+// === ManagementAuth: gates /api/v1/status and /api/v1/rewrites/recent ===
+// Both endpoints carry operationally sensitive detail in production —
+// including the actual unredacted applicant birth dates this gate
+// intercepted — so this is deliberately fail-closed: no configured key
+// means nothing can ever authorize, not "leave it open."
+t.Check("outside production, always authorized regardless of key",
+    ManagementAuth.IsAuthorized("real-key", null, isProduction: false));
+t.Check("outside production, authorized even with no key configured at all",
+    ManagementAuth.IsAuthorized("", null, isProduction: false));
+t.Check("production + matching key is authorized",
+    ManagementAuth.IsAuthorized("real-key", "real-key", isProduction: true));
+t.Check("production + wrong key is NOT authorized",
+    !ManagementAuth.IsAuthorized("real-key", "wrong-key", isProduction: true));
+t.Check("production + no supplied key is NOT authorized",
+    !ManagementAuth.IsAuthorized("real-key", null, isProduction: true));
+t.Check("production + empty supplied key is NOT authorized",
+    !ManagementAuth.IsAuthorized("real-key", "", isProduction: true));
+t.Check("production + no configured key is NOT authorized even with a supplied key (fail-closed, not fail-open)",
+    !ManagementAuth.IsAuthorized("", "anything", isProduction: true));
+t.Check("production + no configured key and no supplied key is NOT authorized",
+    !ManagementAuth.IsAuthorized("", null, isProduction: true));
+t.Check("key comparison is case-sensitive",
+    !ManagementAuth.IsAuthorized("Real-Key", "real-key", isProduction: true));
+
 // === In-process HTTP path: middleware pipeline + forwarder (no network) ===
 await IntegrationChecks.Run(t);
 

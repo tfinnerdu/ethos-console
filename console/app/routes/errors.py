@@ -1,9 +1,8 @@
 import csv
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request, current_app, Response
-from sqlalchemy import text
 
 from app.audit import Action, write_event
 from app.database import db, EthosErrorLog
@@ -72,18 +71,25 @@ def list_errors():
 
 @errors_bp.get("/spikes")
 def error_spikes():
+    # Bucketed in Python rather than via strftime()/date_trunc() in SQL —
+    # strftime is SQLite-only and has no Postgres equivalent, and this table
+    # is an operational error log, not large enough for DB-side bucketing
+    # to matter.
     try:
-        result = db.session.execute(
-            text(
-                "SELECT strftime('%Y-%m-%d %H:00', timestamp) as hour, count(*) as count "
-                "FROM ethos_error_log "
-                "GROUP BY hour "
-                "ORDER BY hour DESC "
-                "LIMIT 48"
-            )
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        rows = (
+            db.session.query(EthosErrorLog.timestamp)
+            .filter(EthosErrorLog.timestamp >= cutoff)
+            .all()
         )
-        rows = [{"hour": row[0], "count": row[1]} for row in result]
-        return jsonify(rows)
+        counts: dict[str, int] = {}
+        for (ts,) in rows:
+            if ts is None:
+                continue
+            hour_key = ts.strftime("%Y-%m-%d %H:00")
+            counts[hour_key] = counts.get(hour_key, 0) + 1
+        buckets = sorted(counts.items(), key=lambda kv: kv[0], reverse=True)
+        return jsonify([{"hour": hour, "count": count} for hour, count in buckets])
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

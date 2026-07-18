@@ -18,9 +18,15 @@ builder.Services.AddSingleton(new RewriteStats(opts.Rewrite.RecentBufferSize));
 builder.Services.AddTransient<EdgeGateMiddleware>();
 
 // Hand-rolled forwarder. No auto-redirect (3xx passes through), no auto-decompress
-// (bodies pass through as sent).
+// (bodies pass through as sent). Timeout was previously never actually
+// applied here — Downstream:TimeoutSeconds was documented/configurable but
+// silently had zero effect, leaving HttpClient's built-in 100s default in
+// place regardless of what the setting was changed to.
 builder.Services
-    .AddHttpClient<IPayloadForwarder, HttpClientForwarder>()
+    .AddHttpClient<IPayloadForwarder, HttpClientForwarder>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(opts.Downstream.TimeoutSeconds);
+    })
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
     {
         AllowAutoRedirect = false,
@@ -39,8 +45,15 @@ StructuredLog.Info("edge gate starting", fields: new Dictionary<string, object?>
     ["path_patterns"] = opts.Match.PathPatterns
 });
 
-app.UseMiddleware<ErrorHandlingMiddleware>();
+// RequestIdMiddleware first: it populates HttpContext.Items["request_id"],
+// which ErrorHandlingMiddleware reads to attach to its error log line and
+// error response body. Registered the other way around, ErrorHandlingMiddleware
+// would read that value before RequestIdMiddleware (further down the
+// pipeline) ever had a chance to set it — every logged/returned request_id
+// on an actual error would be empty. (Confirmed live: this exact ""
+// request_id showed up in a real "unhandled error" log during testing.)
 app.UseMiddleware<RequestIdMiddleware>();
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 // Local management endpoints are handled here and never forwarded downstream.
 app.Use(async (ctx, next) =>
@@ -54,6 +67,25 @@ app.Use(async (ctx, next) =>
     {
         await WriteJson(ctx, 200, new { status = "ok", service = StructuredLog.Service, version = Version, uptime_seconds = uptime });
         return;
+    }
+
+    // /api/v1/status and /api/v1/rewrites/recent expose operationally
+    // sensitive detail in production: /status reveals the internal
+    // Downstream:BaseUrl, and /rewrites/recent carries the actual,
+    // unredacted applicant birth dates this gate intercepted
+    // (RewriteRecord.Original/Rewritten) — neither is safe to leave open
+    // with no auth on a deployment fronting live enrollment traffic. See
+    // ManagementAuth (DoaneEdgeGate.Core) for the (unit-tested) gating rule.
+    var isManagementEndpoint = HttpMethods.IsGet(ctx.Request.Method)
+        && (path == "/api/v1/status" || path == "/api/v1/rewrites/recent");
+    if (isManagementEndpoint)
+    {
+        var suppliedKey = ctx.Request.Headers["X-Management-Key"].ToString();
+        if (!ManagementAuth.IsAuthorized(o.Management.ApiKey, suppliedKey, app.Environment.IsProduction()))
+        {
+            await WriteJson(ctx, 401, new { error = "management endpoint requires X-Management-Key" });
+            return;
+        }
     }
 
     if (HttpMethods.IsGet(ctx.Request.Method) && path == "/api/v1/status")

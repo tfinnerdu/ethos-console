@@ -3,6 +3,7 @@ import re
 import logging
 from flask import Flask
 from sqlalchemy.engine import make_url
+from werkzeug.middleware.proxy_fix import ProxyFix
 from .database import db, seed_mnemonics, seed_saved_queries
 from .ethos_client import EthosClient
 from .colleague_api_client import ColleagueApiClient
@@ -43,6 +44,18 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     app.config.from_object(config.get(config_name, config["default"]))
     if overrides:
         app.config.update(overrides)
+
+    # k8s/ingress.yaml puts Traefik in front of every production request, so
+    # request.remote_addr would otherwise always be the ingress pod's IP —
+    # not the real client — which is what app/auth.py's
+    # record_failed_login() logs on every failed attempt. Gated on ENV
+    # rather than applied unconditionally: outside production (local/dev,
+    # this test suite) nothing guarantees a trusted proxy sits in front, so
+    # unconditionally trusting X-Forwarded-For would let any client spoof
+    # its own remote_addr. x_for=1 trusts exactly one hop, matching the
+    # single Traefik ingress this app is actually deployed behind.
+    if app.config.get("ENV") == "production":
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Fail-closed on the DB, mirroring the auth gate's own fail-closed posture
     # (app/auth.py): a production run with no DATABASE_URL silently falls back

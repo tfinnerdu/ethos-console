@@ -38,6 +38,18 @@ spec:
               value: "https://colleague-webapi.internal.doane.edu"
             - name: EdgeGate__Match__PathPatterns__0
               value: "/ColleagueApi/the-IE-person-create-path"
+            # Required (via the X-Management-Key request header) to call
+            # GET /api/v1/status and GET /api/v1/rewrites/recent — both
+            # expose operationally sensitive detail, including the actual
+            # unredacted applicant birth dates this gate intercepted.
+            # Matters especially here: the IngressRoute below is on the
+            # PUBLIC websecure entrypoint with no auth middleware attached,
+            # so this key is the only thing gating those two endpoints from
+            # the open internet. Replace with a real generated value —
+            # better yet, source it from a Secret like regcred above rather
+            # than inlining it here.
+            - name: EdgeGate__Management__ApiKey
+              value: "REPLACE_ME"
           readinessProbe:
             httpGet:
               path: /health

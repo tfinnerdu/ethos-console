@@ -61,6 +61,25 @@ public sealed class EdgeGateOptions
     public DownstreamOptions Downstream { get; set; } = new();
     public MatchOptions Match { get; set; } = new();
     public RewriteOptions Rewrite { get; set; } = new();
+    public ManagementOptions Management { get; set; } = new();
+}
+
+public sealed class ManagementOptions
+{
+    /// <summary>
+    /// Shared secret required (via the X-Management-Key header) to call
+    /// GET /api/v1/status and GET /api/v1/rewrites/recent in production.
+    /// Both endpoints expose operationally sensitive detail — /status
+    /// reveals the internal Downstream:BaseUrl, and /rewrites/recent
+    /// carries the actual, unredacted applicant birth dates it
+    /// intercepted (RewriteRecord.Original/Rewritten) — so they are not
+    /// safe to leave open on a production deployment. Left unenforced in
+    /// Development so local testing and demos need no extra config.
+    /// GET /health is deliberately exempt in every environment: it carries
+    /// no sensitive detail and backs liveness/readiness probes that must
+    /// never depend on this being configured correctly.
+    /// </summary>
+    public string ApiKey { get; set; } = "";
 }
 
 public sealed class DownstreamOptions
