@@ -94,6 +94,7 @@
     <Compile Include="tests\test_bus_monitor.py" />
     <Compile Include="tests\test_cn_monitor_api.py" />
     <Compile Include="tests\test_colleague_api.py" />
+    <Compile Include="tests\test_conductor_client.py" />
     <Compile Include="tests\test_config.py" />
     <Compile Include="tests\test_contracts.py" />
     <Compile Include="tests\test_env.py" />

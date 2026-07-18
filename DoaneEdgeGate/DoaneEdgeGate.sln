@@ -34,6 +34,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{C0FFEE00-0
 		docs\deployment-standalone.md = docs\deployment-standalone.md
 		docs\deployment-container.md = docs\deployment-container.md
 		docs\bashCommands.txt = docs\bashCommands.txt
+		docs\production-hardening-plan.md = docs\production-hardening-plan.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deploy", "deploy", "{C0FFEE00-0000-0000-0000-000000000003}"
