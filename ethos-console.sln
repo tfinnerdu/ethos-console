@@ -51,8 +51,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{C0FFEE00-0
 		DoaneEdgeGate\docs\deployment-container.md = DoaneEdgeGate\docs\deployment-container.md
 		DoaneEdgeGate\docs\deployment-iis.md = DoaneEdgeGate\docs\deployment-iis.md
 		DoaneEdgeGate\docs\deployment-standalone.md = DoaneEdgeGate\docs\deployment-standalone.md
-		DoaneEdgeGate\docs\deployment-container.md = DoaneEdgeGate\docs\deployment-container.md
-		DoaneEdgeGate\docs\bashCommands.txt = DoaneEdgeGate\docs\bashCommands.txt
 		DoaneEdgeGate\docs\production-hardening-plan.md = DoaneEdgeGate\docs\production-hardening-plan.md
 	EndProjectSection
 EndProject
