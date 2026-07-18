@@ -92,6 +92,13 @@ mangles it, there is nothing in the body to rewrite and you need a server-side o
 Ellucian fix instead. Shadow mode is how you prove the fix is warranted with zero
 risk.
 
+**Changing `Mode` (or any other `EdgeGate:*` setting) requires a full app
+restart.** Despite ASP.NET Core's config system supporting live reload in
+general, this app deliberately does not wire that up (see
+docs/production-hardening-plan.md section 3 for why, and what it would take
+to change that) — editing appsettings.json or an environment variable while
+the process is running has no effect until it's restarted.
+
 ---
 
 ## 4. OPTION A - Deployment topology
