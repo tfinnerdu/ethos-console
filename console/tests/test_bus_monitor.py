@@ -279,3 +279,139 @@ def test_resource_status_at_boundary():
 
 def test_resource_status_old_is_silent():
     assert _resource_status(7200) == "silent"   # 2 hours ago
+
+
+# ── start() alert wiring ───────────────────────────────────────────────────────
+# Regression coverage: webhook_url/silence_threshold_minutes/error_spike_threshold
+# used to have no caller anywhere passing them in — _check_silence_alerts()
+# and _check_error_spike_alerts() were fully implemented but structurally
+# unreachable. app/routes/bus.py's start_monitor() now threads these through
+# from config.
+
+def test_start_wires_alert_config_through():
+    m = _monitor()
+    m.start(
+        poll_interval=60,
+        webhook_url="https://example.webhook.office.com/hook",
+        silence_threshold_minutes=15,
+        error_spike_threshold=3,
+    )
+    assert m._webhook_url == "https://example.webhook.office.com/hook"
+    assert m._silence_threshold_minutes == 15
+    assert m._error_threshold == 3
+    m.stop()
+
+
+def test_start_defaults_keep_alerting_off():
+    m = _monitor()
+    m.start(poll_interval=60)
+    assert m._webhook_url == ""
+    m.stop()
+
+
+# ── _record_error_timestamp ────────────────────────────────────────────────────
+# Regression coverage: this list used to only get pruned inside
+# _check_error_spike_alerts(), which never runs unless _webhook_url is
+# configured — a deployment that never sets one saw this grow forever on
+# every poll error (a real memory leak over a long-running pod).
+
+def test_record_error_timestamp_appends():
+    m = _monitor()
+    m._record_error_timestamp(1_000_000.0)
+    assert m._error_timestamps == [1_000_000.0]
+
+
+def test_record_error_timestamp_prunes_entries_older_than_one_hour():
+    m = _monitor()
+    m._record_error_timestamp(1_000_000.0)
+    m._record_error_timestamp(1_000_000.0 + 3601)  # >1h later
+    assert m._error_timestamps == [1_000_000.0 + 3601]
+
+
+def test_record_error_timestamp_keeps_entries_within_one_hour():
+    m = _monitor()
+    m._record_error_timestamp(1_000_000.0)
+    m._record_error_timestamp(1_000_000.0 + 1800)
+    assert len(m._error_timestamps) == 2
+
+
+def test_record_error_timestamp_bounded_regardless_of_webhook_config():
+    # The core regression: no _webhook_url set at all (the common case for
+    # most deployments), yet the list still doesn't grow without bound.
+    m = _monitor()
+    assert m._webhook_url == ""
+    now = 1_000_000.0
+    for i in range(5000):
+        m._record_error_timestamp(now + i * 10)  # spread across ~14 hours
+    assert len(m._error_timestamps) < 400  # 1h window / spacing, generously bounded
+
+
+# ── _check_error_spike_alerts / _check_silence_alerts ──────────────────────────
+
+def test_error_spike_alert_fires_once_threshold_reached(monkeypatch):
+    sent = []
+    monkeypatch.setattr("app.alerts.send_alert", lambda url, title, msg: sent.append((title, msg)))
+    m = _monitor()
+    m._webhook_url = "https://example.com/hook"
+    m._error_threshold = 3
+    now = time.time()
+    for _ in range(3):
+        m._record_error_timestamp(now)
+    m._check_error_spike_alerts()
+    assert len(sent) == 1
+    assert "Error Spike" in sent[0][0]
+
+
+def test_error_spike_alert_does_not_refire_while_still_above_threshold(monkeypatch):
+    sent = []
+    monkeypatch.setattr("app.alerts.send_alert", lambda url, title, msg: sent.append((title, msg)))
+    m = _monitor()
+    m._webhook_url = "https://example.com/hook"
+    m._error_threshold = 3
+    now = time.time()
+    for _ in range(3):
+        m._record_error_timestamp(now)
+    m._check_error_spike_alerts()
+    m._check_error_spike_alerts()
+    assert len(sent) == 1
+
+
+def test_error_spike_alert_not_sent_when_no_webhook_configured(monkeypatch):
+    # Exercises the real send_alert() (not mocked out) so its own
+    # "no webhook_url configured -> no-op" guard is what's under test —
+    # confirmed by asserting the HTTP layer is never touched.
+    posted = []
+    monkeypatch.setattr("app.alerts.requests.post", lambda *a, **k: posted.append((a, k)))
+    m = _monitor()
+    m._error_threshold = 3
+    now = time.time()
+    for _ in range(3):
+        m._record_error_timestamp(now)
+    m._check_error_spike_alerts()
+    assert posted == []
+
+
+def test_silence_alert_fires_for_newly_silent_resource(monkeypatch):
+    sent = []
+    monkeypatch.setattr("app.alerts.send_alert", lambda url, title, msg: sent.append((title, msg)))
+    m = _monitor()
+    m._webhook_url = "https://example.com/hook"
+    m._silence_threshold_minutes = 30
+    m._process_message(_msg(resource="stale"))
+    m.resource_stats["stale"]["last_seen"] -= 7200
+    m._check_silence_alerts()
+    assert len(sent) == 1
+    assert "stale" in sent[0][1]
+
+
+def test_silence_alert_does_not_refire_for_already_alerted_resource(monkeypatch):
+    sent = []
+    monkeypatch.setattr("app.alerts.send_alert", lambda url, title, msg: sent.append((title, msg)))
+    m = _monitor()
+    m._webhook_url = "https://example.com/hook"
+    m._silence_threshold_minutes = 30
+    m._process_message(_msg(resource="stale"))
+    m.resource_stats["stale"]["last_seen"] -= 7200
+    m._check_silence_alerts()
+    m._check_silence_alerts()
+    assert len(sent) == 1

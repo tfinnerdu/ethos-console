@@ -233,6 +233,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
         conductor = ConductorClient(
             base_url=app.config.get("CONDUCTOR_URL", ""),
             api_key=app.config.get("CONDUCTOR_API_KEY", ""),
+            additional_hosts=app.config.get("CONDUCTOR_ADDITIONAL_HOSTS", ""),
         )
         unidata = UnidataClient(
             host=app.config.get("UNIDATA_HOST", ""),

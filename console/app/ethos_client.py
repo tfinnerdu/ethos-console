@@ -1,3 +1,4 @@
+import threading
 import requests
 import time
 from datetime import datetime, timedelta, timezone
@@ -9,6 +10,37 @@ class EthosClient:
         self.base_url = base_url.rstrip("/")
         self._token: str | None = None
         self._token_expiry: datetime | None = None
+        self._reconfigure_lock = threading.Lock()  # see reconfigure() below
+
+    def reconfigure(self, api_key: str, base_url: str) -> None:
+        """Atomically point this client at a different Ethos environment.
+        app/routes/env.py's /switch calls this on the one EthosClient
+        instance shared by the whole app (app.extensions) — this app runs
+        multiple concurrent request threads (gunicorn --threads 4), and
+        without a lock, two overlapping switches (two browser tabs, a
+        double-click) could interleave their writes to
+        api_key/base_url/_token/_token_expiry and leave a torn
+        old-and-new combination in place.
+
+        This does NOT make the request methods below (get_resource(),
+        graphql(), etc.) race-free against a *concurrent* switch — each
+        reads self.base_url, and (via get_headers -> get_token)
+        self.api_key, as separate unlocked statements, so a switch landing
+        mid-request could still see a torn combination, or a request could
+        simply complete against whichever environment was active when it
+        started rather than the one active when it finishes. Fully closing
+        that would mean every method below snapshotting both fields under
+        this same lock before building its request — not done here, since
+        environment switches are rare, deliberate, single-operator actions
+        (not a hot path), and a mismatched key/host pair fails auth rather
+        than silently leaking data across tenants. Revisit if that
+        assumption stops holding.
+        """
+        with self._reconfigure_lock:
+            self.api_key = api_key
+            self.base_url = base_url.rstrip("/")
+            self._token = None
+            self._token_expiry = None
 
     def get_token(self) -> str:
         now = datetime.now(timezone.utc)

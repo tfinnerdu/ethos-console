@@ -268,7 +268,7 @@ EXPECTED_HEALTH_KEYS = {
     "token", "queue_depth", "queue_status", "queue_error",
     "latency", "recent_errors", "error_count_1h",
     "error_status", "resource_health", "ethos_configured",
-    "mock",
+    "mock", "instrumented",
 }
 
 EXPECTED_LATENCY_KEYS = {"p50", "p95", "p99", "max", "sample_count"}

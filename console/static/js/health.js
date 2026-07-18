@@ -1,7 +1,11 @@
 'use strict';
 
 function statusDot(status) {
-  const color = status === 'green' ? 'green' : status === 'amber' ? 'amber' : 'red';
+  // 'gray' (already used for the edge-gate "not configured" tile below)
+  // must stay distinct from 'red' — red reads as an active error/high
+  // state elsewhere on this page, which "not tracked" is not.
+  const known = ['green', 'amber', 'gray'];
+  const color = known.includes(status) ? status : 'red';
   return `<span class="status-dot ${color}"></span>`;
 }
 
@@ -45,12 +49,18 @@ async function loadHealth() {
     qs === 'green' ? 'Normal' : qs === 'amber' ? 'Moderate' : data.queue_error || 'High / Error'
   }`;
 
+  // instrumented flags: latency/error/resource-activity recording has no
+  // real call site anywhere in the app yet (see health_monitor.py's
+  // docstring) — these fields distinguish "not tracked" from a genuine
+  // "zero" so an empty table/tile never reads as confirmed-healthy.
+  const instrumented = data.instrumented || {};
+
   // Latency tile
   const lat = data.latency || {};
   document.getElementById('msg-rate').textContent = lat.p50 != null ? `${lat.p50}ms` : '—';
-  document.getElementById('msg-rate-sub').textContent = lat.sample_count
-    ? `${lat.sample_count} samples`
-    : 'No data yet';
+  document.getElementById('msg-rate-sub').textContent = !instrumented.latency
+    ? 'Not tracked'
+    : lat.sample_count ? `${lat.sample_count} samples` : 'No data yet';
   document.getElementById('lat-p50').textContent = lat.p50 != null ? `${lat.p50}ms` : '—';
   document.getElementById('lat-p95').textContent = lat.p95 != null ? `${lat.p95}ms` : '—';
   document.getElementById('lat-p99').textContent = lat.p99 != null ? `${lat.p99}ms` : '—';
@@ -58,15 +68,19 @@ async function loadHealth() {
 
   // Error tile
   const errCount = data.error_count_1h ?? 0;
-  document.getElementById('error-count').textContent = errCount;
-  document.getElementById('error-sub').innerHTML = statusDot(data.error_status || 'green') + (
-    errCount === 0 ? 'No errors' : `${errCount} error${errCount !== 1 ? 's' : ''}`
-  );
+  document.getElementById('error-count').textContent = instrumented.errors ? errCount : '—';
+  document.getElementById('error-sub').innerHTML = !instrumented.errors
+    ? statusDot('gray') + 'Not tracked'
+    : statusDot(data.error_status || 'green') + (
+      errCount === 0 ? 'No errors' : `${errCount} error${errCount !== 1 ? 's' : ''}`
+    );
 
   // Resource health table
   const rh = data.resource_health || [];
   const tbody = document.getElementById('resource-health-tbody');
-  if (!rh.length) {
+  if (!instrumented.resource_health) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Not tracked</td></tr>';
+  } else if (!rh.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No resource data yet</td></tr>';
   } else {
     tbody.innerHTML = rh.map(r => `<tr>

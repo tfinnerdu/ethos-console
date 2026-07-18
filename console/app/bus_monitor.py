@@ -38,16 +38,34 @@ class BusMonitor:
         self._error_timestamps: list = []
         self._error_spike_alerted: bool = False
 
-    def start(self, poll_interval: int = 2, app=None):
+    def start(
+        self,
+        poll_interval: int = 2,
+        app=None,
+        webhook_url: str = "",
+        silence_threshold_minutes: int = 30,
+        error_spike_threshold: int = 10,
+    ):
         with self._lock:
             if self.running:
                 return
             self.running = True
         self._poll_interval = poll_interval
         self._app = app
+        # Previously never set by any caller — _check_silence_alerts() and
+        # _check_error_spike_alerts() below were fully implemented but
+        # structurally unreachable (see app/routes/bus.py's start_monitor(),
+        # which now passes these through from config). Leaving webhook_url
+        # unset (the default) keeps alerting off exactly as before.
+        self._webhook_url = webhook_url
+        self._silence_threshold_minutes = silence_threshold_minutes
+        self._error_threshold = error_spike_threshold
         self._thread = threading.Thread(target=self._poll_loop, daemon=True, name="bus-monitor")
         self._thread.start()
-        log.info("BusMonitor started (poll interval: %ds)", poll_interval)
+        log.info(
+            "BusMonitor started (poll interval: %ds, alert webhook: %s)",
+            poll_interval, "configured" if webhook_url else "not configured",
+        )
 
     def stop(self):
         self.running = False
@@ -88,7 +106,7 @@ class BusMonitor:
                             "message": str(exc),
                         })
                         self._total_events += 1
-                        self._error_timestamps.append(time.time())
+                        self._record_error_timestamp(time.time())
                     log.warning("BusMonitor poll error: %s", exc)
                     if self._app:
                         try:
@@ -179,6 +197,18 @@ class BusMonitor:
             for r, s in stats.items()
             if s["last_seen"] and (now - s["last_seen"]) > threshold_minutes * 60
         ]
+
+    def _record_error_timestamp(self, now: float) -> None:
+        """Append `now` to _error_timestamps and prune anything older than
+        the 1-hour error-spike window. Called unconditionally on every poll
+        error (see _poll_loop), not just from _check_error_spike_alerts()
+        below — that method only runs when _webhook_url is configured, so
+        without an unconditional prune, a deployment that never sets one
+        would grow this list forever for as long as the pod stays up."""
+        with self._lock:
+            self._error_timestamps.append(now)
+            cutoff = now - 3600
+            self._error_timestamps = [t for t in self._error_timestamps if t > cutoff]
 
     def _check_silence_alerts(self):
         # Compute-and-reassign _silence_alerted atomically under the lock

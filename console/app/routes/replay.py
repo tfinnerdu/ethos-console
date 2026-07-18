@@ -78,6 +78,21 @@ def trigger_replay():
             "outcome": "success",
             "conductor_workflow_url": ConductorClient.workflow_url(conductor_url, workflow_id),
         })
+    except ValueError as exc:
+        # conductor_url's host isn't allow-listed — a validation failure,
+        # not a Conductor-side error, so 400 rather than 500/502. No
+        # request was ever sent, so nothing (including the API key) was
+        # exposed to the rejected host.
+        history_entry.outcome = "error"
+        history_entry.error_message = str(exc)
+        db.session.add(history_entry)
+        db.session.commit()
+        write_event(
+            Action.TRIGGER, "conductor_workflow", workflow_name,
+            outcome=Outcome.FAILURE, failure_reason=str(exc),
+            detail={"resource_name": resource_name, "operation": operation},
+        )
+        return jsonify({"error": str(exc), "outcome": "error"}), 400
     except Exception as exc:
         history_entry.outcome = "error"
         history_entry.error_message = str(exc)

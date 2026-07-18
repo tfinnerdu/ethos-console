@@ -66,7 +66,13 @@ def start_monitor():
             "setup": "Set ETHOS_API_KEY in .env to enable the Bus Monitor",
         }), 503
     monitor = get_monitor(app)
-    monitor.start(poll_interval=app.config.get("BUS_POLL_INTERVAL", 2), app=app)
+    monitor.start(
+        poll_interval=app.config.get("BUS_POLL_INTERVAL", 2),
+        app=app,
+        webhook_url=app.config.get("BUS_ALERT_WEBHOOK_URL", ""),
+        silence_threshold_minutes=app.config.get("SILENCE_THRESHOLD_MINUTES", 30),
+        error_spike_threshold=app.config.get("BUS_ERROR_SPIKE_THRESHOLD", 10),
+    )
     return jsonify({"running": True})
 
 

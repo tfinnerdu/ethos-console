@@ -26,6 +26,7 @@ UniData/Colleague commands, had zero decorator coverage. This module's
 before_request hook protects everything by default instead.
 """
 import hmac
+import threading
 import time
 
 from flask import current_app, g, jsonify, redirect, request, session, url_for
@@ -46,7 +47,50 @@ DEFAULT_SECRET_KEY = "dev-secret-change-in-prod"
 _EXEMPT_PATHS = {"/login", "/logout", "/login/entra", "/api/v1/auth/callback", "/api/health/live"}
 _EXEMPT_PREFIXES = ("/static/",)
 
-_FAILED_LOGIN_DELAY_SECONDS = 1.0
+# record_failed_login()'s throttle. This app runs as a single gunicorn
+# worker with --threads 4 (see Dockerfile) — the whole app has exactly 4
+# concurrent request slots, full stop. A flat, unconditional time.sleep()
+# on every failed attempt (the previous design) means 4 concurrent bad
+# logins from a single client — trivial, no botnet needed — freeze the
+# *entire* console (every tab, every API, health checks included) for the
+# sleep duration, repeatably. Scaled by recent-failure count per source IP
+# instead: an occasional typo costs almost nothing, while a sustained
+# brute-force from one IP gets progressively slower, capped at
+# _FAILED_LOGIN_MAX_DELAY_SECONDS so one abusive IP can't turn an
+# already-small thread pool into an indefinite full-length stall.
+_FAILED_LOGIN_BASE_DELAY_SECONDS = 0.25
+_FAILED_LOGIN_MAX_DELAY_SECONDS = 3.0
+_FAILED_LOGIN_WINDOW_SECONDS = 300.0
+# Sweep threshold, not a hard cap: distinct source IPs are only ever
+# dropped once their own window has expired, so a large sustained attack
+# from many IPs can still grow this past the threshold — it just triggers
+# a cleanup pass on every call rather than growing forever unchecked.
+_FAILED_LOGIN_TRACKED_IPS_SWEEP_THRESHOLD = 10_000
+
+_failed_login_lock = threading.Lock()
+_failed_login_attempts: dict[str, list[float]] = {}
+
+
+def _recent_failure_count(ip: str, now: float) -> int:
+    """Record one failure for `ip` at `now` and return its count within the
+    trailing window. Thread-safe: gthread workers genuinely run request
+    threads concurrently within one process, unlike this app's other
+    process-local state (e.g. BusMonitor) which is only ever touched by one
+    request at a time."""
+    with _failed_login_lock:
+        timestamps = [t for t in _failed_login_attempts.get(ip, []) if now - t < _FAILED_LOGIN_WINDOW_SECONDS]
+        timestamps.append(now)
+        _failed_login_attempts[ip] = timestamps
+
+        if len(_failed_login_attempts) > _FAILED_LOGIN_TRACKED_IPS_SWEEP_THRESHOLD:
+            stale = [
+                k for k, v in _failed_login_attempts.items()
+                if not v or now - v[-1] >= _FAILED_LOGIN_WINDOW_SECONDS
+            ]
+            for k in stale:
+                del _failed_login_attempts[k]
+
+        return len(timestamps)
 
 
 def is_configured() -> bool:
@@ -106,7 +150,10 @@ def record_failed_login(username: str) -> None:
     current_app.logger.warning(
         "login failed: username=%r remote_addr=%s", username, request.remote_addr
     )
-    time.sleep(_FAILED_LOGIN_DELAY_SECONDS)
+    ip = request.remote_addr or "unknown"
+    count = _recent_failure_count(ip, time.time())
+    delay = min(_FAILED_LOGIN_BASE_DELAY_SECONDS * count, _FAILED_LOGIN_MAX_DELAY_SECONDS)
+    time.sleep(delay)
 
 
 def safe_next_path(value: str) -> str:

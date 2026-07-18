@@ -28,6 +28,12 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
     CONDUCTOR_API_KEY = os.environ.get("CONDUCTOR_API_KEY", "")
     CONDUCTOR_URL = os.environ.get("CONDUCTOR_URL", "")
+    # Extra hostnames (comma-separated) the Replay UI's per-run conductor_url
+    # override is allowed to target, in addition to CONDUCTOR_URL's own
+    # host. ConductorClient.trigger_workflow() sends CONDUCTOR_API_KEY with
+    # every request, so an unrestricted override would leak that key to
+    # whatever host is supplied — see conductor_client.py.
+    CONDUCTOR_ADDITIONAL_HOSTS = os.environ.get("CONDUCTOR_ADDITIONAL_HOSTS", "")
     COLLEAGUE_WEB_API_URL = os.environ.get("COLLEAGUE_WEB_API_URL", "")
     COLLEAGUE_WEB_API_USER = os.environ.get("COLLEAGUE_WEB_API_USER", "")
     COLLEAGUE_WEB_API_PASS = os.environ.get("COLLEAGUE_WEB_API_PASS", "")
@@ -46,6 +52,18 @@ class Config:
     SESSION_COOKIE_SECURE = os.environ.get("AUTH_COOKIE_SECURE", "true") in (
         "1", "true", "True", "yes",
     )
+    # k8s/ingress.yaml fronts this app behind a stripPrefix middleware at
+    # /prod/ethos-console — Flask itself sees clean root-relative paths (the
+    # prefix never reaches it), but the *browser* still addresses the app at
+    # that full path, and other apps live alongside it at their own
+    # prod/{appname} paths on the same du-int.doane.edu origin. Leaving this
+    # at Flask's default (Path=/) would have the browser attach this app's
+    # signed session cookie to every request to every sibling app on that
+    # origin — not exploitable by itself, but needless exposure of an
+    # authentication token to code this app doesn't control. Set to match
+    # whatever prefix (if any) actually fronts this deployment; "/" (the
+    # default) is correct for local dev or a deployment with no prefix.
+    SESSION_COOKIE_PATH = os.environ.get("SESSION_COOKIE_PATH", "/")
     PERMANENT_SESSION_LIFETIME = timedelta(
         hours=float(os.environ.get("AUTH_SESSION_LIFETIME_HOURS", "8"))
     )
@@ -84,7 +102,16 @@ class Config:
     EDGE_GATE_URL = os.environ.get("EDGE_GATE_URL", "")
 
     BUS_POLL_INTERVAL = int(os.environ.get("BUS_POLL_INTERVAL", "2"))
+    # Was previously read into config but never actually passed to
+    # BusMonitor (see app/routes/bus.py's start_monitor()) — silence/error-
+    # spike alerting was fully implemented (app/bus_monitor.py,
+    # app/alerts.py) but structurally unreachable with no way to configure
+    # a webhook. Set BUS_ALERT_WEBHOOK_URL (a Teams or Slack incoming
+    # webhook URL) to turn it on; leave unset to keep it off exactly as
+    # before.
     SILENCE_THRESHOLD_MINUTES = int(os.environ.get("SILENCE_THRESHOLD_MINUTES", "30"))
+    BUS_ALERT_WEBHOOK_URL = os.environ.get("BUS_ALERT_WEBHOOK_URL", "")
+    BUS_ERROR_SPIKE_THRESHOLD = int(os.environ.get("BUS_ERROR_SPIKE_THRESHOLD", "10"))
     CONSOLE_MOCK_MODE = os.environ.get("CONSOLE_MOCK_MODE", "").strip().lower() in (
         "1", "true", "yes", "on",
     )

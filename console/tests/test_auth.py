@@ -47,7 +47,7 @@ def _make_app(secret_key):
 
 @pytest.fixture()
 def unconfigured_client(monkeypatch):
-    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
     app = _make_app(REAL_SECRET_KEY)
     app.config["AUTH_USERNAME"] = ""
     app.config["AUTH_PASSWORD"] = ""
@@ -56,7 +56,7 @@ def unconfigured_client(monkeypatch):
 
 @pytest.fixture()
 def default_secret_key_client(monkeypatch):
-    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
     app = _make_app(auth.DEFAULT_SECRET_KEY)
     app.config["AUTH_USERNAME"] = "admin"
     app.config["AUTH_PASSWORD"] = "correct-horse"
@@ -65,7 +65,7 @@ def default_secret_key_client(monkeypatch):
 
 @pytest.fixture()
 def configured_client(monkeypatch):
-    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
     app = _make_app(REAL_SECRET_KEY)
     app.config["AUTH_USERNAME"] = "admin"
     app.config["AUTH_PASSWORD"] = "correct-horse"
@@ -247,6 +247,114 @@ class TestLoginFlow:
         assert configured_client.get("/api/dob-repair/status").status_code == 401
 
 
+@pytest.fixture()
+def path_scoped_client(monkeypatch):
+    """Same as configured_client, but with SESSION_COOKIE_PATH set — as a
+    real deployment behind k8s/ingress.yaml's stripPrefix would have it."""
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
+    app = _make_app(REAL_SECRET_KEY)
+    app.config["AUTH_USERNAME"] = "admin"
+    app.config["AUTH_PASSWORD"] = "correct-horse"
+    app.config["SESSION_COOKIE_PATH"] = "/prod/ethos-console"
+    return app.test_client()
+
+
+class TestSessionCookiePath:
+    """Regression coverage: other apps live at their own prod/{appname} on
+    the same origin as this one (behind du-int.doane.edu) — the session
+    cookie must not default to Path=/, which would send it to all of them."""
+
+    def test_default_path_is_root(self, configured_client):
+        resp = _login(configured_client)
+        cookies = resp.headers.get_all("Set-Cookie")
+        assert any("session=" in c for c in cookies)
+        assert not any("Path=/prod" in c for c in cookies)
+
+    def test_configured_path_is_honored(self, path_scoped_client):
+        resp = _login(path_scoped_client)
+        cookies = resp.headers.get_all("Set-Cookie")
+        assert any("Path=/prod/ethos-console" in c for c in cookies)
+
+
+@pytest.fixture()
+def throttled_client(monkeypatch):
+    """Like configured_client, but keeps the real progressive failed-login
+    backoff (record_failed_login) instead of zeroing it out — needed to
+    actually exercise it. time.sleep is captured rather than invoked, so
+    these tests don't spend real wall-clock time waiting."""
+    app = _make_app(REAL_SECRET_KEY)
+    app.config["AUTH_USERNAME"] = "admin"
+    app.config["AUTH_PASSWORD"] = "correct-horse"
+    sleeps = []
+    monkeypatch.setattr(auth.time, "sleep", lambda seconds: sleeps.append(seconds))
+    client = app.test_client()
+    client.sleeps = sleeps
+    return client
+
+
+class TestFailedLoginProgressiveThrottle:
+    """Regression coverage for the DoS risk in the old flat time.sleep(1.0):
+    this app runs a single gunicorn worker with --threads 4 (Dockerfile), so
+    4 concurrent bad logins used to freeze the entire console for a full
+    second, repeatably, with no botnet required. The throttle now scales
+    with recent-failure count per source IP instead of firing at full
+    strength on every single attempt."""
+
+    @pytest.fixture(autouse=True)
+    def _clean_attempt_tracker(self):
+        auth._failed_login_attempts.clear()
+        yield
+        auth._failed_login_attempts.clear()
+
+    def test_first_failure_uses_base_delay(self, throttled_client):
+        _login(throttled_client, password="wrong")
+        assert throttled_client.sleeps == [auth._FAILED_LOGIN_BASE_DELAY_SECONDS]
+
+    def test_delay_scales_with_recent_failure_count(self, throttled_client):
+        for _ in range(3):
+            _login(throttled_client, password="wrong")
+        assert throttled_client.sleeps == [
+            auth._FAILED_LOGIN_BASE_DELAY_SECONDS * 1,
+            auth._FAILED_LOGIN_BASE_DELAY_SECONDS * 2,
+            auth._FAILED_LOGIN_BASE_DELAY_SECONDS * 3,
+        ]
+
+    def test_delay_capped_at_max(self, throttled_client):
+        attempts = int(auth._FAILED_LOGIN_MAX_DELAY_SECONDS / auth._FAILED_LOGIN_BASE_DELAY_SECONDS) + 5
+        for _ in range(attempts):
+            _login(throttled_client, password="wrong")
+        assert throttled_client.sleeps[-1] == auth._FAILED_LOGIN_MAX_DELAY_SECONDS
+
+    def test_successful_login_does_not_add_to_the_counter(self, throttled_client):
+        _login(throttled_client, password="wrong")
+        _login(throttled_client, password="wrong")
+        _login(throttled_client)  # correct credentials this time — not yet authenticated, so this proceeds
+        assert throttled_client.sleeps == [
+            auth._FAILED_LOGIN_BASE_DELAY_SECONDS * 1,
+            auth._FAILED_LOGIN_BASE_DELAY_SECONDS * 2,
+        ]
+
+    def test_different_source_ips_tracked_independently(self):
+        now = 1_000_000.0
+        assert auth._recent_failure_count("1.2.3.4", now) == 1
+        assert auth._recent_failure_count("1.2.3.4", now) == 2
+        assert auth._recent_failure_count("5.6.7.8", now) == 1
+
+    def test_old_failures_outside_window_do_not_count(self):
+        now = 1_000_000.0
+        assert auth._recent_failure_count("9.9.9.9", now) == 1
+        later = now + auth._FAILED_LOGIN_WINDOW_SECONDS + 1
+        assert auth._recent_failure_count("9.9.9.9", later) == 1
+
+    def test_tracked_ip_dict_is_swept_once_past_threshold(self):
+        now = 1_000_000.0
+        for i in range(auth._FAILED_LOGIN_TRACKED_IPS_SWEEP_THRESHOLD + 1):
+            auth._recent_failure_count(f"10.0.{i // 256}.{i % 256}", now)
+        stale_check_time = now + auth._FAILED_LOGIN_WINDOW_SECONDS + 1
+        auth._recent_failure_count("fresh-ip", stale_check_time)
+        assert len(auth._failed_login_attempts) < auth._FAILED_LOGIN_TRACKED_IPS_SWEEP_THRESHOLD + 2
+
+
 # ── Entra ID (Azure AD) SSO ───────────────────────────────────────────────────
 # See docs/auth-gate-guide.md's "Migrating to SSO" section. Per the
 # reference pattern's own testing guidance: patch build_msal_app to return a
@@ -276,7 +384,7 @@ def _entra_env(app):
 def entra_only_client(monkeypatch):
     """Entra configured; local username/password deliberately left unset —
     exercises the "SSO only, no fallback credential" deployment shape."""
-    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
     app = _make_app(REAL_SECRET_KEY)
     app.config["AUTH_USERNAME"] = ""
     app.config["AUTH_PASSWORD"] = ""
@@ -288,7 +396,7 @@ def entra_only_client(monkeypatch):
 def entra_and_local_client(monkeypatch):
     """Both Entra and local credentials configured — the "fallback available"
     deployment shape this was actually built for."""
-    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
     app = _make_app(REAL_SECRET_KEY)
     app.config["AUTH_USERNAME"] = "admin"
     app.config["AUTH_PASSWORD"] = "correct-horse"
@@ -307,7 +415,7 @@ def entra_configured_default_secret_key_client(monkeypatch):
     contacted, and a session cookie forged with the well-known default key
     was accepted as authenticated.
     """
-    monkeypatch.setattr(auth, "_FAILED_LOGIN_DELAY_SECONDS", 0)
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
     app = _make_app(auth.DEFAULT_SECRET_KEY)
     app.config["AUTH_USERNAME"] = "admin"
     app.config["AUTH_PASSWORD"] = "correct-horse"

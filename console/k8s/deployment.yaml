@@ -35,8 +35,22 @@ spec:
               value: production
             - name: PORT
               value: "8080"
+            # Must match k8s/ingress.yaml's stripPrefix path — the browser
+            # addresses this app at that full path even though Flask itself
+            # (behind the stripped prefix) never sees it. Scopes the session
+            # cookie away from sibling apps at their own prod/{appname}
+            # paths on the same origin. See config.py's SESSION_COOKIE_PATH.
+            - name: SESSION_COOKIE_PATH
+              value: "/prod/ethos-console"
             - name: CONDUCTOR_URL
               value: "https://du-int.doane.edu/prod/conductor"
+            # Extra hostnames the Replay UI's per-run conductor_url override
+            # is allowed to target, beyond CONDUCTOR_URL's own host above —
+            # comma-separated, e.g. "du-test.doane.edu". Leave empty unless
+            # operators need to point Replay at another Conductor instance;
+            # see app/conductor_client.py for why this is allow-listed.
+            - name: CONDUCTOR_ADDITIONAL_HOSTS
+              value: ""
           envFrom:
             - secretRef:
                 name: ethos-console-secrets

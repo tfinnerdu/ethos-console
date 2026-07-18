@@ -227,3 +227,21 @@ def test_check_health_ethos_configured_false():
     m = _monitor()
     m.client.is_configured.return_value = False
     assert m.check_health()["ethos_configured"] is False
+
+
+# ── instrumented flags ────────────────────────────────────────────────────────
+# record_api_call/record_event/record_error have no caller anywhere else in
+# this codebase — see this module's class docstring. These flags exist so
+# the Health tab can render "not tracked" instead of a misleading "0
+# errors"/empty table. This test is a tripwire: if it ever needs updating,
+# a real call site was wired up somewhere and the corresponding health.js
+# rendering should be revisited too.
+
+def test_check_health_reports_not_instrumented():
+    m = _monitor()
+    result = m.check_health()
+    assert result["instrumented"] == {
+        "latency": False,
+        "errors": False,
+        "resource_health": False,
+    }

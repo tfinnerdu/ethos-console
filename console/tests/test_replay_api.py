@@ -17,6 +17,20 @@ def mock_conductor(app):
         app.extensions["conductor_client"] = original
 
 
+@pytest.fixture()
+def real_conductor(app):
+    """Install a real (non-mocked) ConductorClient — needed to exercise its
+    host allow-list for real, since mock_conductor bypasses trigger_workflow
+    entirely."""
+    from app.conductor_client import ConductorClient
+    original = app.extensions.get("conductor_client")
+    real = ConductorClient(base_url="https://du-int.doane.edu/prod/conductor", api_key="real-key")
+    app.extensions["conductor_client"] = real
+    yield real
+    if original is not None:
+        app.extensions["conductor_client"] = original
+
+
 # ── fetch ─────────────────────────────────────────────────────────────────────
 
 def test_fetch_missing_message_id_returns_400(client):
@@ -95,6 +109,37 @@ def test_trigger_missing_conductor_url_returns_400(client, app):
                     json={"payload": _VALID_PAYLOAD, "workflow_name": "wf"})
     assert r.status_code == 400
     assert "conductor_url" in r.get_json()["error"]
+
+
+def test_trigger_rejects_unlisted_conductor_host(client, app, real_conductor):
+    # Regression: an operator-supplied conductor_url override used to be
+    # forwarded (with the real API key attached) to any host, no allow-list.
+    app.config["CONDUCTOR_URL"] = "https://du-int.doane.edu/prod/conductor"
+
+    r = client.post("/api/replay/trigger", json={
+        "payload": _VALID_PAYLOAD,
+        "workflow_name": "my-workflow",
+        "conductor_url": "https://attacker.example.com",
+    })
+
+    assert r.status_code == 400
+    assert "not allow-listed" in r.get_json()["error"]
+
+
+def test_trigger_allows_configured_conductor_host_with_real_client(client, app, real_conductor, monkeypatch):
+    app.config["CONDUCTOR_URL"] = "https://du-int.doane.edu/prod/conductor"
+    fake_response = MagicMock()
+    fake_response.text = '"wf-real-1"'
+    fake_response.raise_for_status.return_value = None
+    monkeypatch.setattr("app.conductor_client.requests.post", lambda *a, **k: fake_response)
+
+    r = client.post("/api/replay/trigger", json={
+        "payload": _VALID_PAYLOAD,
+        "workflow_name": "my-workflow",
+    })
+
+    assert r.status_code == 200
+    assert r.get_json()["workflow_id"] == "wf-real-1"
 
 
 def test_trigger_success_returns_workflow_id(client, app, mock_conductor):

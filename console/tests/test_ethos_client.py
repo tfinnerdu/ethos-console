@@ -1,4 +1,5 @@
 """Unit tests for EthosClient — all HTTP calls mocked."""
+import threading
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 import pytest
@@ -282,3 +283,52 @@ def test_get_queue_depth_dict_response(client):
         depth = client.get_queue_depth()
 
     assert depth == 17
+
+
+# ── reconfigure ───────────────────────────────────────────────────────────────
+# app/routes/env.py's /switch calls this on the one EthosClient instance the
+# whole app shares — regression coverage for the race two overlapping
+# switches used to have when they poked api_key/base_url/_token/_token_expiry
+# as four separate, unlocked assignments.
+
+def test_reconfigure_updates_api_key_and_base_url(client):
+    client.reconfigure(api_key="new-key", base_url="https://new.example.com/")
+    assert client.api_key == "new-key"
+    assert client.base_url == "https://new.example.com"  # trailing slash stripped
+
+
+def test_reconfigure_clears_cached_token(client):
+    client._token = "stale-token"
+    client._token_expiry = datetime.now(timezone.utc) + timedelta(minutes=30)
+    client.reconfigure(api_key="new-key", base_url="https://new.example.com")
+    assert client._token is None
+    assert client._token_expiry is None
+
+
+def test_reconfigure_blocks_while_another_reconfigure_holds_the_lock(client):
+    # Proves reconfigure() actually serializes against a concurrent
+    # reconfigure(), rather than each of the four field assignments being
+    # independently, unlockedly applied (the previous behavior in
+    # app/routes/env.py, before it called this method).
+    client.reconfigure(api_key="key-A", base_url="https://a.example.com")
+    client._reconfigure_lock.acquire()
+    applied = threading.Event()
+
+    def writer():
+        client.reconfigure(api_key="key-B", base_url="https://b.example.com")
+        applied.set()
+
+    t = threading.Thread(target=writer)
+    t.start()
+    # The writer should block on the lock we're still holding — not skip
+    # the call, and not partially apply key-B's fields.
+    became_unblocked_early = applied.wait(timeout=0.2)
+    assert not became_unblocked_early
+    assert client.api_key == "key-A"
+    assert client.base_url == "https://a.example.com"
+
+    client._reconfigure_lock.release()
+    assert applied.wait(timeout=1.0)
+    assert client.api_key == "key-B"
+    assert client.base_url == "https://b.example.com"
+    t.join()

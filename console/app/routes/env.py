@@ -24,11 +24,12 @@ def switch_environment():
     if not env:
         return jsonify({"error": f"Environment '{name}' not found"}), 404
 
+    # reconfigure() (not four direct attribute assignments) so this swap is
+    # atomic with respect to a second, concurrent /switch call — see its
+    # docstring in ethos_client.py for what this does and does not protect
+    # against (a request already in flight is a separate, accepted risk).
     ethos = current_app.extensions["ethos_client"]
-    ethos.api_key = env["key"]
-    ethos.base_url = env["url"].rstrip("/")
-    ethos._token = None
-    ethos._token_expiry = None
+    ethos.reconfigure(api_key=env["key"], base_url=env["url"])
 
     monitor = current_app.extensions.get("bus_monitor")
     if monitor:

@@ -7,6 +7,23 @@ log = logging.getLogger(__name__)
 
 
 class EthosHealthMonitor:
+    """Health tab's data source — see app/routes/health.py's GET /api/health/.
+
+    record_api_call(), record_event(), and record_error() below have no
+    caller anywhere in this codebase (nothing in ethos_client.py,
+    bus_monitor.py, or elsewhere feeds this monitor real activity). That
+    means api_latencies/resource_last_seen/resource_hourly_count/error_log
+    are permanently empty — not "confirmed zero activity," just never
+    measured. check_health()'s "instrumented" flags exist so the Health
+    tab can render "not tracked" instead of a misleading "0 errors" /
+    empty resource table that reads as confirmed-healthy. token_status and
+    queue_depth are NOT affected — those come straight from the live Ethos
+    client, not from this dead recording path.
+
+    If a real call site for record_api_call/record_event/record_error is
+    ever added, flip the corresponding flag in check_health() to True.
+    """
+
     def __init__(self, ethos_client):
         self.client = ethos_client
         self.api_latencies: deque = deque(maxlen=100)
@@ -106,4 +123,13 @@ class EthosHealthMonitor:
             "error_status": "red" if error_count_1h > 10 else "amber" if error_count_1h > 0 else "green",
             "resource_health": self.get_resource_health(),
             "ethos_configured": self.client.is_configured(),
+            # See this class's docstring — none of these are wired to a
+            # real activity source yet, so their corresponding fields
+            # above are always empty. Update these to True (never
+            # computed dynamically — see docstring) once that changes.
+            "instrumented": {
+                "latency": False,
+                "errors": False,
+                "resource_health": False,
+            },
         }
