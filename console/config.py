@@ -94,6 +94,27 @@ class Config:
     # not in that shared module.
     DOB_RECONCILE_IE_ORIGIN_CODES = os.environ.get("DOB_RECONCILE_IE_ORIGIN_CODES", "")
 
+    # DOB Repair — when true, accepting a candidate (POST /api/dob-repair/
+    # decision, action=accept) also triggers a Conductor workflow that
+    # performs the actual correction, instead of the correction only ever
+    # reaching Colleague via the CSV from GET /api/dob-repair/export/
+    # corrections. Off by default: this is a real write to a FERPA-protected
+    # field, so it should be turned on deliberately once the Conductor-side
+    # workflow (below) actually exists and has been tested — not as a side
+    # effect of upgrading this app.
+    DOB_RECONCILE_AUTO_APPLY = os.environ.get("DOB_RECONCILE_AUTO_APPLY", "").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+    # Conductor workflow name triggered by the above. It receives
+    # {person_id, corrected_from, corrected_to, candidate_id, reviewer} and
+    # is expected to GET the person, set the DOB, PUT it back to Ethos, and
+    # publish a change notification — see conductor_client.py's
+    # trigger_workflow() and docs on the Conductor side for the actual
+    # implementation (owned outside this app).
+    DOB_RECONCILE_APPLY_WORKFLOW_NAME = os.environ.get(
+        "DOB_RECONCILE_APPLY_WORKFLOW_NAME", "ethos_update_person_dob",
+    )
+
     # DoaneEdgeGate — the DOB-shift prevention reverse proxy in front of the
     # Colleague Web API (see DoaneEdgeGate/README.md). Base URL only, e.g.
     # "http://localhost:5199" or "https://edge-gate.internal.doane.edu"; the

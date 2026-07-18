@@ -7,6 +7,7 @@ routes module's in-memory _STATE dict before/after every test.
 """
 import io
 import os
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -28,13 +29,45 @@ def _reset_dob_state(app):
             "result": None, "by_id": {}, "source": None, "analyzed_at": None,
             "identity_threshold": dob_repair_routes.detector.IDENTITY_THRESHOLD,
         })
-        with app.app_context():
-            DobDecision.query.delete()
-            db.session.commit()
+        # No `with app.app_context():` here — conftest.py's session-scoped
+        # `app` fixture already keeps ONE app context pushed for the entire
+        # test session (it wraps its own `yield flask_app` the same way),
+        # and every client.post() call in every test reuses that same
+        # context's db.session. Wrapping this in a *second*, manually-
+        # pushed app_context() gets a completely different, freshly-scoped
+        # session — db.session.commit()/expunge_all() would silently affect
+        # the wrong session, never touching the one requests actually use,
+        # and a prior test's now-deleted-but-still-identity-mapped
+        # DobDecision object would cause a StaleDataError (UPDATE matching
+        # 0 rows) the next time a test reuses the same candidate_id.
+        DobDecision.query.delete()
+        db.session.commit()
+        # Query.delete() is a bulk operation that bypasses the ORM's normal
+        # object tracking — expire_all() alone isn't enough: it marks
+        # attributes stale for the next *read*, but a blind attribute
+        # *write* (like record_decision()'s existing.action = ...) skips
+        # that reload check entirely, so the ORM still believes the row is
+        # persistent until the UPDATE hits the DB and matches 0 rows.
+        # expunge_all() actually detaches these objects from the identity
+        # map.
+        db.session.expunge_all()
 
     _clear()
     yield
     _clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_auto_apply_config(app):
+    """The shared `app` is session-scoped, so config keys set by a test
+    below (DOB_RECONCILE_AUTO_APPLY, DOB_RECONCILE_APPLY_WORKFLOW_NAME)
+    would otherwise leak into every later test in the whole test session,
+    not just this file."""
+    original_auto_apply = app.config.get("DOB_RECONCILE_AUTO_APPLY")
+    original_workflow_name = app.config.get("DOB_RECONCILE_APPLY_WORKFLOW_NAME")
+    yield
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = original_auto_apply
+    app.config["DOB_RECONCILE_APPLY_WORKFLOW_NAME"] = original_workflow_name
 
 
 def _upload(client, filename="dob_sample_persons.csv"):
@@ -212,6 +245,148 @@ def test_decision_upserts_on_resubmit(client):
     })
     assert resp.status_code == 200
     assert resp.get_json()["action"] == "reject"
+
+
+# ── Auto-apply (Conductor trigger on accept) ──────────────────────────────────
+# DOB_RECONCILE_AUTO_APPLY is off by default (see config.py) — all the
+# existing decision tests above run with it unset/False and must keep
+# passing unmodified. These specifically exercise it turned on.
+
+@pytest.fixture()
+def mock_conductor(app):
+    """Replace app.extensions['conductor_client'] with a MagicMock — mirrors
+    test_replay_api.py's fixture of the same name."""
+    original = app.extensions.get("conductor_client")
+    mock = MagicMock()
+    mock.is_configured.return_value = True
+    mock.trigger_workflow.return_value = "wf-dob-123"
+    app.extensions["conductor_client"] = mock
+    yield mock
+    if original is not None:
+        app.extensions["conductor_client"] = original
+
+
+def test_accept_without_auto_apply_does_not_trigger_conductor(client, app, mock_conductor):
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = False
+    _upload(client)
+    resp = client.post("/api/dob-repair/decision", json={
+        "candidate_id": SMITH_HIGH, "action": "accept", "true_dob": "1980-04-03",
+    })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["apply_triggered"] is False
+    assert data["conductor_workflow_id"] is None
+    mock_conductor.trigger_workflow.assert_not_called()
+
+
+def test_accept_with_auto_apply_triggers_conductor_workflow(client, app, mock_conductor):
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = True
+    _upload(client)
+    resp = client.post("/api/dob-repair/decision", json={
+        "candidate_id": SMITH_HIGH, "action": "accept",
+        "true_dob": "1980-04-03", "reviewer": "reviewer@doane.edu",
+    })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["apply_triggered"] is True
+    assert data["conductor_workflow_id"] == "wf-dob-123"
+    assert data["apply_error"] is None
+
+    mock_conductor.trigger_workflow.assert_called_once()
+    workflow_name, payload = mock_conductor.trigger_workflow.call_args.args
+    assert workflow_name == "ethos_update_person_dob"
+    assert payload == {
+        "person_id": "1001",
+        "corrected_from": "1980-04-02",
+        "corrected_to": "1980-04-03",
+        "candidate_id": SMITH_HIGH,
+        "reviewer": "reviewer@doane.edu",
+    }
+
+
+def test_accept_apply_workflow_name_is_configurable(client, app, mock_conductor):
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = True
+    app.config["DOB_RECONCILE_APPLY_WORKFLOW_NAME"] = "custom_dob_workflow"
+    _upload(client)
+    client.post("/api/dob-repair/decision", json={
+        "candidate_id": SMITH_HIGH, "action": "accept", "true_dob": "1980-04-03",
+    })
+    workflow_name = mock_conductor.trigger_workflow.call_args.args[0]
+    assert workflow_name == "custom_dob_workflow"
+
+
+def test_accept_apply_trigger_failure_still_records_decision(client, app, mock_conductor):
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = True
+    mock_conductor.trigger_workflow.side_effect = RuntimeError("conductor unreachable")
+    _upload(client)
+    resp = client.post("/api/dob-repair/decision", json={
+        "candidate_id": SMITH_HIGH, "action": "accept", "true_dob": "1980-04-03",
+    })
+    assert resp.status_code == 200  # the decision itself still succeeded
+    data = resp.get_json()
+    assert data["corrected_person_id"] == "1001"  # decision recorded correctly
+    assert data["apply_triggered"] is False
+    assert data["conductor_workflow_id"] is None
+    assert "conductor unreachable" in data["apply_error"]
+
+    # Persisted, not just returned in the response.
+    with app.app_context():
+        decision = db.session.get(DobDecision, SMITH_HIGH)
+        assert decision.apply_error is not None
+        assert decision.conductor_workflow_id is None
+
+
+def test_accept_apply_skipped_when_conductor_not_configured(client, app):
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = True
+    # No mock_conductor fixture here — the real (unconfigured-by-default-in-
+    # tests) ConductorClient is still installed.
+    _upload(client)
+    resp = client.post("/api/dob-repair/decision", json={
+        "candidate_id": SMITH_HIGH, "action": "accept", "true_dob": "1980-04-03",
+    })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["apply_triggered"] is False
+    assert data["apply_error"] == "Conductor is not configured"
+
+
+def test_accept_resubmit_does_not_retrigger_conductor(client, app, mock_conductor):
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = True
+    _upload(client)
+    client.post("/api/dob-repair/decision", json={
+        "candidate_id": SMITH_HIGH, "action": "accept", "true_dob": "1980-04-03",
+    })
+    resp = client.post("/api/dob-repair/decision", json={
+        "candidate_id": SMITH_HIGH, "action": "accept",
+        "true_dob": "1980-04-03", "note": "confirming again",
+    })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["apply_triggered"] is True
+    assert data["conductor_workflow_id"] == "wf-dob-123"
+    # Only the first accept should have actually fired a real trigger.
+    mock_conductor.trigger_workflow.assert_called_once()
+
+
+def test_reject_never_triggers_conductor_even_with_auto_apply_on(client, app, mock_conductor):
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = True
+    _upload(client)
+    resp = client.post("/api/dob-repair/decision", json={
+        "candidate_id": LEE_REVIEW, "action": "reject", "reviewer": "r",
+    })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["apply_triggered"] is False
+    mock_conductor.trigger_workflow.assert_not_called()
+
+
+def test_defer_never_triggers_conductor_even_with_auto_apply_on(client, app, mock_conductor):
+    app.config["DOB_RECONCILE_AUTO_APPLY"] = True
+    _upload(client)
+    client.post("/api/dob-repair/decision", json={
+        "candidate_id": LEE_REVIEW, "action": "defer",
+    })
+    mock_conductor.trigger_workflow.assert_not_called()
 
 
 # ── Export corrections ───────────────────────────────────────────────────────

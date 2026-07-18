@@ -56,6 +56,7 @@ SAVED_QUERY_DICT_KEYS = {
 DOB_DECISION_DICT_KEYS = {
     "candidate_id", "action", "corrected_person_id", "corrected_from",
     "corrected_to", "reviewer", "decided_at", "note",
+    "conductor_workflow_id", "apply_triggered_at", "apply_error",
 }
 
 

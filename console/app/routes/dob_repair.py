@@ -6,10 +6,14 @@ the Central-time server). Runs the detector (app/dob_detector.py) against a
 PERSON export, surfaces a human-gated review queue, and exports approved
 corrections as CSV.
 
-This blueprint never writes to Colleague, Ethos, or NAE. It only persists
-the reviewer's decision (accept/reject/defer) in this app's own database and
-exports an approved-corrections CSV for a separate, sanctioned apply step
-outside this tool.
+This blueprint itself never talks to Colleague, Ethos, or NAE directly — it
+persists the reviewer's decision (accept/reject/defer) in this app's own
+database, exports an approved-corrections CSV for a manual apply step, and
+(only when DOB_RECONCILE_AUTO_APPLY is enabled) triggers a Conductor
+workflow that performs the actual correction outside this app. Either way,
+the write itself happens through a separate, sanctioned channel — this app
+only ever decides what should be written and, optionally, asks Conductor to
+do it.
 
 Analysis state (the last-computed candidate list) is held in a
 module-level, in-memory dict — recomputed on each /analyze call. Reviewer
@@ -222,6 +226,57 @@ def list_candidates():
         return jsonify({"error": str(exc)}), 500
 
 
+def _maybe_trigger_apply_workflow(existing: DobDecision, candidate_id: str, reviewer: str) -> tuple[bool, str | None]:
+    """For an accepted decision, best-effort trigger the Conductor workflow
+    that performs the actual Ethos PUT + change-notification publish.
+
+    Returns (apply_triggered, apply_error). Never raises — a failure here
+    must not undo or fail the decision recorded above it; it's recorded on
+    `existing` and surfaced to the caller instead. Idempotent: if this
+    candidate already has a conductor_workflow_id from a prior successful
+    trigger, does not trigger again (an incidental resubmission — e.g.
+    editing the note — must not fire a second real-world write).
+    """
+    if not current_app.config.get("DOB_RECONCILE_AUTO_APPLY"):
+        return False, None
+
+    if existing.conductor_workflow_id:
+        return True, None
+
+    conductor = current_app.extensions.get("conductor_client")
+    if not conductor or not conductor.is_configured():
+        return False, "Conductor is not configured"
+
+    workflow_name = current_app.config.get("DOB_RECONCILE_APPLY_WORKFLOW_NAME", "ethos_update_person_dob")
+    try:
+        workflow_id = conductor.trigger_workflow(workflow_name, {
+            "person_id": existing.corrected_person_id,
+            "corrected_from": existing.corrected_from,
+            "corrected_to": existing.corrected_to,
+            "candidate_id": candidate_id,
+            "reviewer": reviewer,
+        })
+    except Exception as exc:
+        current_app.logger.warning(
+            "dob_repair apply trigger failed: candidate=%s person=%s workflow=%s error=%s",
+            candidate_id, existing.corrected_person_id, workflow_name, exc,
+        )
+        existing.apply_error = str(exc)
+        existing.apply_triggered_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return False, str(exc)
+
+    existing.conductor_workflow_id = workflow_id
+    existing.apply_triggered_at = datetime.now(timezone.utc)
+    existing.apply_error = None
+    db.session.commit()
+    current_app.logger.info(
+        "dob_repair apply triggered: candidate=%s person=%s workflow=%s conductor_workflow_id=%s",
+        candidate_id, existing.corrected_person_id, workflow_name, workflow_id,
+    )
+    return True, None
+
+
 @dob_repair_bp.post("/decision")
 def record_decision():
     """Record a reviewer decision for one candidate pair.
@@ -230,6 +285,14 @@ def record_decision():
     For action="accept", true_dob must match one side of the pair — the
     reviewer is asserting which date is correct; the OTHER record is the one
     flagged as needing correction.
+
+    When DOB_RECONCILE_AUTO_APPLY is enabled, an "accept" additionally
+    triggers the Conductor workflow named by
+    DOB_RECONCILE_APPLY_WORKFLOW_NAME — see _maybe_trigger_apply_workflow()
+    above and the DobDecision class docstring. A failure to trigger it does
+    not fail this request; the decision itself is already durably recorded
+    by that point, and apply_error in the response reflects the trigger
+    outcome separately.
     """
     body = request.get_json(silent=True) or {}
     candidate_id = (body.get("candidate_id") or "").strip()
@@ -295,20 +358,29 @@ def record_decision():
         "dob_repair decision: candidate=%s action=%s corrected=%s reviewer=%s",
         candidate_id, action, corrected_person_id, reviewer,
     )
+
+    apply_triggered, apply_error = False, None
+    if action == "accept":
+        apply_triggered, apply_error = _maybe_trigger_apply_workflow(existing, candidate_id, reviewer)
+
     return jsonify({
         "candidate_id": candidate_id,
         "action": action,
         "corrected_person_id": corrected_person_id,
         "corrected_from": corrected_from,
         "corrected_to": corrected_to,
+        "apply_triggered": apply_triggered,
+        "conductor_workflow_id": existing.conductor_workflow_id,
+        "apply_error": apply_error or existing.apply_error,
     })
 
 
 @dob_repair_bp.get("/export/corrections")
 def export_corrections():
-    """CSV of approved corrections for a sanctioned apply step OUTSIDE this
-    tool. This is the only output that should touch a write path, and only
-    through a reviewed, audited channel (Ethos PUT or manual NAE correction)."""
+    """CSV of approved corrections, for a manual apply step outside this
+    tool — useful as a fallback/audit artifact regardless of whether
+    DOB_RECONCILE_AUTO_APPLY is also triggering corrections directly via
+    Conductor (see _maybe_trigger_apply_workflow() above)."""
     try:
         accepted = (
             DobDecision.query.filter(

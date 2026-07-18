@@ -350,10 +350,20 @@ class DobDecision(db.Model):
     """Reviewer disposition for one DOB Repair candidate pair (PD0002124).
 
     The detector (app/dob_detector.py) proposes; this table is where a
-    reviewer disposes. Nothing here writes to Colleague — a decision only
-    marks which record a human has approved for correction. The actual write
-    happens outside this app, through a sanctioned Ethos/NAE channel, using
-    the CSV this table feeds via GET /api/dob-repair/export/corrections.
+    reviewer disposes. A decision only marks which record a human has
+    approved for correction — this table itself is still never written to
+    Colleague directly.
+
+    When DOB_RECONCILE_AUTO_APPLY is enabled (see app/routes/dob_repair.py),
+    an "accept" additionally triggers a Conductor workflow
+    (DOB_RECONCILE_APPLY_WORKFLOW_NAME, default "ethos_update_person_dob")
+    that performs the actual Ethos PUT + change-notification publish outside
+    this app — conductor_workflow_id/apply_triggered_at/apply_error below
+    are that trigger's outcome, not confirmation that Colleague itself was
+    updated (this app has no visibility into the workflow's own execution
+    once handed off). With DOB_RECONCILE_AUTO_APPLY off (the default), the
+    CSV from GET /api/dob-repair/export/corrections remains the only
+    write-adjacent output, same as before.
 
     candidate_id is the detector's stable, order-independent pair key
     (sorted person_id pair), so decisions survive re-analysis against a
@@ -369,6 +379,12 @@ class DobDecision(db.Model):
     reviewer = db.Column(db.String(100), default="unknown")
     decided_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     note = db.Column(db.Text)
+    # Set only when DOB_RECONCILE_AUTO_APPLY triggered (or attempted to
+    # trigger) the Conductor apply workflow for this decision — see the
+    # class docstring above.
+    conductor_workflow_id = db.Column(db.String(200))
+    apply_triggered_at = db.Column(db.DateTime(timezone=True))
+    apply_error = db.Column(db.Text)
 
     def to_dict(self):
         return {
@@ -380,4 +396,7 @@ class DobDecision(db.Model):
             "reviewer": self.reviewer,
             "decided_at": self.decided_at.isoformat() if self.decided_at else None,
             "note": self.note or "",
+            "conductor_workflow_id": self.conductor_workflow_id,
+            "apply_triggered_at": self.apply_triggered_at.isoformat() if self.apply_triggered_at else None,
+            "apply_error": self.apply_error,
         }
