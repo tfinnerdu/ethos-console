@@ -13,10 +13,10 @@ class MockColleagueApiClient(ColleagueApiClient):
     def get_about(self) -> dict:
         return dict(fixtures.COLLEAGUE_ABOUT)
 
-    def get_event_configurations(self, resource_name: str | None = None) -> list:
+    def get_event_configurations(self, event: str | None = None, resource: str | None = None) -> list:
         items = list(fixtures.COLLEAGUE_EVENT_CONFIGS)
-        if resource_name:
-            items = [c for c in items if resource_name.lower() in c["resourceName"].lower()]
+        if resource:
+            items = [c for c in items if resource.lower() in c["resourceName"].lower()]
         return items
 
     def call_transaction(self, transaction_id: str, payload: dict) -> dict:

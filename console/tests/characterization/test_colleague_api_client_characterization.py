@@ -66,14 +66,35 @@ def test_get_about_calls_correct_url_and_returns_json(client_with_mock_session):
     assert kwargs["timeout"] == 15
 
 
-def test_get_event_configurations_passes_resource_name_param(client_with_mock_session):
+def test_get_event_configurations_passes_resource_param(client_with_mock_session):
+    # Regression: the real EventConfigurationsController takes `event` and
+    # `resource` as two separate query params — there is no `resourceName`.
+    # The previous version of this method sent exactly that nonexistent
+    # param, so every "filtered" call silently returned the full unfiltered
+    # list instead (still a 200, nothing ever surfaced the mistake).
     c = client_with_mock_session
     c._session.get.return_value = _mock_response([{"resourceName": "persons"}])
-    result = c.get_event_configurations(resource_name="persons")
+    result = c.get_event_configurations(resource="persons")
     assert result == [{"resourceName": "persons"}]
     args, kwargs = c._session.get.call_args
     assert args[0] == "https://colleague.example.edu/api/event-configurations"
-    assert kwargs["params"] == {"resourceName": "persons"}
+    assert kwargs["params"] == {"resource": "persons"}
+
+
+def test_get_event_configurations_passes_event_param(client_with_mock_session):
+    c = client_with_mock_session
+    c._session.get.return_value = _mock_response([])
+    c.get_event_configurations(event="AR")
+    _, kwargs = c._session.get.call_args
+    assert kwargs["params"] == {"event": "AR"}
+
+
+def test_get_event_configurations_passes_both_params_together(client_with_mock_session):
+    c = client_with_mock_session
+    c._session.get.return_value = _mock_response([])
+    c.get_event_configurations(event="AR", resource="persons")
+    _, kwargs = c._session.get.call_args
+    assert kwargs["params"] == {"event": "AR", "resource": "persons"}
 
 
 def test_get_event_configurations_omits_param_when_none(client_with_mock_session):

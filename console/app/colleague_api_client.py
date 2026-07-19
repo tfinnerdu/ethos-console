@@ -58,10 +58,19 @@ class ColleagueApiClient:
         r.raise_for_status()
         return r.json()
 
-    def get_event_configurations(self, resource_name: str | None = None) -> list:
+    def get_event_configurations(self, event: str | None = None, resource: str | None = None) -> list:
+        # The real EventConfigurationsController (confirmed from source) takes
+        # `event` and `resource` as two separate optional query params —
+        # there is no `resourceName` param. The previous version of this
+        # method sent exactly that nonexistent param name, so every
+        # "filtered" call silently returned the full unfiltered list instead
+        # (the endpoint just ignores params it doesn't recognize and still
+        # returns 200 — nothing here ever surfaced the mistake).
         params = {}
-        if resource_name:
-            params["resourceName"] = resource_name
+        if event:
+            params["event"] = event
+        if resource:
+            params["resource"] = resource
         r = self._session.get(
             f"{self.base_url}/api/event-configurations",
             headers=self._headers(),

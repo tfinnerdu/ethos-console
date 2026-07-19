@@ -68,7 +68,10 @@ def test_event_configs_passes_resource_name(client, mock_colleague_api):
     mock_colleague_api.get_event_configurations.return_value = [{"resourceName": "persons"}]
     r = client.get("/api/colleague/event-configurations?resourceName=persons")
     assert r.status_code == 200
-    mock_colleague_api.get_event_configurations.assert_called_with("persons")
+    # ethos-console's own ?resourceName= query param is this route's external
+    # contract and is unchanged — it's the client's outgoing param to the
+    # real Colleague Web API that was wrong (see colleague_api_client.py).
+    mock_colleague_api.get_event_configurations.assert_called_with(resource="persons")
 
 
 def test_event_configs_non_list_response_coerced_to_empty_list(client, mock_colleague_api):

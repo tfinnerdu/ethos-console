@@ -47,7 +47,7 @@ class CnRepository:
     def get_notifications(self, resource: str | None = None, status: str | None = None) -> list:
         if not self._colleague or not self._colleague.is_configured():
             return []
-        configs = self._colleague.get_event_configurations(resource_name=resource) or []
+        configs = self._colleague.get_event_configurations(resource=resource) or []
         items = []
         for c in configs:
             normalised = {

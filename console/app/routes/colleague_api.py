@@ -40,7 +40,7 @@ def get_event_configs():
         return err
     resource_name = request.args.get("resourceName")
     try:
-        data = client.get_event_configurations(resource_name)
+        data = client.get_event_configurations(resource=resource_name)
         return jsonify(data if isinstance(data, list) else [])
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
