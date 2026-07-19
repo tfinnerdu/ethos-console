@@ -1,5 +1,6 @@
 import base64
 
+import certifi
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context
@@ -22,6 +23,22 @@ class _LegacyTlsAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
         ctx = create_urllib3_context()
         ctx.options |= _OP_LEGACY_SERVER_CONNECT
+        # create_urllib3_context() returns a context with ZERO trusted CA
+        # certificates loaded (confirmed: ctx.cert_store_stats() gives
+        # {'x509': 0, 'crl': 0, 'x509_ca': 0}) — verify_mode is CERT_REQUIRED,
+        # but there's nothing to verify against. requests' own HTTPAdapter
+        # normally skips loading a CA bundle when `verify=True` (the default),
+        # specifically because it assumes "the connection will be using a
+        # context with the default certificates already loaded" — true for a
+        # plain HTTPAdapter (urllib3 builds its own context and loads certifi
+        # into it), false here, since we hand urllib3 an already-built context
+        # of our own. Without this line, every single HTTPS request through
+        # this adapter fails CERTIFICATE_VERIFY_FAILED / "unable to get local
+        # issuer certificate" — regardless of how valid the real server
+        # certificate is — which is exactly why it went unnoticed until now:
+        # every test exercising this client mocks _session.get/post directly
+        # and never actually performs a TLS handshake.
+        ctx.load_verify_locations(cafile=certifi.where())
         kwargs["ssl_context"] = ctx
         return super().init_poolmanager(*args, **kwargs)
 
