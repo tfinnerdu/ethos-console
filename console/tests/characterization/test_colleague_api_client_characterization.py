@@ -67,7 +67,7 @@ def test_get_about_calls_correct_url_and_returns_json(client_with_mock_session):
     result = c.get_about()
     assert result == {"version": "1.2.3"}
     args, kwargs = c._session.get.call_args
-    assert args[0] == "https://colleague.example.edu/api/about"
+    assert args[0] == "https://colleague.example.edu/about"
     assert kwargs["timeout"] == 15
 
 
@@ -82,7 +82,7 @@ def test_get_event_configurations_passes_resource_param(client_with_mock_session
     result = c.get_event_configurations(resource="persons")
     assert result == [{"resourceName": "persons"}]
     args, kwargs = c._session.get.call_args
-    assert args[0] == "https://colleague.example.edu/api/event-configurations"
+    assert args[0] == "https://colleague.example.edu/event-configurations"
     assert kwargs["params"] == {"resource": "persons"}
 
 
@@ -116,7 +116,7 @@ def test_call_transaction_posts_to_transactions_path_with_payload(client_with_mo
     result = c.call_transaction("GET.PERSON.INFO", {"personId": "1001"})
     assert result == {"result": "ok"}
     args, kwargs = c._session.post.call_args
-    assert args[0] == "https://colleague.example.edu/api/transactions/GET.PERSON.INFO"
+    assert args[0] == "https://colleague.example.edu/transactions/GET.PERSON.INFO"
     assert kwargs["json"] == {"personId": "1001"}
     assert kwargs["timeout"] == 30
 
@@ -133,7 +133,7 @@ def test_get_metadata_manifest_builds_domain_type_path(client_with_mock_session)
     c._session.get.return_value = _mock_response({"ApiDomain": "person"})
     c.get_metadata_manifest("person", "schema")
     args, _ = c._session.get.call_args
-    assert args[0] == "https://colleague.example.edu/api/metadata/manifest/person/schema"
+    assert args[0] == "https://colleague.example.edu/metadata/manifest/person/schema"
 
 
 def test_legacy_tls_adapter_only_adds_renegotiation_flag_no_verification_bypass(monkeypatch):

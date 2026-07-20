@@ -44,6 +44,16 @@ class _LegacyTlsAdapter(HTTPAdapter):
 
 
 class ColleagueApiClient:
+    # COLLEAGUE_WEB_API_URL is expected to already include the IIS site's own
+    # path (e.g. "https://cwsprod.doane.local:8183/ColleagueAPI"). Confirmed
+    # against a real, working request that event-configurations hangs
+    # directly off that base with no additional "/api/" segment
+    # (curl "http://cwsprod.doane.edu:8183/ColleagueApi/event-configurations?event=x&resource=y"),
+    # unlike what an ASP.NET Web API's usual "api/{controller}" convention
+    # would suggest. The other three endpoints below are updated to match on
+    # the assumption that one routing convention governs the whole
+    # controller set — only event-configurations has been independently,
+    # empirically confirmed.
     def __init__(self, base_url: str, username: str, password: str):
         self.base_url = base_url.rstrip("/")
         self._username = username
@@ -68,7 +78,7 @@ class ColleagueApiClient:
 
     def get_about(self) -> dict:
         r = self._session.get(
-            f"{self.base_url}/api/about",
+            f"{self.base_url}/about",
             headers=self._headers(),
             timeout=15,
         )
@@ -76,20 +86,19 @@ class ColleagueApiClient:
         return r.json()
 
     def get_event_configurations(self, event: str | None = None, resource: str | None = None) -> list:
-        # The real EventConfigurationsController (confirmed from source) takes
-        # `event` and `resource` as two separate optional query params —
-        # there is no `resourceName` param. The previous version of this
-        # method sent exactly that nonexistent param name, so every
-        # "filtered" call silently returned the full unfiltered list instead
-        # (the endpoint just ignores params it doesn't recognize and still
-        # returns 200 — nothing here ever surfaced the mistake).
+        # `event` and `resource` are two separate optional query params —
+        # there is no `resourceName`. The previous version of this method
+        # sent exactly that nonexistent param name, so every "filtered" call
+        # silently returned the full unfiltered list instead (the endpoint
+        # just ignores params it doesn't recognize and still returns 200 —
+        # nothing here ever surfaced the mistake).
         params = {}
         if event:
             params["event"] = event
         if resource:
             params["resource"] = resource
         r = self._session.get(
-            f"{self.base_url}/api/event-configurations",
+            f"{self.base_url}/event-configurations",
             headers=self._headers(),
             params=params,
             timeout=15,
@@ -99,7 +108,7 @@ class ColleagueApiClient:
 
     def call_transaction(self, transaction_id: str, payload: dict) -> dict:
         r = self._session.post(
-            f"{self.base_url}/api/transactions/{transaction_id}",
+            f"{self.base_url}/transactions/{transaction_id}",
             headers=self._headers(),
             json=payload,
             timeout=30,
@@ -109,7 +118,7 @@ class ColleagueApiClient:
 
     def get_metadata_manifest(self, api_domain: str, api_type: str) -> dict:
         r = self._session.get(
-            f"{self.base_url}/api/metadata/manifest/{api_domain}/{api_type}",
+            f"{self.base_url}/metadata/manifest/{api_domain}/{api_type}",
             headers=self._headers(),
             timeout=15,
         )

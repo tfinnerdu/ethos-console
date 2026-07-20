@@ -4,7 +4,7 @@ Replaces the HTTP proxy to the C# CNM service. Method shape is preserved
 1:1 so the /api/cn/* routes are a thin pass-through.
 
 The Colleague Web API reads (list, detail, paragraph) call the real
-/api/event-configurations endpoint via ColleagueApiClient — this is a live
+event-configurations endpoint via ColleagueApiClient — this is a live
 Colleague Web API call, not a stub. Field-name mapping in get_notifications()
 is best-effort against the documented shape (see the comment there); adjust
 if a real tenant returns different keys. The set-diff diagnostics is fully
@@ -41,9 +41,9 @@ class CnRepository:
 
     # ── change-notification reads ────────────────────────────────────────────
     # Routed through the Colleague Web API event-configurations endpoint —
-    # /api/event-configurations returns the live CN configuration. The
-    # field-name mapping below is best-effort against the documented shape;
-    # adjust if a real tenant returns different keys.
+    # returns the live CN configuration. The field-name mapping below is
+    # best-effort against the documented shape; adjust if a real tenant
+    # returns different keys.
     def get_notifications(self, resource: str | None = None, status: str | None = None) -> list:
         if not self._colleague or not self._colleague.is_configured():
             return []
