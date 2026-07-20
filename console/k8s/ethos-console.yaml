@@ -1,0 +1,458 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ethos-console-prod
+---
+# Optional — only needed if COLLEAGUE_WEB_API / DATABASE_URL below is set to
+# an absolute path (e.g. /data/ethos_console.db) instead of Postgres.
+# Postgres remains the default; this PVC costs nothing to have applied even
+# if unused, since nothing mounts it unless the commented-out volume/volume
+# mount/sidecar further down in the Deployment are also uncommented.
+#
+# ReadWriteOnce: SQLite is single-writer and file-based, so this is only
+# ever mounted by one pod at a time (replicas: 1, strategy: Recreate below
+# — never two pods holding it simultaneously).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ethos-console-sqlite-data
+  namespace: ethos-console-prod
+  labels:
+    app: ethos-console
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ethos-console
+  namespace: ethos-console-prod
+spec:
+  selector:
+    app: ethos-console
+  ports:
+    - name: http
+      targetPort: 8080
+      port: 80
+---
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: ethos-console-ingress-443
+  namespace: ethos-console-prod
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    ingress.kubernetes.io/custom-request-headers: l5d-dst-override:ethos-console.ethos-console-prod.svc.cluster.local:80
+    cert-manager.io/cluster-issuer: prod-letsencrypt
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/frontend-entry-points: "websecure"
+    traefik.ingress.kubernetes.io/router.middlewares: "ethos-console-prod-strip-prefix@kubernetescrd"
+spec:
+  rules:
+    - host: du-int.doane.edu
+      http:
+        paths:
+          - path: /prod/ethos-console
+            pathType: Prefix
+            backend:
+              service:
+                name: ethos-console
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - du-int.doane.edu
+      secretName: wildcard-doane-tls
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix
+  namespace: ethos-console-prod
+spec:
+  stripPrefix:
+    prefixes:
+      - /prod/ethos-console
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ethos-console
+  namespace: ethos-console-prod
+  labels:
+    app: ethos-console
+spec:
+  replicas: 1
+  # Recreate (not the default RollingUpdate): at replicas: 1, RollingUpdate
+  # tries to start the new pod before killing the old one, which deadlocks
+  # if DATABASE_URL points at the optional SQLite-on-PVC volume above (a
+  # ReadWriteOnce PVC can only be mounted by one pod at a time). replicas
+  # is pinned to 1 independent of that, too — BusMonitor, the GraphQL
+  # schema cache, and the resource caches are process-local state with no
+  # shared backing store (see Dockerfile's gunicorn --workers 1 comment for
+  # the same reasoning) — scale via infrastructure changes, not by bumping
+  # this number.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ethos-console
+  template:
+    metadata:
+      labels:
+        app: ethos-console
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: ethos-console
+          image: doaneu/ethos-console:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+
+          # volumeMounts:
+          #   - name: ethos-console-sqlite-data
+          #     mountPath: /data
+          # ↑ Uncomment (along with the `volumes:` block at the bottom of
+          # this Deployment) only if DATABASE_URL below is switched to an
+          # absolute /data/... path. Left commented, Postgres stays the
+          # default and the pod's readiness never depends on the PVC above
+          # actually binding.
+
+          env:
+            - name: FLASK_ENV
+              value: "production"
+            - name: PORT
+              value: "8080"
+
+            # ── All-or-nothing mock mode ──────────────────────────────────
+            - name: CONSOLE_MOCK_MODE
+              value: "false"
+
+            # ── Ethos environments — at least ETHOS_ENV_1_* is required ──
+            # (NAME/URL/KEY grouped together in the Secret for simplicity,
+            # matching the existing secret-template.yaml convention, even
+            # though NAME/URL alone aren't sensitive.) ENV_2/3 and every
+            # GRAPHQL_KEY are optional — omit them from the Secret entirely
+            # to leave that feature/environment off; optional: true here
+            # keeps the pod from crash-looping if they're absent.
+            - name: ETHOS_ENV_1_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv1Name
+            - name: ETHOS_ENV_1_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv1URL
+            - name: ETHOS_ENV_1_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv1Key
+            - name: ETHOS_ENV_1_GRAPHQL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv1GraphQLKey
+                  optional: true
+            - name: ETHOS_ENV_2_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv2Name
+                  optional: true
+            - name: ETHOS_ENV_2_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv2URL
+                  optional: true
+            - name: ETHOS_ENV_2_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv2Key
+                  optional: true
+            - name: ETHOS_ENV_2_GRAPHQL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv2GraphQLKey
+                  optional: true
+            - name: ETHOS_ENV_3_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv3Name
+                  optional: true
+            - name: ETHOS_ENV_3_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv3URL
+                  optional: true
+            - name: ETHOS_ENV_3_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv3Key
+                  optional: true
+            - name: ETHOS_ENV_3_GRAPHQL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: ethosEnv3GraphQLKey
+                  optional: true
+            - name: DEFAULT_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: defaultEnv
+                  optional: true
+
+            # ── Conductor (optional — used by the Replayer / DOB Repair
+            #    auto-apply) ─────────────────────────────────────────────
+            - name: CONDUCTOR_URL
+              value: "https://du-int.doane.edu/prod/conductor"
+            # Extra hostnames the Replay UI's per-run conductor_url override
+            # is allowed to target, beyond CONDUCTOR_URL's own host above —
+            # comma-separated, e.g. "du-test.doane.edu". Leave empty unless
+            # operators need to point Replay at another Conductor instance;
+            # see app/conductor_client.py for why this is allow-listed.
+            - name: CONDUCTOR_ADDITIONAL_HOSTS
+              value: ""
+            - name: CONDUCTOR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: conductorAPIKey
+                  optional: true
+
+            # ── Database ───────────────────────────────────────────────────
+            # A relative path (or relative-path sqlite:// URL) is refused at
+            # boot in production — that file lives in the container's
+            # ephemeral filesystem and vanishes on every redeploy. Use
+            # Postgres (the default below), or an ABSOLUTE path onto the
+            # PVC mounted above, e.g. "/data/ethos_console.db".
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: databaseURL
+            # Also signs the login session cookie — a default/known value
+            # here lets anyone forge a valid session, bypassing
+            # AUTH_USERNAME/AUTH_PASSWORD entirely.
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: secretKey
+
+            # ── Single-credential login gate — fail-closed if either of
+            #    these (or Entra, below) isn't configured ─────────────────
+            - name: AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: authUsername
+            - name: AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: authPassword
+            - name: AUTH_COOKIE_SECURE
+              value: "true"
+            - name: AUTH_SESSION_LIFETIME_HOURS
+              value: "8"
+            # Must match this Ingress's stripPrefix path above — the
+            # browser addresses this app at that full path even though
+            # Flask itself (behind the stripped prefix) never sees it.
+            # Scopes the session cookie away from sibling apps at their own
+            # prod/{appname} paths on the same origin.
+            - name: SESSION_COOKIE_PATH
+              value: "/prod/ethos-console"
+
+            # ── Entra ID (Azure AD) SSO — optional; all four required
+            #    together to enable it ──────────────────────────────────
+            - name: ENTRA_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: entraTenantID
+                  optional: true
+            - name: ENTRA_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: entraClientID
+                  optional: true
+            - name: ENTRA_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: entraClientSecret
+                  optional: true
+            - name: ENTRA_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: entraRedirectURI
+                  optional: true
+
+            # ── Colleague Web API (optional — Colleague API tab + CN
+            #    Monitor reads). URL must include the IIS site's own path
+            #    (e.g. ".../ColleagueAPI") — routes hang directly off it
+            #    with no additional "/api/" segment. ──────────────────────
+            - name: COLLEAGUE_WEB_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: colleagueWebAPIURL
+                  optional: true
+            - name: COLLEAGUE_WEB_API_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: colleagueWebAPIUser
+                  optional: true
+            - name: COLLEAGUE_WEB_API_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: colleagueWebAPIPass
+                  optional: true
+
+            # ── UniData / Colleague Direct Query (optional — Phase 3 tab) ──
+            - name: UNIDATA_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: unidataHost
+                  optional: true
+            - name: UNIDATA_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: unidataPort
+                  optional: true
+            - name: UNIDATA_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: unidataUser
+                  optional: true
+            - name: UNIDATA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: unidataPassword
+                  optional: true
+            - name: UNIDATA_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: unidataAccount
+                  optional: true
+
+            # ── DOB Repair (PD0002124) ────────────────────────────────────
+            - name: DOB_RECONCILE_INPUT_CSV
+              value: ""
+            - name: DOB_RECONCILE_SQL_FILE
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: dobReconcileSQLFile
+                  optional: true
+            # A complete ODBC connection string with an embedded password —
+            # this app never assembles one from parts.
+            - name: DOB_RECONCILE_DB
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: dobReconcileDB
+                  optional: true
+            - name: DOB_RECONCILE_IE_ORIGIN_CODES
+              value: "0420024,GUEST,WEBCASHIER"
+            # Real write to a FERPA-protected field when true — leave false
+            # until the Conductor-side ethos_update_person_dob workflow
+            # actually exists and has been tested.
+            - name: DOB_RECONCILE_AUTO_APPLY
+              value: "false"
+            - name: DOB_RECONCILE_APPLY_WORKFLOW_NAME
+              value: "ethos_update_person_dob"
+
+            # ── DoaneEdgeGate (optional — Health tab tile) ────────────────
+            - name: EDGE_GATE_URL
+              value: ""
+
+            # ── Bus Monitor ────────────────────────────────────────────────
+            - name: BUS_POLL_INTERVAL
+              value: "2"
+            - name: SILENCE_THRESHOLD_MINUTES
+              value: "30"
+            # Teams/Slack incoming webhook URL — anyone who has it can post
+            # to that channel, so it's a secret even though it's "just a
+            # URL". Leave unset (omit the key) to keep alerting off.
+            - name: BUS_ALERT_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ethos-console-secrets
+                  key: busAlertWebhookURL
+                  optional: true
+            - name: BUS_ERROR_SPIKE_THRESHOLD
+              value: "10"
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /api/health/live
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health/live
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+        # ── SQLite-on-PVC debug sidecar (optional, matching the volume
+        #    mount above) — runs nothing but a shell for `kubectl exec`
+        #    access to inspect the live db file (e.g. `apk add sqlite &&
+        #    sqlite3 /data/ethos_console.db ...`) without exec'ing into the
+        #    app container's own image. Uncomment only if DATABASE_URL is
+        #    actually pointed at /data/... — costs real (if small)
+        #    resources otherwise. ─────────────────────────────────────────
+        # - name: sqlite-data
+        #   image: alpine:3.20
+        #   command: ["sleep", "infinity"]
+        #   volumeMounts:
+        #     - name: ethos-console-sqlite-data
+        #       mountPath: /data
+        #   resources:
+        #     requests:
+        #       cpu: "10m"
+        #       memory: "16Mi"
+        #     limits:
+        #       cpu: "50m"
+        #       memory: "32Mi"
+
+      # volumes:
+      #   - name: ethos-console-sqlite-data
+      #     persistentVolumeClaim:
+      #       claimName: ethos-console-sqlite-data

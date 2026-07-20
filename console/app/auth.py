@@ -34,7 +34,7 @@ from flask import current_app, g, jsonify, redirect, request, session, url_for
 DEFAULT_SECRET_KEY = "dev-secret-change-in-prod"
 
 # Paths reachable with no session at all. /api/health/live backs the k8s
-# liveness AND readiness probes (k8s/deployment.yaml) and is pinned by
+# liveness AND readiness probes (k8s/ethos-console.yaml's Deployment) and is pinned by
 # test_contracts.py::test_health_live_always_200 to always return 200 — it
 # must never depend on auth being configured, or a misconfigured secret
 # turns into a crash-looping pod instead of an app that simply refuses to

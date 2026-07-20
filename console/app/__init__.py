@@ -45,7 +45,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     if overrides:
         app.config.update(overrides)
 
-    # k8s/ingress.yaml puts Traefik in front of every production request, so
+    # k8s/ethos-console.yaml's Ingress puts Traefik in front of every production request, so
     # request.remote_addr would otherwise always be the ingress pod's IP —
     # not the real client — which is what app/auth.py's
     # record_failed_login() logs on every failed attempt. Gated on ENV

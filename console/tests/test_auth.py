@@ -250,7 +250,7 @@ class TestLoginFlow:
 @pytest.fixture()
 def path_scoped_client(monkeypatch):
     """Same as configured_client, but with SESSION_COOKIE_PATH set — as a
-    real deployment behind k8s/ingress.yaml's stripPrefix would have it."""
+    real deployment behind k8s/ethos-console.yaml's stripPrefix would have it."""
     monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
     app = _make_app(REAL_SECRET_KEY)
     app.config["AUTH_USERNAME"] = "admin"

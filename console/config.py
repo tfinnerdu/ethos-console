@@ -52,7 +52,7 @@ class Config:
     SESSION_COOKIE_SECURE = os.environ.get("AUTH_COOKIE_SECURE", "true") in (
         "1", "true", "True", "yes",
     )
-    # k8s/ingress.yaml fronts this app behind a stripPrefix middleware at
+    # k8s/ethos-console.yaml's Ingress fronts this app behind a stripPrefix middleware at
     # /prod/ethos-console — Flask itself sees clean root-relative paths (the
     # prefix never reaches it), but the *browser* still addresses the app at
     # that full path, and other apps live alongside it at their own
