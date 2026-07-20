@@ -10,7 +10,7 @@ async function loadTypes() {
   list.innerHTML = '<div class="text-muted small text-center py-2"><span class="spinner-border spinner-border-sm"></span></div>';
 
   try {
-    const r = await fetch('/api/schema-browser/types');
+    const r = await fetch('api/schema-browser/types');
     const data = await r.json();
     if (data.error) throw new Error(data.error);
     allTypes = data.items || [];
@@ -56,7 +56,7 @@ async function selectType(typeName) {
   panel.innerHTML = '<div class="text-muted small text-center py-2"><span class="spinner-border spinner-border-sm"></span></div>';
 
   try {
-    const r = await fetch(`/api/schema-browser/type/${encodeURIComponent(typeName)}`);
+    const r = await fetch(`api/schema-browser/type/${encodeURIComponent(typeName)}`);
     const data = await r.json();
     if (data.error) throw new Error(data.error);
 
@@ -109,7 +109,7 @@ async function validatePayload() {
   result.innerHTML = '<div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>Validating…</div>';
 
   try {
-    const r = await fetch('/api/schema-browser/validate', {
+    const r = await fetch('api/schema-browser/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resource, version: version || undefined, payload }),

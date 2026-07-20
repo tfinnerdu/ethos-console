@@ -18,6 +18,31 @@ from config import config
 _WINDOWS_ABS_PATH_RE = re.compile(r"^[A-Za-z]:[/\\]")
 
 
+class PrefixMiddleware:
+    """Tells Flask it's mounted under `prefix` (e.g. "/prod/ethos-console")
+    so url_for() — every redirect, every Flask-generated static/link URL —
+    comes back with that prefix intact.
+
+    Traefik's stripPrefix middleware (k8s/ethos-console.yaml) already
+    removes the prefix from PATH_INFO before it reaches this app, so the
+    startswith() strip below is normally a no-op; it only matters if this
+    ever runs behind something that forwards the prefix unstripped.
+    """
+
+    def __init__(self, wsgi_app, prefix):
+        self.wsgi_app = wsgi_app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if path.startswith(self.prefix):
+            environ["PATH_INFO"] = path[len(self.prefix):]
+            environ["SCRIPT_NAME"] = self.prefix
+        else:
+            environ["SCRIPT_NAME"] = self.prefix
+        return self.wsgi_app(environ, start_response)
+
+
 def _is_absolute_sqlite_path(path: str) -> bool:
     """True for a Unix-style ("/...") or Windows-style ("C:/..." / "C:\\...")
     absolute filesystem path.
@@ -56,6 +81,10 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     # single Traefik ingress this app is actually deployed behind.
     if app.config.get("ENV") == "production":
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    url_prefix = app.config.get("URL_PREFIX", "")
+    if url_prefix:
+        app.wsgi_app = PrefixMiddleware(app.wsgi_app, url_prefix)
 
     # Fail-closed on the DB, mirroring the auth gate's own fail-closed posture
     # (app/auth.py): a production run with no DATABASE_URL silently falls back

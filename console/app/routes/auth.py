@@ -43,7 +43,7 @@ def login_page():
         return render_template("login.html", not_configured=True), 503
 
     if auth.is_authenticated():
-        return redirect(auth.safe_next_path(request.args.get("next", "/")))
+        return redirect(request.script_root + auth.safe_next_path(request.args.get("next", "/")))
 
     if request.method == "POST":
         username = request.form.get("username", "")
@@ -53,7 +53,11 @@ def login_page():
         if auth.verify_credentials(username, password):
             auth.login(username)
             current_app.logger.info("login succeeded: username=%r", username)
-            return redirect(next_path)
+            # next_path (via safe_next_path) is a validated app-relative path
+            # with no knowledge of the ingress stripPrefix — request.script_root
+            # (set by app/__init__.py's PrefixMiddleware from URL_PREFIX) adds
+            # it back so the browser's next request actually reaches this app.
+            return redirect(request.script_root + next_path)
 
         auth.record_failed_login(username)
         return render_template(
@@ -170,4 +174,4 @@ def auth_callback():
 
     auth.login(email)
     current_app.logger.info("Entra login succeeded: user=%r", email)
-    return redirect(next_path)
+    return redirect(request.script_root + next_path)

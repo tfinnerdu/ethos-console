@@ -39,7 +39,7 @@ const AUDIT_PAGE_SIZE = 50;
 
 async function loadHealth() {
   try {
-    const r = await fetch('/api/cn/health');
+    const r = await fetch('api/cn/health');
     const dot = document.getElementById('cnm-dot');
     const txt = document.getElementById('cnm-status-text');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -64,7 +64,7 @@ function fmtUptime(secs) {
 
 async function loadNotifications() {
   try {
-    const r = await fetch('/api/cn/notifications');
+    const r = await fetch('api/cn/notifications');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     allNotifications = data.items || [];
@@ -116,8 +116,8 @@ async function selectNotification(id) {
 
   try {
     const [detailR, histR] = await Promise.all([
-      fetch(`/api/cn/notifications/${encodeURIComponent(id)}`),
-      fetch(`/api/cn/notifications/${encodeURIComponent(id)}/history`),
+      fetch(`api/cn/notifications/${encodeURIComponent(id)}`),
+      fetch(`api/cn/notifications/${encodeURIComponent(id)}/history`),
     ]);
 
     const n = detailR.ok ? await detailR.json() : null;
@@ -177,7 +177,7 @@ async function selectNotification(id) {
 
 async function loadDiagnostics() {
   try {
-    const r = await fetch('/api/cn/diagnostics');
+    const r = await fetch('api/cn/diagnostics');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
 
@@ -217,7 +217,7 @@ async function loadAuditLog(page) {
   if (target) params.set('targetIdentifier', target);
 
   try {
-    const r = await fetch('/api/cn/audit-log?' + params);
+    const r = await fetch('api/cn/audit-log?' + params);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     auditTotalCount = d.totalCount || 0;
@@ -297,7 +297,7 @@ async function runPush() {
   for (const guid of guids) upsertPushResult(guid, { status: 'pending' });
 
   try {
-    const r = await fetch('/api/cn/push', {
+    const r = await fetch('api/cn/push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resource_name: resourceName, operation, guids }),

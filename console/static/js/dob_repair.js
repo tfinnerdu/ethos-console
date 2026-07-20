@@ -14,7 +14,7 @@ const DOB_BUCKET_BADGE = {
 
 async function dobLoadStatus() {
   try {
-    const r = await fetch('/api/dob-repair/status');
+    const r = await fetch('api/dob-repair/status');
     const s = await r.json();
     document.getElementById('dob-analyze-status').textContent = s.analyzed
       ? 'Last analyzed: ' + new Date(s.analyzed_at).toLocaleString() + ' — source: ' + s.source
@@ -46,7 +46,7 @@ async function dobAnalyze(useConfiguredPath) {
   statusEl.textContent = 'Analyzing...';
 
   try {
-    const r = await fetch('/api/dob-repair/analyze', { method: 'POST', body: form });
+    const r = await fetch('api/dob-repair/analyze', { method: 'POST', body: form });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Analyze failed');
 
@@ -71,7 +71,7 @@ async function dobAnalyzeSql() {
   statusEl.textContent = 'Running configured SQL query...';
 
   try {
-    const r = await fetch('/api/dob-repair/analyze/sql', {
+    const r = await fetch('api/dob-repair/analyze/sql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ threshold: parseInt(thresholdInput.value || '6', 10) }),
@@ -94,7 +94,7 @@ async function dobAnalyzeSql() {
 // ── Candidates + rendering ──────────────────────────────────────────────────
 
 async function dobLoadCandidates() {
-  const r = await fetch('/api/dob-repair/candidates');
+  const r = await fetch('api/dob-repair/candidates');
   if (!r.ok) return; // 404 NOT_ANALYZED before the first analysis — leave placeholder
   const data = await r.json();
   dobRenderSummary(data.summary);
@@ -209,7 +209,7 @@ async function dobDecide(row, action) {
   }
 
   try {
-    const r = await fetch('/api/dob-repair/decision', {
+    const r = await fetch('api/dob-repair/decision', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ candidate_id: candidateId, action: action, true_dob: trueDob, reviewer: 'console' }),
@@ -225,7 +225,7 @@ async function dobDecide(row, action) {
 // ── Export ───────────────────────────────────────────────────────────────────
 
 async function dobExportCorrections() {
-  window.location.href = '/api/dob-repair/export/corrections';
+  window.location.href = 'api/dob-repair/export/corrections';
 }
 
 // ── Wiring ───────────────────────────────────────────────────────────────────

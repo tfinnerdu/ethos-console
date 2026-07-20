@@ -15,7 +15,7 @@ async function loadDiffResources() {
   list.innerHTML = '<div class="text-muted small text-center py-2"><span class="spinner-border spinner-border-sm"></span></div>';
 
   try {
-    const r = await fetch('/api/resources/');
+    const r = await fetch('api/resources/');
     const data = await r.json();
     diffResources = (data.items || []).map(r => r.name || r.resourceName).filter(Boolean).sort();
     if (!diffResources.length && data.error) {
@@ -49,7 +49,7 @@ async function runDiff(resource) {
   panel.innerHTML = '<div class="text-muted small text-center py-2"><span class="spinner-border spinner-border-sm"></span></div>';
 
   try {
-    const r = await fetch(`/api/phase3/field-diff/${encodeURIComponent(resource)}`);
+    const r = await fetch(`api/phase3/field-diff/${encodeURIComponent(resource)}`);
     const data = await r.json();
 
     if (data.error) { panel.innerHTML = `<div class="text-danger small">${data.error}</div>`; return; }

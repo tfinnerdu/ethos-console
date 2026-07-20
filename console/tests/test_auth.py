@@ -21,9 +21,9 @@ from app import auth, create_app
 REAL_SECRET_KEY = "a-real-random-test-signing-key-not-the-default"
 
 
-def _make_app(secret_key):
+def _make_app(secret_key, overrides=None):
     with patch("app.ethos_client.EthosClient.is_configured", return_value=False):
-        test_app = create_app("development")
+        test_app = create_app("development", overrides=overrides)
     test_app.config.update(
         TESTING=False,
         # Flask lazily sets the "app"-named logger to DEBUG the first time
@@ -274,6 +274,43 @@ class TestSessionCookiePath:
         resp = _login(path_scoped_client)
         cookies = resp.headers.get_all("Set-Cookie")
         assert any("Path=/prod/ethos-console" in c for c in cookies)
+
+
+@pytest.fixture()
+def url_prefixed_client(monkeypatch):
+    """Like configured_client, but with URL_PREFIX set — as this app runs
+    behind k8s/ethos-console.yaml's Ingress + stripPrefix Middleware at
+    /prod/ethos-console. Regression: app/__init__.py's PrefixMiddleware sets
+    the WSGI SCRIPT_NAME from this so url_for()/redirect() know to include
+    it — without it, every post-login redirect (and every raw
+    redirect(next_path) in app/routes/auth.py) comes back without the
+    prefix, which the ingress's own path-based routing rule can't match on
+    the browser's next request."""
+    monkeypatch.setattr(auth, "_FAILED_LOGIN_BASE_DELAY_SECONDS", 0)
+    app = _make_app(REAL_SECRET_KEY, overrides={"URL_PREFIX": "/prod/ethos-console"})
+    app.config["AUTH_USERNAME"] = "admin"
+    app.config["AUTH_PASSWORD"] = "correct-horse"
+    return app.test_client()
+
+
+class TestUrlPrefix:
+    def test_no_prefix_by_default(self, configured_client):
+        resp = _login(configured_client)
+        assert resp.headers["Location"] == "/"
+
+    def test_login_redirect_includes_prefix(self, url_prefixed_client):
+        resp = _login(url_prefixed_client)
+        assert resp.status_code == 302
+        assert resp.headers["Location"] == "/prod/ethos-console/"
+
+    def test_next_path_redirect_includes_prefix(self, url_prefixed_client):
+        resp = _login(url_prefixed_client, next_path="/dob-repair")
+        assert resp.headers["Location"] == "/prod/ethos-console/dob-repair"
+
+    def test_gate_redirect_to_login_includes_prefix(self, url_prefixed_client):
+        resp = url_prefixed_client.get("/dob-repair")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].startswith("/prod/ethos-console/login")
 
 
 @pytest.fixture()

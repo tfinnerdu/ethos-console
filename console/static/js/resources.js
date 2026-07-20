@@ -18,9 +18,9 @@ function esc(s) {
 async function loadResources() {
   document.getElementById('resource-status').textContent = 'Fetching from Ethos...';
   const [resR, cnR, annR] = await Promise.allSettled([
-    fetch('/api/resources/').then(r => r.json()),
-    fetch('/api/resources/cn-enabled').then(r => r.json()),
-    fetch('/api/resources/annotations').then(r => r.json()),
+    fetch('api/resources/').then(r => r.json()),
+    fetch('api/resources/cn-enabled').then(r => r.json()),
+    fetch('api/resources/annotations').then(r => r.json()),
   ]);
 
   if (resR.status === 'fulfilled') {
@@ -149,11 +149,11 @@ async function loadMnemonicMatches(resourceName) {
   const container = document.getElementById('dp-mnemonics');
   container.innerHTML = '<div class="text-muted small">Searching...</div>';
   try {
-    const r = await fetch(`/api/mnemonics/?q=${encodeURIComponent(resourceName)}`);
+    const r = await fetch(`api/mnemonics/?q=${encodeURIComponent(resourceName)}`);
     const items = await r.json();
     const matches = items.filter(m => (m.eedm_resource || '').toLowerCase().includes(resourceName.toLowerCase()));
     if (!matches.length) {
-      container.innerHTML = '<div class="text-muted small">No mnemonic entries match this resource. <a href="/mnemonics">Add one →</a></div>';
+      container.innerHTML = '<div class="text-muted small">No mnemonic entries match this resource. <a href="mnemonics">Add one →</a></div>';
       return;
     }
     container.innerHTML = matches.map(m => `
@@ -264,7 +264,7 @@ async function saveAnnotation() {
   };
 
   try {
-    const r = await fetch(`/api/resources/${encodeURIComponent(selectedResource)}/annotate`, {
+    const r = await fetch(`api/resources/${encodeURIComponent(selectedResource)}/annotate`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

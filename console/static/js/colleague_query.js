@@ -12,7 +12,7 @@ async function loadFiles() {
   if (!list) return;
   list.innerHTML = '<div class="text-center py-2"><span class="spinner-border spinner-border-sm"></span></div>';
   try {
-    const r = await fetch('/api/phase3/colleague-files');
+    const r = await fetch('api/phase3/colleague-files');
     const data = await r.json();
     allFiles = data.items || [];
     renderFiles(allFiles);
@@ -78,7 +78,7 @@ async function runQuery() {
 
   const t0 = Date.now();
   try {
-    const r = await fetch('/api/phase3/colleague-query', {
+    const r = await fetch('api/phase3/colleague-query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ statement }),
@@ -253,7 +253,7 @@ async function callSubroutine() {
 
   const t0 = Date.now();
   try {
-    const r = await fetch('/api/phase3/subroutine', {
+    const r = await fetch('api/phase3/subroutine', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, args }),

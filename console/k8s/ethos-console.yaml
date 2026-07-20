@@ -78,6 +78,23 @@ spec:
     prefixes:
       - /prod/ethos-console
 ---
+# A Secret is namespace-scoped — the wildcard-doane-tls Secret the Ingress's
+# tls block references above has to be provisioned INTO this namespace, not
+# just borrowed from wherever another app's copy happens to live. Namespace
+# matches this Deployment's own (ethos-console-prod), not shared "prod".
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ethos-console-tls
+  namespace: ethos-console-prod
+spec:
+  secretName: wildcard-doane-tls
+  issuerRef:
+    name: prod-letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - du-int.doane.edu
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -279,6 +296,12 @@ spec:
             # Scopes the session cookie away from sibling apps at their own
             # prod/{appname} paths on the same origin.
             - name: SESSION_COOKIE_PATH
+              value: "/prod/ethos-console"
+            # Same prefix as SESSION_COOKIE_PATH above — consumed by
+            # app/__init__.py's PrefixMiddleware to set WSGI SCRIPT_NAME, so
+            # every redirect/url_for()-built URL comes back with the prefix
+            # intact instead of a bare path the Ingress below can't route.
+            - name: URL_PREFIX
               value: "/prod/ethos-console"
 
             # ── Entra ID (Azure AD) SSO — optional; all four required

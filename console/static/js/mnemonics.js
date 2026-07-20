@@ -5,7 +5,7 @@ let selectedId = null;
 let addModal = null;
 
 async function loadMnemonics(q) {
-  const url = q ? `/api/mnemonics/?q=${encodeURIComponent(q)}` : '/api/mnemonics/';
+  const url = q ? `api/mnemonics/?q=${encodeURIComponent(q)}` : 'api/mnemonics/';
   const r = await fetch(url);
   allMnemonics = await r.json();
   renderList();
@@ -134,7 +134,7 @@ async function saveMnemonic() {
     updated_by: 'console',
   };
 
-  const url = editId ? `/api/mnemonics/${editId}` : '/api/mnemonics/';
+  const url = editId ? `api/mnemonics/${editId}` : 'api/mnemonics/';
   const method = editId ? 'PUT' : 'POST';
 
   const confirmed = await confirmAction({
@@ -172,7 +172,7 @@ async function deleteSelected() {
     danger: true,
   });
   if (!confirmed) return;
-  await fetch(`/api/mnemonics/${selectedId}`, {method: 'DELETE'});
+  await fetch(`api/mnemonics/${selectedId}`, {method: 'DELETE'});
   selectedId = null;
   document.getElementById('detail-panel').style.display = 'none';
   document.getElementById('detail-placeholder').style.display = '';

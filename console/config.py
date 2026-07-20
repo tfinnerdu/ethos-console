@@ -67,6 +67,13 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(
         hours=float(os.environ.get("AUTH_SESSION_LIFETIME_HOURS", "8"))
     )
+    # Same prefix as SESSION_COOKIE_PATH above, for the same ingress
+    # stripPrefix deployment — but consumed by app/__init__.py's
+    # PrefixMiddleware to set the WSGI SCRIPT_NAME, so url_for() (redirects,
+    # the login page's links, static file URLs Flask itself generates) comes
+    # back with the prefix intact. Leave unset for local dev or a deployment
+    # with no such prefix.
+    URL_PREFIX = os.environ.get("URL_PREFIX", "").rstrip("/")
 
     # Entra ID (Azure AD) SSO — optional. When all four are set, the login
     # gate auto-redirects unauthenticated browser requests straight to

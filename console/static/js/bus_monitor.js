@@ -10,7 +10,7 @@ let filteredCount = 0;
 
 function connectStream() {
   if (evtSource) evtSource.close();
-  evtSource = new EventSource('/api/bus/stream');
+  evtSource = new EventSource('api/bus/stream');
 
   evtSource.onmessage = function (e) {
     let data;
@@ -127,7 +127,7 @@ function updateStartStopUI(isRunning) {
 
 async function syncMonitorStatus() {
   try {
-    const r = await fetch('/api/bus/stats');
+    const r = await fetch('api/bus/stats');
     const data = await r.json();
     updateStartStopUI(!!data.running);
   } catch {
@@ -138,7 +138,7 @@ async function syncMonitorStatus() {
 document.getElementById('btn-start-stop').addEventListener('click', async function () {
   this.disabled = true;
   try {
-    const endpoint = running ? '/api/bus/stop' : '/api/bus/start';
+    const endpoint = running ? 'api/bus/stop' : 'api/bus/start';
     const r = await fetch(endpoint, { method: 'POST' });
     const data = await r.json();
     if (!r.ok) {
@@ -239,7 +239,7 @@ async function savePresetPrompt() {
     confirmLabel: 'Save',
   });
   if (!confirmed) return;
-  const r = await fetch('/api/bus/presets', {
+  const r = await fetch('api/bus/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -252,7 +252,7 @@ async function savePresetPrompt() {
 }
 
 async function loadPresets() {
-  const r = await fetch('/api/bus/presets');
+  const r = await fetch('api/bus/presets');
   const data = await r.json();
   const items = data.items || [];
   const dropdown = document.getElementById('presets-dropdown');
@@ -284,7 +284,7 @@ async function deletePreset(id) {
     danger: true,
   });
   if (!confirmed) return;
-  await fetch(`/api/bus/presets/${id}`, { method: 'DELETE' });
+  await fetch(`api/bus/presets/${id}`, { method: 'DELETE' });
   loadPresets();
 }
 
@@ -295,7 +295,7 @@ document.getElementById('btn-pause').addEventListener('click', function () {
   const label = paused ? '<i class="bi bi-play-fill"></i> Resume' : '<i class="bi bi-pause-fill"></i> Pause';
   this.innerHTML = label;
   document.getElementById('tile-paused-status').textContent = paused ? 'Paused' : 'Streaming';
-  fetch(`/api/bus/${paused ? 'pause' : 'resume'}`, { method: 'POST' });
+  fetch(`api/bus/${paused ? 'pause' : 'resume'}`, { method: 'POST' });
 });
 
 document.getElementById('btn-clear').addEventListener('click', async function () {
@@ -315,7 +315,7 @@ document.getElementById('btn-clear').addEventListener('click', async function ()
   document.getElementById('tile-silent').textContent = '— silent';
   document.getElementById('resource-tbody').innerHTML =
     '<tr><td colspan="4" class="text-muted text-center py-3">No events yet</td></tr>';
-  fetch('/api/bus/clear', { method: 'POST' });
+  fetch('api/bus/clear', { method: 'POST' });
 });
 
 connectStream();

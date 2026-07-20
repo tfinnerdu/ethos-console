@@ -3,17 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Resolves every relative href/src/fetch()/EventSource() URL on this page
+       against the ingress stripPrefix path (URL_PREFIX/PrefixMiddleware) —
+       must stay the first thing in <head> that could touch a relative URL. -->
+  <base href="{{ request.script_root }}/" />
   <title>Doane Ethos Dev Console{% block title_suffix %}{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="/static/css/app.css" />
+  <link rel="stylesheet" href="static/css/app.css" />
   {% block head %}{% endblock %}
 </head>
 <body>
 
 <!-- Top navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark doane-nav px-3">
-  <a class="navbar-brand fw-bold" href="/">
+  <a class="navbar-brand fw-bold" href=".">
     <span class="doane-dot"></span>Doane Ethos Dev Console
   </a>
   <div class="ms-auto d-flex align-items-center gap-3">
@@ -49,13 +53,13 @@
       </ul>
     </div>
     {% endif %}
-    <a href="/health" class="nav-link text-white-50 small">
+    <a href="health" class="nav-link text-white-50 small">
       <i class="bi bi-heart-pulse me-1"></i>Health
     </a>
-    <a href="/help" class="nav-link text-white-50 small" title="Help &amp; User Guide" aria-label="Help &amp; User Guide">
+    <a href="help" class="nav-link text-white-50 small" title="Help &amp; User Guide" aria-label="Help &amp; User Guide">
       <i class="bi bi-question-circle me-1"></i>Help
     </a>
-    <a href="/logout" class="nav-link text-white-50 small">
+    <a href="logout" class="nav-link text-white-50 small">
       <i class="bi bi-box-arrow-right me-1"></i>Sign out
     </a>
   </div>
@@ -70,7 +74,7 @@
 <script>
 (function () {
   function checkToken() {
-    fetch('/api/health/token').then(function(r){ return r.json(); }).then(function(d) {
+    fetch('api/health/token').then(function(r){ return r.json(); }).then(function(d) {
       var banner = document.getElementById('token-warn');
       var mins = d.expires_in_minutes;
       if (d.valid && mins <= 10 && mins > 0) {
@@ -94,7 +98,7 @@ async function switchEthosEnv(name) {
     confirmLabel: 'Switch',
   });
   if (!ok) return;
-  fetch('/api/env/switch', {
+  fetch('api/env/switch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: name }),
@@ -108,48 +112,48 @@ async function switchEthosEnv(name) {
 <!-- Tab bar -->
 <div class="tab-bar">
   <div class="container-fluid px-3 d-flex gap-1 flex-wrap">
-    <a href="/"                 class="tab-item {% if active_tab == 'bus' %}active{% endif %}">
+    <a href="."                 class="tab-item {% if active_tab == 'bus' %}active{% endif %}">
       <i class="bi bi-broadcast me-1"></i>Bus Monitor
       {% if not configured_features.ethos %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/replay"           class="tab-item {% if active_tab == 'replay' %}active{% endif %}">
+    <a href="replay"           class="tab-item {% if active_tab == 'replay' %}active{% endif %}">
       <i class="bi bi-arrow-counterclockwise me-1"></i>Replay
       {% if not configured_features.conductor %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/graphql"          class="tab-item {% if active_tab == 'graphql' %}active{% endif %}">
+    <a href="graphql"          class="tab-item {% if active_tab == 'graphql' %}active{% endif %}">
       <i class="bi bi-braces me-1"></i>GraphQL
       {% if not configured_features.ethos %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/schema-browser"   class="tab-item {% if active_tab == 'schema_browser' %}active{% endif %}">
+    <a href="schema-browser"   class="tab-item {% if active_tab == 'schema_browser' %}active{% endif %}">
       <i class="bi bi-diagram-3 me-1"></i>Schema
       {% if not configured_features.ethos %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/resources"        class="tab-item {% if active_tab == 'resources' %}active{% endif %}">
+    <a href="resources"        class="tab-item {% if active_tab == 'resources' %}active{% endif %}">
       <i class="bi bi-grid-3x3-gap me-1"></i>Resources
       {% if not configured_features.ethos %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/mnemonics"        class="tab-item {% if active_tab == 'mnemonics' %}active{% endif %}">
+    <a href="mnemonics"        class="tab-item {% if active_tab == 'mnemonics' %}active{% endif %}">
       <i class="bi bi-book me-1"></i>Mnemonics
     </a>
-    <a href="/dob-repair"       class="tab-item {% if active_tab == 'dob_repair' %}active{% endif %}">
+    <a href="dob-repair"       class="tab-item {% if active_tab == 'dob_repair' %}active{% endif %}">
       <i class="bi bi-calendar-week me-1"></i>DOB Repair
     </a>
-    <a href="/field-diff"       class="tab-item {% if active_tab == 'field_diff' %}active{% endif %}">
+    <a href="field-diff"       class="tab-item {% if active_tab == 'field_diff' %}active{% endif %}">
       <i class="bi bi-arrow-left-right me-1"></i>Field Diff
       {% if not configured_features.unidata %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/colleague-query"  class="tab-item {% if active_tab == 'colleague_query' %}active{% endif %}">
+    <a href="colleague-query"  class="tab-item {% if active_tab == 'colleague_query' %}active{% endif %}">
       <i class="bi bi-terminal me-1"></i>Direct Query
       {% if not configured_features.unidata %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/colleague-api"    class="tab-item {% if active_tab == 'colleague_api' %}active{% endif %}">
+    <a href="colleague-api"    class="tab-item {% if active_tab == 'colleague_api' %}active{% endif %}">
       <i class="bi bi-cpu me-1"></i>Colleague API
       {% if not configured_features.colleague_api %}<span class="tab-off-badge">off</span>{% endif %}
     </a>
-    <a href="/cn-monitor"       class="tab-item {% if active_tab == 'cn_monitor' %}active{% endif %}">
+    <a href="cn-monitor"       class="tab-item {% if active_tab == 'cn_monitor' %}active{% endif %}">
       <i class="bi bi-bell me-1"></i>Change Notifications
     </a>
-    <a href="/health"           class="tab-item {% if active_tab == 'health' %}active{% endif %}">
+    <a href="health"           class="tab-item {% if active_tab == 'health' %}active{% endif %}">
       <i class="bi bi-activity me-1"></i>Health
     </a>
   </div>
@@ -161,7 +165,7 @@ async function switchEthosEnv(name) {
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/confirm.js"></script>
+<script src="static/js/confirm.js"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

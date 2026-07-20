@@ -26,7 +26,7 @@ function fmtUptime(sec) {
 async function loadHealth() {
   let data;
   try {
-    const r = await fetch('/api/health/');
+    const r = await fetch('api/health/');
     data = await r.json();
   } catch (e) {
     console.error('Health fetch failed', e);
@@ -109,7 +109,7 @@ async function loadHealth() {
 async function loadEdgeGateHealth() {
   let data;
   try {
-    const r = await fetch('/api/health/edge-gate');
+    const r = await fetch('api/health/edge-gate');
     data = await r.json();
   } catch (e) {
     console.error('Edge gate health fetch failed', e);
@@ -144,7 +144,7 @@ async function refreshConsoleCaches() {
   status.className = 'small text-muted ms-2';
   status.textContent = 'Refreshing…';
   try {
-    const r = await fetch('/api/health/caches/refresh', { method: 'POST' });
+    const r = await fetch('api/health/caches/refresh', { method: 'POST' });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
     status.className = 'small text-success ms-2';

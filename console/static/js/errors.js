@@ -9,8 +9,8 @@ const PAGE_SIZE = 50;
 async function loadTiles() {
   try {
     const [allR, todayR] = await Promise.allSettled([
-      fetch('/api/errors/?limit=1&offset=0').then(r => r.json()),
-      fetch('/api/errors/?limit=1&offset=0&from_ts=' + todayIso()).then(r => r.json()),
+      fetch('api/errors/?limit=1&offset=0').then(r => r.json()),
+      fetch('api/errors/?limit=1&offset=0&from_ts=' + todayIso()).then(r => r.json()),
     ]);
     if (allR.status === 'fulfilled') {
       document.getElementById('err-total').textContent = allR.value.total ?? '—';
@@ -20,7 +20,7 @@ async function loadTiles() {
       document.getElementById('err-today-label').textContent = new Date().toLocaleDateString();
     }
 
-    const rateR = await fetch('/api/errors/?limit=1&offset=0&http_status=429');
+    const rateR = await fetch('api/errors/?limit=1&offset=0&http_status=429');
     const rateData = await rateR.json();
     document.getElementById('err-429').textContent = rateData.total ?? '—';
   } catch (e) {
@@ -39,7 +39,7 @@ function todayIso() {
 async function loadSpikes() {
   const container = document.getElementById('spikes-chart');
   try {
-    const r = await fetch('/api/errors/spikes');
+    const r = await fetch('api/errors/spikes');
     const data = await r.json();
     if (!data.length) {
       container.innerHTML = '<div class="text-muted small text-center py-3">No error data</div>';
@@ -92,13 +92,13 @@ async function loadErrors(resetPage) {
   const exportParams = new URLSearchParams(params);
   exportParams.delete('limit');
   exportParams.delete('offset');
-  document.getElementById('btn-export').href = '/api/errors/export?' + exportParams.toString();
+  document.getElementById('btn-export').href = 'api/errors/export?' + exportParams.toString();
 
   const tbody = document.getElementById('errors-tbody');
   tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Loading...</td></tr>';
 
   try {
-    const r = await fetch('/api/errors/?' + params.toString());
+    const r = await fetch('api/errors/?' + params.toString());
     const data = await r.json();
 
     const total = data.total || 0;
@@ -159,7 +159,7 @@ async function flushMemory() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Flushing...';
   try {
-    await fetch('/api/errors/flush', { method: 'POST' });
+    await fetch('api/errors/flush', { method: 'POST' });
     await loadErrors(true);
     await loadTiles();
   } catch (e) {

@@ -178,8 +178,8 @@ def test_help_route_404_when_doc_missing(client):
 
 def test_help_icon_present_and_positioned_before_logout(client):
     html = client.get("/").get_data(as_text=True)
-    help_idx = html.find('href="/help"')
-    logout_idx = html.find('href="/logout"')
+    help_idx = html.find('href="help"')
+    logout_idx = html.find('href="logout"')
     assert help_idx != -1, "help icon link not found in navbar"
     assert logout_idx != -1, "logout link not found in navbar"
     assert help_idx < logout_idx, "help icon should sit before (to the left of) Logout"

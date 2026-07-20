@@ -14,7 +14,7 @@ async function testConnection() {
   dot.style.background = '#ffc107';
   text.textContent = 'Connecting…';
   try {
-    const r = await fetch('/api/colleague/about');
+    const r = await fetch('api/colleague/about');
     const data = await r.json();
     if (data.error) {
       dot.style.background = '#dc3545';
@@ -38,7 +38,7 @@ async function loadEventConfigs() {
   const list = document.getElementById('evcfg-list');
   list.innerHTML = '<div class="text-center py-2"><span class="spinner-border spinner-border-sm"></span></div>';
   try {
-    const r = await fetch('/api/colleague/event-configurations');
+    const r = await fetch('api/colleague/event-configurations');
     const data = await r.json();
     if (data.error) {
       list.innerHTML = `<div class="text-danger small px-1">${escapeHtml(data.error)}<br><small class="text-muted">${escapeHtml(data.setup || '')}</small></div>`;
@@ -142,7 +142,7 @@ async function callTransaction() {
 
   const t0 = Date.now();
   try {
-    const r = await fetch('/api/colleague/transaction', {
+    const r = await fetch('api/colleague/transaction', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ transactionId: txId, payload }),

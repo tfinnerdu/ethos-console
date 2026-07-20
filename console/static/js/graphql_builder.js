@@ -12,7 +12,7 @@ async function loadSchema() {
   const status = document.getElementById('schema-status');
   status.textContent = 'Loading...';
   try {
-    const r = await fetch('/api/graphql-console/schema');
+    const r = await fetch('api/graphql-console/schema');
     const data = await r.json();
     if (data.error) throw new Error(data.error);
     schemaData = data;
@@ -236,7 +236,7 @@ async function runQuery() {
 
   const t0 = Date.now();
   try {
-    const r = await fetch('/api/graphql-console/execute', {
+    const r = await fetch('api/graphql-console/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, variables }),
@@ -303,7 +303,7 @@ let savedQueries = [];
 
 async function loadSavedQueries() {
   try {
-    const r = await fetch('/api/graphql-console/saved');
+    const r = await fetch('api/graphql-console/saved');
     const data = await r.json();
     savedQueries = data.items ?? (Array.isArray(data) ? data : []);
     renderSavedChips();
@@ -359,7 +359,7 @@ async function saveCurrentQuery() {
   });
   if (!confirmed) return;
 
-  await fetch('/api/graphql-console/saved', {
+  await fetch('api/graphql-console/saved', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, description: desc, query_text, variables }),
@@ -376,7 +376,7 @@ async function deleteQuery(id) {
     danger: true,
   });
   if (!confirmed) return;
-  await fetch(`/api/graphql-console/saved/${id}`, { method: 'DELETE' });
+  await fetch(`api/graphql-console/saved/${id}`, { method: 'DELETE' });
   await loadSavedQueries();
 }
 

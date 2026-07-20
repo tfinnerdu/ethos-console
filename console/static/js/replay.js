@@ -20,7 +20,7 @@ async function fetchMessage() {
   btn.textContent = 'Fetching...';
 
   try {
-    const r = await fetch('/api/replay/fetch', {
+    const r = await fetch('api/replay/fetch', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({message_id: msgId}),
@@ -123,7 +123,7 @@ async function triggerReplay() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Triggering...';
 
   try {
-    const r = await fetch('/api/replay/trigger', {
+    const r = await fetch('api/replay/trigger', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({payload: currentPayload, workflow_name: workflowName, conductor_url: conductorUrl}),
@@ -160,7 +160,7 @@ function showResult(ok, data) {
 
 async function loadHistory() {
   try {
-    const r = await fetch('/api/replay/history');
+    const r = await fetch('api/replay/history');
     const data = await r.json();
     const tbody = document.getElementById('history-tbody');
     if (!data.items || !data.items.length) {
