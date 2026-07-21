@@ -36,7 +36,7 @@ spec:
     app: ethos-console
   ports:
     - name: http
-      targetPort: 8080
+      targetPort: 5000
       port: 80
 ---
 kind: Ingress
@@ -130,7 +130,7 @@ spec:
           image: doaneu/ethos-console:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
+            - containerPort: 5000
               name: http
               protocol: TCP
 
@@ -147,7 +147,7 @@ spec:
             - name: FLASK_ENV
               value: "production"
             - name: PORT
-              value: "8080"
+              value: "5000"
 
             # ── All-or-nothing mock mode ──────────────────────────────────
             - name: CONSOLE_MOCK_MODE
@@ -163,76 +163,76 @@ spec:
             - name: ETHOS_ENV_1_NAME
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv1Name
             - name: ETHOS_ENV_1_URL
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv1URL
             - name: ETHOS_ENV_1_KEY
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv1Key
             - name: ETHOS_ENV_1_GRAPHQL_KEY
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv1GraphQLKey
                   optional: true
             - name: ETHOS_ENV_2_NAME
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv2Name
                   optional: true
             - name: ETHOS_ENV_2_URL
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv2URL
                   optional: true
             - name: ETHOS_ENV_2_KEY
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv2Key
                   optional: true
             - name: ETHOS_ENV_2_GRAPHQL_KEY
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv2GraphQLKey
                   optional: true
             - name: ETHOS_ENV_3_NAME
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv3Name
                   optional: true
             - name: ETHOS_ENV_3_URL
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv3URL
                   optional: true
             - name: ETHOS_ENV_3_KEY
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv3Key
                   optional: true
             - name: ETHOS_ENV_3_GRAPHQL_KEY
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: ethosEnv3GraphQLKey
                   optional: true
             - name: DEFAULT_ENV
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: defaultEnv
                   optional: true
 
@@ -250,7 +250,7 @@ spec:
             - name: CONDUCTOR_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: conductorAPIKey
                   optional: true
 
@@ -261,17 +261,14 @@ spec:
             # Postgres (the default below), or an ABSOLUTE path onto the
             # PVC mounted above, e.g. "/data/ethos_console.db".
             - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: ethos-console-secrets
-                  key: databaseURL
+              value: "/data/ethos_console.db"
             # Also signs the login session cookie — a default/known value
             # here lets anyone forge a valid session, bypassing
             # AUTH_USERNAME/AUTH_PASSWORD entirely.
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: secretKey
 
             # ── Single-credential login gate — fail-closed if either of
@@ -279,12 +276,12 @@ spec:
             - name: AUTH_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: authUsername
             - name: AUTH_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: authPassword
             - name: AUTH_COOKIE_SECURE
               value: "true"
@@ -309,25 +306,25 @@ spec:
             - name: ENTRA_TENANT_ID
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: entraTenantID
                   optional: true
             - name: ENTRA_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: entraClientID
                   optional: true
             - name: ENTRA_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: entraClientSecret
                   optional: true
             - name: ENTRA_REDIRECT_URI
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: entraRedirectURI
                   optional: true
 
@@ -338,19 +335,19 @@ spec:
             - name: COLLEAGUE_WEB_API_URL
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: colleagueWebAPIURL
                   optional: true
             - name: COLLEAGUE_WEB_API_USER
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: colleagueWebAPIUser
                   optional: true
             - name: COLLEAGUE_WEB_API_PASS
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: colleagueWebAPIPass
                   optional: true
 
@@ -358,31 +355,31 @@ spec:
             - name: UNIDATA_HOST
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: unidataHost
                   optional: true
             - name: UNIDATA_PORT
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: unidataPort
                   optional: true
             - name: UNIDATA_USER
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: unidataUser
                   optional: true
             - name: UNIDATA_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: unidataPassword
                   optional: true
             - name: UNIDATA_ACCOUNT
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: unidataAccount
                   optional: true
 
@@ -392,7 +389,7 @@ spec:
             - name: DOB_RECONCILE_SQL_FILE
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: dobReconcileSQLFile
                   optional: true
             # A complete ODBC connection string with an embedded password —
@@ -400,7 +397,7 @@ spec:
             - name: DOB_RECONCILE_DB
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: dobReconcileDB
                   optional: true
             - name: DOB_RECONCILE_IE_ORIGIN_CODES
@@ -428,7 +425,7 @@ spec:
             - name: BUS_ALERT_WEBHOOK_URL
               valueFrom:
                 secretKeyRef:
-                  name: ethos-console-secrets
+                  name: ethos-console-secret-config
                   key: busAlertWebhookURL
                   optional: true
             - name: BUS_ERROR_SPIKE_THRESHOLD
@@ -444,13 +441,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/health/live
-              port: 8080
+              port: 5000
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /api/health/live
-              port: 8080
+              port: 5000
             initialDelaySeconds: 5
             periodSeconds: 10
 
@@ -461,21 +458,21 @@ spec:
         #    app container's own image. Uncomment only if DATABASE_URL is
         #    actually pointed at /data/... — costs real (if small)
         #    resources otherwise. ─────────────────────────────────────────
-        # - name: sqlite-data
-        #   image: alpine:3.20
-        #   command: ["sleep", "infinity"]
-        #   volumeMounts:
-        #     - name: ethos-console-sqlite-data
-        #       mountPath: /data
-        #   resources:
-        #     requests:
-        #       cpu: "10m"
-        #       memory: "16Mi"
-        #     limits:
-        #       cpu: "50m"
-        #       memory: "32Mi"
+        - name: sqlite-data
+          image: alpine:3.20
+          command: ["sleep", "infinity"]
+          volumeMounts:
+            - name: ethos-console-sqlite-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
 
-      # volumes:
-      #   - name: ethos-console-sqlite-data
-      #     persistentVolumeClaim:
-      #       claimName: ethos-console-sqlite-data
+      volumes:
+        - name: ethos-console-sqlite-data
+          persistentVolumeClaim:
+            claimName: ethos-console-sqlite-data

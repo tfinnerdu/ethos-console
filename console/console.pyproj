@@ -174,7 +174,6 @@
     <None Include="start-local.ps1" />
     <None Include=".env.example" />
     <None Include="k8s\ethos-console.yaml" />
-    <None Include="k8s\secret-template.yaml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="app\" />
